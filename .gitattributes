@@ -3,3 +3,5 @@ defuddle.js linguist-vendored=true
 starter-vault/** -whitespace
 *.base text
 *.canvas text
+*.ps1 text eol=crlf
+*.cmd text eol=crlf

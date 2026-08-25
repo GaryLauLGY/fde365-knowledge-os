@@ -1,0 +1,53 @@
+name: Verify Windows installer
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-simulation:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: npm ci
+      - run: npm run build
+      - run: npm run check:windows
+      - run: npm run package:windows
+      - name: Run isolated Windows installation
+        shell: pwsh
+        run: |
+          $qa = Join-Path $env:RUNNER_TEMP "fde365-windows-qa"
+          $bundle = Join-Path $qa "bundle"
+          New-Item -ItemType Directory -Path $bundle -Force | Out-Null
+          Expand-Archive -LiteralPath "windows-release/FDE365-Knowledge-OS-Windows-v1.0.0.zip" -DestinationPath $bundle
+          $root = Join-Path $bundle "FDE365-Knowledge-OS-Windows-v1.0.0"
+          $env:FDE365_SIMULATION = "1"
+          $env:FDE365_NONINTERACTIVE = "1"
+          $env:FDE365_TOKEN_INPUT = "windows-ci-placeholder-token"
+          $env:FDE365_MODEL = "gpt-5.6-luna"
+          $env:FDE365_HOME_OVERRIDE = Join-Path $qa "home"
+          $env:FDE365_APPDATA_OVERRIDE = Join-Path $qa "appdata"
+          $env:FDE365_LOCALAPPDATA_OVERRIDE = Join-Path $qa "localappdata"
+          $env:FDE365_DESKTOP_OVERRIDE = Join-Path $qa "desktop"
+          $env:FDE365_VAULT_PATH = Join-Path $qa "vault"
+          & (Join-Path $root "开始安装 FDE365.ps1")
+          if (-not $?) { throw "Windows simulation installer failed" }
+          & (Join-Path $root "检查安装.ps1")
+          if (-not $?) { throw "Windows simulation diagnostics failed" }
+          $data = Get-Content -LiteralPath (Join-Path $qa "vault/.obsidian/plugins/fde365-knowledge-os/data.json") -Raw | ConvertFrom-Json
+          if ($data.ai.fde365.token -ne "windows-ci-placeholder-token") { throw "Simulation Token mismatch" }
+          if ((Get-Content -LiteralPath (Join-Path $qa "home/.codex/config.toml") -Raw) -notmatch "https://api.fde365.ai/v1") { throw "Codex Base URL mismatch" }
+          if ((Get-Content -LiteralPath (Join-Path $qa "home/.claude/settings.json") -Raw) -notmatch "https://api.fde365.ai") { throw "Claude Base URL mismatch" }

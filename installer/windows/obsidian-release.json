@@ -1,0 +1,8 @@
+{
+  "version": "1.13.7",
+  "windowsUrl": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/Obsidian-1.13.7.exe",
+  "publisher": "Dynalist Inc",
+  "codexVersion": "0.149.1",
+  "codexWindowsUrl": "https://github.com/openai/codex/releases/download/rust-v0.149.1/codex-x86_64-pc-windows-msvc.exe.zip",
+  "codexWindowsSha256": "c19dd84738dee791c4d39a96bd080d94f098af074ae9d2ef5e27d3d85a122665"
+}
