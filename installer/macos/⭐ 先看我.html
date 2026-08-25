@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FDE365 一键安装说明</title>
+  <style>
+    :root { color-scheme: light; --ink:#15213a; --muted:#64718a; --line:#dbe4f2; --brand:#5267f6; --soft:#f3f6ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:48px 22px; color:var(--ink); background:linear-gradient(145deg,#f6f8ff,#eef5ff); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    main { width:min(820px,100%); margin:auto; padding:42px; border:1px solid rgba(143,161,201,.35); border-radius:28px; background:rgba(255,255,255,.92); box-shadow:0 24px 70px rgba(47,70,130,.14); }
+    header { display:flex; align-items:center; gap:22px; padding-bottom:28px; border-bottom:1px solid var(--line); }
+    header img { width:148px; height:auto; }
+    h1 { margin:0 0 8px; font-size:32px; letter-spacing:-.04em; }
+    h2 { margin:34px 0 14px; font-size:21px; }
+    p { margin:8px 0; color:var(--muted); font-size:16px; line-height:1.75; }
+    .lead { color:var(--ink); font-size:18px; }
+    .steps { display:grid; gap:12px; margin-top:18px; }
+    .step { display:grid; grid-template-columns:38px 1fr; gap:14px; padding:17px; border:1px solid var(--line); border-radius:16px; background:#fff; }
+    .num { display:grid; place-items:center; width:38px; height:38px; color:#fff; font-weight:800; border-radius:12px; background:linear-gradient(145deg,var(--brand),#7b58ed); }
+    .step strong { display:block; margin:1px 0 4px; font-size:16px; }
+    .step span { color:var(--muted); line-height:1.6; }
+    .tools { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:15px; }
+    .tool { padding:18px 15px; border-radius:16px; background:var(--soft); }
+    .tool strong { display:block; margin-bottom:7px; }
+    .tool span { color:var(--muted); font-size:14px; line-height:1.55; }
+    .notice { margin-top:26px; padding:18px; border-left:4px solid var(--brand); border-radius:12px; background:var(--soft); }
+    .notice strong { display:block; margin-bottom:5px; }
+    footer { margin-top:30px; color:#8591a8; font-size:13px; }
+    @media (max-width:680px) { body{padding:18px 10px} main{padding:25px 20px;border-radius:20px} header{align-items:flex-start;flex-direction:column} .tools{grid-template-columns:1fr} h1{font-size:27px} }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="组件/fde365-knowledge-os/assets/fde365-logo.png" alt="FDE365">
+      <div>
+        <h1>第一次使用，只要双击</h1>
+        <p class="lead">不用安装软件，不用配置地址，也不用打开终端。</p>
+      </div>
+    </header>
+
+    <h2>开始安装</h2>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div><strong>先购买 Token</strong><span>打开 <a href="https://api.fde365.ai/">api.fde365.ai</a>，购买并复制你的 Token。</span></div></div>
+      <div class="step"><div class="num">2</div><div><strong>双击“开始安装 FDE365.command”</strong><span>如果 Mac 询问是否允许打开，请选择允许。粘贴 Token 时屏幕不会显示内容，这是正常的。</span></div></div>
+      <div class="step"><div class="num">3</div><div><strong>选择模型和保存位置</strong><span>不确定就一直按回车使用推荐选项，剩下的交给安装器。</span></div></div>
+      <div class="step"><div class="num">4</div><div><strong>等待自动完成</strong><span>Obsidian、Claude Code、Codex 和 FDE365 知识库都会自动安装并连接好。</span></div></div>
+    </div>
+
+    <h2>装好以后，从桌面进入</h2>
+    <p>桌面会出现一个 <strong>FDE365 工具</strong> 文件夹。</p>
+    <div class="tools">
+      <div class="tool"><strong>FDE365 知识库</strong><span>打开 Obsidian 工作台，整理和使用六类资产。</span></div>
+      <div class="tool"><strong>FDE365 Claude</strong><span>选择任意文件夹，让 Claude Code 在那里工作。</span></div>
+      <div class="tool"><strong>FDE365 Codex</strong><span>选择任意文件夹，让 Codex 在那里工作。</span></div>
+    </div>
+
+    <div class="notice">
+      <strong>更新与遇到问题</strong>
+      <p>收到新版时双击“更新 FDE365.command”。遇到问题时双击“检查安装.command”，把检查结果截图发给服务人员。</p>
+    </div>
+
+    <footer>你的笔记和 Token 不会因为更新被删除；原客户端设置在切换前会自动备份。</footer>
+  </main>
+</body>
+</html>

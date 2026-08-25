@@ -1,0 +1,12 @@
+node_modules/
+dist/
+release/
+mac-release/
+.context/
+*.zip
+.DS_Store
+data.json
+workspace*.json
+.trash/
+pnpm-lock.yaml
+pnpm-workspace.yaml

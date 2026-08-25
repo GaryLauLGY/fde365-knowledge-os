@@ -1,0 +1,21 @@
+ObjC.import("Foundation");
+
+const ALLOWED_MODELS = [
+  "claude-fable-5",
+  "claude-opus-4-8",
+  "gpt-5.6-sol",
+  "gpt-5.6-luna",
+];
+
+function run(argv) {
+  const path = argv[0];
+  if (!path) throw new Error("缺少插件配置路径");
+  const text = $.NSString.stringWithContentsOfFileEncodingError(
+    path,
+    $.NSUTF8StringEncoding,
+    null,
+  );
+  const settings = JSON.parse(ObjC.unwrap(text));
+  const model = String(settings?.ai?.fde365?.model || "").trim();
+  return ALLOWED_MODELS.includes(model) ? model : "gpt-5.6-luna";
+}

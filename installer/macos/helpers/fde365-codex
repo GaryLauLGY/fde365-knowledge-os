@@ -1,0 +1,13 @@
+#!/bin/bash
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+find_codex() {
+  for candidate in "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null || true)"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then printf '%s\n' "$candidate"; return 0; fi
+  done
+  return 1
+}
+
+CODEX_BIN="$(find_codex)" || { printf '尚未安装 Codex CLI，请重新运行 FDE365 安装器。\n' >&2; exit 1; }
+exec "$CODEX_BIN" "$@"

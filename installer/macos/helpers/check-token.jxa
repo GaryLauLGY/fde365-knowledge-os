@@ -1,0 +1,16 @@
+ObjC.import("Foundation");
+
+function run(argv) {
+  try {
+    const text = $.NSString.stringWithContentsOfFileEncodingError(
+      argv[0],
+      $.NSUTF8StringEncoding,
+      null,
+    );
+    const settings = JSON.parse(ObjC.unwrap(text));
+    const token = String(settings?.ai?.fde365?.token || "").trim();
+    return token ? "configured" : "missing";
+  } catch (_) {
+    return "missing";
+  }
+}

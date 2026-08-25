@@ -1,0 +1,167 @@
+[
+  {
+    "id": "clear",
+    "label": "清楚",
+    "tokens": {
+      "text_color": "#1f2937",
+      "background": "#ffffff",
+      "font": "sans",
+      "spacing": "compact",
+      "accent": "line"
+    }
+  },
+  {
+    "id": "memo",
+    "label": "备忘",
+    "tokens": {
+      "text_color": "#44403c",
+      "background": "#fffdf8",
+      "font": "sans",
+      "spacing": "normal",
+      "accent": "soft"
+    }
+  },
+  {
+    "id": "ledger",
+    "label": "台账",
+    "tokens": {
+      "text_color": "#243447",
+      "background": "#f8fafc",
+      "font": "mono",
+      "spacing": "compact",
+      "accent": "box"
+    }
+  },
+  {
+    "id": "field",
+    "label": "现场",
+    "tokens": {
+      "text_color": "#3f3f2f",
+      "background": "#fbfaf4",
+      "font": "serif",
+      "spacing": "loose",
+      "accent": "line"
+    }
+  },
+  {
+    "id": "studio",
+    "label": "工作室",
+    "tokens": {
+      "text_color": "#27272a",
+      "background": "#ffffff",
+      "font": "sans",
+      "spacing": "normal",
+      "accent": "block"
+    }
+  },
+  {
+    "id": "slate",
+    "label": "深色",
+    "tokens": {
+      "text_color": "#e5e7eb",
+      "background": "#18181b",
+      "font": "sans",
+      "spacing": "compact",
+      "accent": "box"
+    }
+  },
+  {
+    "id": "paper",
+    "label": "纸张",
+    "tokens": {
+      "text_color": "#292524",
+      "background": "#fffaf0",
+      "font": "serif",
+      "spacing": "loose",
+      "accent": "soft"
+    }
+  },
+  {
+    "id": "signal",
+    "label": "信号",
+    "tokens": {
+      "text_color": "#172554",
+      "background": "#eff6ff",
+      "font": "sans",
+      "spacing": "compact",
+      "accent": "block"
+    }
+  },
+  {
+    "id": "calm",
+    "label": "留白",
+    "tokens": {
+      "text_color": "#374151",
+      "background": "#ffffff",
+      "font": "serif",
+      "spacing": "loose",
+      "accent": "line"
+    }
+  },
+  {
+    "id": "brief",
+    "label": "简报",
+    "tokens": {
+      "text_color": "#111827",
+      "background": "#f9fafb",
+      "font": "sans",
+      "spacing": "compact",
+      "accent": "box"
+    }
+  },
+  {
+    "id": "lesson",
+    "label": "讲义",
+    "tokens": {
+      "text_color": "#312e81",
+      "background": "#fafafa",
+      "font": "sans",
+      "spacing": "normal",
+      "accent": "soft"
+    }
+  },
+  {
+    "id": "case",
+    "label": "案例",
+    "tokens": {
+      "text_color": "#7c2d12",
+      "background": "#fff7ed",
+      "font": "serif",
+      "spacing": "normal",
+      "accent": "line"
+    }
+  },
+  {
+    "id": "launch",
+    "label": "发布",
+    "tokens": {
+      "text_color": "#7f1d1d",
+      "background": "#fffafa",
+      "font": "sans",
+      "spacing": "compact",
+      "accent": "block"
+    }
+  },
+  {
+    "id": "qa",
+    "label": "问答",
+    "tokens": {
+      "text_color": "#14532d",
+      "background": "#f0fdf4",
+      "font": "sans",
+      "spacing": "normal",
+      "accent": "box"
+    }
+  },
+  {
+    "id": "archive",
+    "label": "档案",
+    "tokens": {
+      "text_color": "#334155",
+      "background": "#f8fafc",
+      "font": "mono",
+      "spacing": "loose",
+      "accent": "line"
+    }
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "name": "fde365-knowledge-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The FDE365 six-asset knowledge cockpit for Obsidian.",
+  "license": "SEE LICENSES.md",
+  "scripts": {
+    "build:blueprint": "node scripts/build-blueprint.mjs",
+    "build": "npm run build:blueprint && esbuild source.js --bundle --platform=node --format=cjs --charset=utf8 --external:obsidian --outfile=main.js",
+    "check": "node scripts/check-release.mjs",
+    "check:mac": "node scripts/check-mac-installer.mjs",
+    "package:mac": "node scripts/check-mac-installer.mjs && node scripts/package-mac-installer.mjs",
+    "simulate:mac": "node scripts/simulate-mac-install.mjs",
+    "package:release": "node scripts/package-release.mjs",
+    "test": "node scripts/blueprint-tests.mjs && node scripts/kb-workspace-tests.cjs && node scripts/provider-tests.cjs && node scripts/github-updater-tests.cjs",
+    "lint": "node --check source.js && node --check kb-workspace.js && node --check github-updater.js && node --check scripts/build-blueprint.mjs && node --check scripts/blueprint-tests.mjs && node --check scripts/kb-workspace-tests.cjs && node --check scripts/check-release.mjs && node --check scripts/check-mac-installer.mjs && node --check scripts/package-release.mjs && node --check scripts/package-mac-installer.mjs && node --check scripts/simulate-mac-install.mjs && node --check scripts/github-updater-tests.cjs",
+    "verify": "npm run lint && npm run check && npm test && npm run build && git diff --exit-code -- main.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

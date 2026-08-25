@@ -1,0 +1,16 @@
+{
+  "skill": "kb-resume",
+  "implementation": "kb-suite-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "列出可恢复状态",
+    "恢复最近或指定状态",
+    "核对引用文件是否变化",
+    "继续时创建新版本"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

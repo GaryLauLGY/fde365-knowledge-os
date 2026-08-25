@@ -1,0 +1,17 @@
+{
+  "skill": "kb-flow",
+  "implementation": "kb-suite-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "检查段落间承接",
+    "检查段落内信息密度",
+    "检查句子口播流畅度",
+    "标出可能划走的位置",
+    "诊断后可按确认生成标记式改稿"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

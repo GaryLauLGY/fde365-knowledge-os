@@ -1,0 +1,76 @@
+import { access, readFile } from "node:fs/promises";
+
+const requiredFiles = [
+  "source.js",
+  "main.js",
+  "github-updater.js",
+  "styles.css",
+  "manifest.json",
+  "blueprint.json",
+  "assets/fde365-logo.png",
+  "assets/fde365-logo-source.svg",
+  "README.md",
+  "DEVELOPMENT.md",
+  "LICENSE",
+  "LICENSES.md",
+  "KB-SUITE-LICENSE.txt",
+  "KB-SUITE-NOTICE.md",
+  "DEFUDDLE-LICENSE.txt",
+  "scripts/build-blueprint.mjs",
+  "scripts/blueprint-tests.mjs",
+  "scripts/kb-workspace-tests.cjs",
+  "scripts/provider-tests.cjs",
+  "scripts/github-updater-tests.cjs",
+  "scripts/package-release.mjs",
+  ".github/workflows/release.yml",
+  ".github/workflows/verify.yml",
+];
+
+const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
+const [manifest, packageJson, versions, blueprint] = await Promise.all([
+  readJson("manifest.json"),
+  readJson("package.json"),
+  readJson("versions.json"),
+  readJson("blueprint.json"),
+]);
+
+for (const path of requiredFiles) await access(path);
+if (manifest.id !== "fde365-knowledge-os") throw new Error(`Unexpected plugin id: ${manifest.id}`);
+if (!manifest.isDesktopOnly) throw new Error("Current plugin release is expected to remain desktop-only");
+if (packageJson.version !== manifest.version) throw new Error(`Version mismatch: package.json=${packageJson.version}, manifest.json=${manifest.version}`);
+if (versions[manifest.version] !== manifest.minAppVersion) throw new Error(`versions.json must map ${manifest.version} to ${manifest.minAppVersion}`);
+if (blueprint.root !== "FDE365知识库" || blueprint.version < 1) throw new Error("Invalid knowledge blueprint metadata");
+
+const main = await readFile("main.js", "utf8");
+for (const forbidden of ["tikbit.ai", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "process.env.CODEX_HOME =", "process.env.ANTHROPIC_"]) {
+  if (main.includes(forbidden)) throw new Error(`Forbidden vendor/config takeover string found: ${forbidden}`);
+}
+for (const forbidden of ["Codex CLI", "Claude CLI", "选择 AI Provider", "自定义 API（OpenAI-compatible）"]) {
+  if (main.includes(forbidden)) throw new Error(`Removed provider path is still present in runtime: ${forbidden}`);
+}
+for (const required of ["https://api.fde365.ai/v1", "claude-fable-5", "claude-opus-4-8", "gpt-5.6-sol", "gpt-5.6-luna", "Token", "FDE365知识库", "fde365-six-assets"]) {
+  if (!main.includes(required)) throw new Error(`Built runtime is missing: ${required}`);
+}
+for (const forbidden of ["xingji-liubai", "xjlb-"]) {
+  if (main.toLowerCase().includes(forbidden)) throw new Error(`Legacy plugin identifier is still present in runtime: ${forbidden}`);
+}
+
+const source = await readFile("source.js", "utf8");
+for (const required of [
+  "GaryLauLGY/fde365-knowledge-os",
+  "releases/latest",
+  "update-manifest.json",
+  "check-for-updates",
+  "automatic update check failed",
+]) {
+  if (!source.includes(required)) throw new Error(`GitHub updater is missing: ${required}`);
+}
+const updater = await readFile("github-updater.js", "utf8");
+if (updater.includes('target: "data.json"')) throw new Error("GitHub updater must never replace data.json");
+const releaseWorkflow = await readFile(".github/workflows/release.yml", "utf8");
+for (const required of ["release/main.js", "release/manifest.json", "release/styles.css", "release/update-manifest.json"]) {
+  if (!releaseWorkflow.includes(required)) throw new Error(`Release workflow is missing: ${required}`);
+}
+if (/xjlb|xingji|星际留白/i.test(releaseWorkflow)) throw new Error("Release workflow contains a legacy brand name");
+
+console.log(`Release metadata and runtime verified for v${manifest.version}.`);

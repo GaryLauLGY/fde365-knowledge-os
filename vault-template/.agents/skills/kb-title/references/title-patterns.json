@@ -1,0 +1,692 @@
+[
+  {
+    "id": "T001",
+    "angle": "problem",
+    "pattern": "{audience}遇到{problem}，先检查{condition}",
+    "required_fields": [
+      "audience",
+      "condition",
+      "problem"
+    ]
+  },
+  {
+    "id": "T002",
+    "angle": "problem",
+    "pattern": "别急着{common_action}：{problem}可能卡在{condition}",
+    "required_fields": [
+      "common_action",
+      "condition",
+      "problem"
+    ]
+  },
+  {
+    "id": "T003",
+    "angle": "problem",
+    "pattern": "关于{problem}，我只看这{number}个信号",
+    "required_fields": [
+      "number",
+      "problem"
+    ]
+  },
+  {
+    "id": "T004",
+    "angle": "problem",
+    "pattern": "做{problem}之前，先回答这个问题",
+    "required_fields": [
+      "problem"
+    ]
+  },
+  {
+    "id": "T005",
+    "angle": "problem",
+    "pattern": "{problem}没有结果，通常漏了{missing_piece}",
+    "required_fields": [
+      "missing_piece",
+      "problem"
+    ]
+  },
+  {
+    "id": "T006",
+    "angle": "problem",
+    "pattern": "我处理{problem}时，会先删掉{wrong_action}",
+    "required_fields": [
+      "problem",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T007",
+    "angle": "problem",
+    "pattern": "一个{case_type}案例说清{problem}",
+    "required_fields": [
+      "case_type",
+      "problem"
+    ]
+  },
+  {
+    "id": "T008",
+    "angle": "problem",
+    "pattern": "{problem}从{before}到{after}，中间改了什么",
+    "required_fields": [
+      "after",
+      "before",
+      "problem"
+    ]
+  },
+  {
+    "id": "T009",
+    "angle": "problem",
+    "pattern": "为什么{audience}总在{problem}这里停住",
+    "required_fields": [
+      "audience",
+      "problem"
+    ]
+  },
+  {
+    "id": "T010",
+    "angle": "problem",
+    "pattern": "{problem}不是越多越好，边界在{condition}",
+    "required_fields": [
+      "condition",
+      "problem"
+    ]
+  },
+  {
+    "id": "T011",
+    "angle": "problem",
+    "pattern": "如果重新做{problem}，我会先做{first_step}",
+    "required_fields": [
+      "first_step",
+      "problem"
+    ]
+  },
+  {
+    "id": "T012",
+    "angle": "problem",
+    "pattern": "{problem}的成本，不只是在{visible_cost}",
+    "required_fields": [
+      "problem",
+      "visible_cost"
+    ]
+  },
+  {
+    "id": "T013",
+    "angle": "problem",
+    "pattern": "判断{problem}是否成立，看{evidence}",
+    "required_fields": [
+      "evidence",
+      "problem"
+    ]
+  },
+  {
+    "id": "T014",
+    "angle": "problem",
+    "pattern": "{audience}问我{problem}，我的回答是{answer}",
+    "required_fields": [
+      "answer",
+      "audience",
+      "problem"
+    ]
+  },
+  {
+    "id": "T015",
+    "angle": "problem",
+    "pattern": "{problem}做对之后，下一步不是{wrong_action}",
+    "required_fields": [
+      "problem",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T016",
+    "angle": "result",
+    "pattern": "{audience}遇到得到{result}，先检查{condition}",
+    "required_fields": [
+      "audience",
+      "condition",
+      "result"
+    ]
+  },
+  {
+    "id": "T017",
+    "angle": "result",
+    "pattern": "别急着{common_action}：得到{result}可能卡在{condition}",
+    "required_fields": [
+      "common_action",
+      "condition",
+      "result"
+    ]
+  },
+  {
+    "id": "T018",
+    "angle": "result",
+    "pattern": "关于得到{result}，我只看这{number}个信号",
+    "required_fields": [
+      "number",
+      "result"
+    ]
+  },
+  {
+    "id": "T019",
+    "angle": "result",
+    "pattern": "做得到{result}之前，先回答这个问题",
+    "required_fields": [
+      "result"
+    ]
+  },
+  {
+    "id": "T020",
+    "angle": "result",
+    "pattern": "得到{result}没有结果，通常漏了{missing_piece}",
+    "required_fields": [
+      "missing_piece",
+      "result"
+    ]
+  },
+  {
+    "id": "T021",
+    "angle": "result",
+    "pattern": "我处理得到{result}时，会先删掉{wrong_action}",
+    "required_fields": [
+      "result",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T022",
+    "angle": "result",
+    "pattern": "一个{case_type}案例说清得到{result}",
+    "required_fields": [
+      "case_type",
+      "result"
+    ]
+  },
+  {
+    "id": "T023",
+    "angle": "result",
+    "pattern": "得到{result}从{before}到{after}，中间改了什么",
+    "required_fields": [
+      "after",
+      "before",
+      "result"
+    ]
+  },
+  {
+    "id": "T024",
+    "angle": "result",
+    "pattern": "为什么{audience}总在得到{result}这里停住",
+    "required_fields": [
+      "audience",
+      "result"
+    ]
+  },
+  {
+    "id": "T025",
+    "angle": "result",
+    "pattern": "得到{result}不是越多越好，边界在{condition}",
+    "required_fields": [
+      "condition",
+      "result"
+    ]
+  },
+  {
+    "id": "T026",
+    "angle": "result",
+    "pattern": "如果重新做得到{result}，我会先做{first_step}",
+    "required_fields": [
+      "first_step",
+      "result"
+    ]
+  },
+  {
+    "id": "T027",
+    "angle": "result",
+    "pattern": "得到{result}的成本，不只是在{visible_cost}",
+    "required_fields": [
+      "result",
+      "visible_cost"
+    ]
+  },
+  {
+    "id": "T028",
+    "angle": "result",
+    "pattern": "判断得到{result}是否成立，看{evidence}",
+    "required_fields": [
+      "evidence",
+      "result"
+    ]
+  },
+  {
+    "id": "T029",
+    "angle": "result",
+    "pattern": "{audience}问我得到{result}，我的回答是{answer}",
+    "required_fields": [
+      "answer",
+      "audience",
+      "result"
+    ]
+  },
+  {
+    "id": "T030",
+    "angle": "result",
+    "pattern": "得到{result}做对之后，下一步不是{wrong_action}",
+    "required_fields": [
+      "result",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T031",
+    "angle": "decision",
+    "pattern": "{audience}遇到决定是否{decision}，先检查{condition}",
+    "required_fields": [
+      "audience",
+      "condition",
+      "decision"
+    ]
+  },
+  {
+    "id": "T032",
+    "angle": "decision",
+    "pattern": "别急着{common_action}：决定是否{decision}可能卡在{condition}",
+    "required_fields": [
+      "common_action",
+      "condition",
+      "decision"
+    ]
+  },
+  {
+    "id": "T033",
+    "angle": "decision",
+    "pattern": "关于决定是否{decision}，我只看这{number}个信号",
+    "required_fields": [
+      "decision",
+      "number"
+    ]
+  },
+  {
+    "id": "T034",
+    "angle": "decision",
+    "pattern": "做决定是否{decision}之前，先回答这个问题",
+    "required_fields": [
+      "decision"
+    ]
+  },
+  {
+    "id": "T035",
+    "angle": "decision",
+    "pattern": "决定是否{decision}没有结果，通常漏了{missing_piece}",
+    "required_fields": [
+      "decision",
+      "missing_piece"
+    ]
+  },
+  {
+    "id": "T036",
+    "angle": "decision",
+    "pattern": "我处理决定是否{decision}时，会先删掉{wrong_action}",
+    "required_fields": [
+      "decision",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T037",
+    "angle": "decision",
+    "pattern": "一个{case_type}案例说清决定是否{decision}",
+    "required_fields": [
+      "case_type",
+      "decision"
+    ]
+  },
+  {
+    "id": "T038",
+    "angle": "decision",
+    "pattern": "决定是否{decision}从{before}到{after}，中间改了什么",
+    "required_fields": [
+      "after",
+      "before",
+      "decision"
+    ]
+  },
+  {
+    "id": "T039",
+    "angle": "decision",
+    "pattern": "为什么{audience}总在决定是否{decision}这里停住",
+    "required_fields": [
+      "audience",
+      "decision"
+    ]
+  },
+  {
+    "id": "T040",
+    "angle": "decision",
+    "pattern": "决定是否{decision}不是越多越好，边界在{condition}",
+    "required_fields": [
+      "condition",
+      "decision"
+    ]
+  },
+  {
+    "id": "T041",
+    "angle": "decision",
+    "pattern": "如果重新做决定是否{decision}，我会先做{first_step}",
+    "required_fields": [
+      "decision",
+      "first_step"
+    ]
+  },
+  {
+    "id": "T042",
+    "angle": "decision",
+    "pattern": "决定是否{decision}的成本，不只是在{visible_cost}",
+    "required_fields": [
+      "decision",
+      "visible_cost"
+    ]
+  },
+  {
+    "id": "T043",
+    "angle": "decision",
+    "pattern": "判断决定是否{decision}是否成立，看{evidence}",
+    "required_fields": [
+      "decision",
+      "evidence"
+    ]
+  },
+  {
+    "id": "T044",
+    "angle": "decision",
+    "pattern": "{audience}问我决定是否{decision}，我的回答是{answer}",
+    "required_fields": [
+      "answer",
+      "audience",
+      "decision"
+    ]
+  },
+  {
+    "id": "T045",
+    "angle": "decision",
+    "pattern": "决定是否{decision}做对之后，下一步不是{wrong_action}",
+    "required_fields": [
+      "decision",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T046",
+    "angle": "case",
+    "pattern": "{audience}遇到案例中的{case_change}，先检查{condition}",
+    "required_fields": [
+      "audience",
+      "case_change",
+      "condition"
+    ]
+  },
+  {
+    "id": "T047",
+    "angle": "case",
+    "pattern": "别急着{common_action}：案例中的{case_change}可能卡在{condition}",
+    "required_fields": [
+      "case_change",
+      "common_action",
+      "condition"
+    ]
+  },
+  {
+    "id": "T048",
+    "angle": "case",
+    "pattern": "关于案例中的{case_change}，我只看这{number}个信号",
+    "required_fields": [
+      "case_change",
+      "number"
+    ]
+  },
+  {
+    "id": "T049",
+    "angle": "case",
+    "pattern": "做案例中的{case_change}之前，先回答这个问题",
+    "required_fields": [
+      "case_change"
+    ]
+  },
+  {
+    "id": "T050",
+    "angle": "case",
+    "pattern": "案例中的{case_change}没有结果，通常漏了{missing_piece}",
+    "required_fields": [
+      "case_change",
+      "missing_piece"
+    ]
+  },
+  {
+    "id": "T051",
+    "angle": "case",
+    "pattern": "我处理案例中的{case_change}时，会先删掉{wrong_action}",
+    "required_fields": [
+      "case_change",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T052",
+    "angle": "case",
+    "pattern": "一个{case_type}案例说清案例中的{case_change}",
+    "required_fields": [
+      "case_change",
+      "case_type"
+    ]
+  },
+  {
+    "id": "T053",
+    "angle": "case",
+    "pattern": "案例中的{case_change}从{before}到{after}，中间改了什么",
+    "required_fields": [
+      "after",
+      "before",
+      "case_change"
+    ]
+  },
+  {
+    "id": "T054",
+    "angle": "case",
+    "pattern": "为什么{audience}总在案例中的{case_change}这里停住",
+    "required_fields": [
+      "audience",
+      "case_change"
+    ]
+  },
+  {
+    "id": "T055",
+    "angle": "case",
+    "pattern": "案例中的{case_change}不是越多越好，边界在{condition}",
+    "required_fields": [
+      "case_change",
+      "condition"
+    ]
+  },
+  {
+    "id": "T056",
+    "angle": "case",
+    "pattern": "如果重新做案例中的{case_change}，我会先做{first_step}",
+    "required_fields": [
+      "case_change",
+      "first_step"
+    ]
+  },
+  {
+    "id": "T057",
+    "angle": "case",
+    "pattern": "案例中的{case_change}的成本，不只是在{visible_cost}",
+    "required_fields": [
+      "case_change",
+      "visible_cost"
+    ]
+  },
+  {
+    "id": "T058",
+    "angle": "case",
+    "pattern": "判断案例中的{case_change}是否成立，看{evidence}",
+    "required_fields": [
+      "case_change",
+      "evidence"
+    ]
+  },
+  {
+    "id": "T059",
+    "angle": "case",
+    "pattern": "{audience}问我案例中的{case_change}，我的回答是{answer}",
+    "required_fields": [
+      "answer",
+      "audience",
+      "case_change"
+    ]
+  },
+  {
+    "id": "T060",
+    "angle": "case",
+    "pattern": "案例中的{case_change}做对之后，下一步不是{wrong_action}",
+    "required_fields": [
+      "case_change",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T061",
+    "angle": "method",
+    "pattern": "{audience}遇到使用{method}，先检查{condition}",
+    "required_fields": [
+      "audience",
+      "condition",
+      "method"
+    ]
+  },
+  {
+    "id": "T062",
+    "angle": "method",
+    "pattern": "别急着{common_action}：使用{method}可能卡在{condition}",
+    "required_fields": [
+      "common_action",
+      "condition",
+      "method"
+    ]
+  },
+  {
+    "id": "T063",
+    "angle": "method",
+    "pattern": "关于使用{method}，我只看这{number}个信号",
+    "required_fields": [
+      "method",
+      "number"
+    ]
+  },
+  {
+    "id": "T064",
+    "angle": "method",
+    "pattern": "做使用{method}之前，先回答这个问题",
+    "required_fields": [
+      "method"
+    ]
+  },
+  {
+    "id": "T065",
+    "angle": "method",
+    "pattern": "使用{method}没有结果，通常漏了{missing_piece}",
+    "required_fields": [
+      "method",
+      "missing_piece"
+    ]
+  },
+  {
+    "id": "T066",
+    "angle": "method",
+    "pattern": "我处理使用{method}时，会先删掉{wrong_action}",
+    "required_fields": [
+      "method",
+      "wrong_action"
+    ]
+  },
+  {
+    "id": "T067",
+    "angle": "method",
+    "pattern": "一个{case_type}案例说清使用{method}",
+    "required_fields": [
+      "case_type",
+      "method"
+    ]
+  },
+  {
+    "id": "T068",
+    "angle": "method",
+    "pattern": "使用{method}从{before}到{after}，中间改了什么",
+    "required_fields": [
+      "after",
+      "before",
+      "method"
+    ]
+  },
+  {
+    "id": "T069",
+    "angle": "method",
+    "pattern": "为什么{audience}总在使用{method}这里停住",
+    "required_fields": [
+      "audience",
+      "method"
+    ]
+  },
+  {
+    "id": "T070",
+    "angle": "method",
+    "pattern": "使用{method}不是越多越好，边界在{condition}",
+    "required_fields": [
+      "condition",
+      "method"
+    ]
+  },
+  {
+    "id": "T071",
+    "angle": "method",
+    "pattern": "如果重新做使用{method}，我会先做{first_step}",
+    "required_fields": [
+      "first_step",
+      "method"
+    ]
+  },
+  {
+    "id": "T072",
+    "angle": "method",
+    "pattern": "使用{method}的成本，不只是在{visible_cost}",
+    "required_fields": [
+      "method",
+      "visible_cost"
+    ]
+  },
+  {
+    "id": "T073",
+    "angle": "method",
+    "pattern": "判断使用{method}是否成立，看{evidence}",
+    "required_fields": [
+      "evidence",
+      "method"
+    ]
+  },
+  {
+    "id": "T074",
+    "angle": "method",
+    "pattern": "{audience}问我使用{method}，我的回答是{answer}",
+    "required_fields": [
+      "answer",
+      "audience",
+      "method"
+    ]
+  },
+  {
+    "id": "T075",
+    "angle": "method",
+    "pattern": "使用{method}做对之后，下一步不是{wrong_action}",
+    "required_fields": [
+      "method",
+      "wrong_action"
+    ]
+  }
+]

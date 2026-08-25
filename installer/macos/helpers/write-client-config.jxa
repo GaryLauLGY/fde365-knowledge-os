@@ -1,0 +1,73 @@
+ObjC.import("Foundation");
+
+const ALLOWED_MODELS = [
+  "claude-fable-5",
+  "claude-opus-4-8",
+  "gpt-5.6-sol",
+  "gpt-5.6-luna",
+];
+
+function readJson(path) {
+  try {
+    const text = $.NSString.stringWithContentsOfFileEncodingError(
+      path,
+      $.NSUTF8StringEncoding,
+      null,
+    );
+    return JSON.parse(ObjC.unwrap(text));
+  } catch (_) {
+    return {};
+  }
+}
+
+function writeText(path, value) {
+  const output = $.NSString.alloc.initWithUTF8String(value);
+  if (!output.writeToFileAtomicallyEncodingError(path, true, $.NSUTF8StringEncoding, null)) {
+    throw new Error(`无法写入配置：${path}`);
+  }
+}
+
+function tomlString(value) {
+  return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function run(argv) {
+  const claudePath = argv[0];
+  const codexPath = argv[1];
+  const tokenHelper = argv[2];
+  const requestedModel = argv[3];
+  if (!claudePath || !codexPath || !tokenHelper) throw new Error("客户端配置参数不完整");
+  const model = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "gpt-5.6-luna";
+
+  const claudeSettings = readJson(claudePath);
+  claudeSettings.apiKeyHelper = tokenHelper;
+  claudeSettings.env = {
+    ANTHROPIC_BASE_URL: "https://api.fde365.ai",
+    ANTHROPIC_MODEL: model,
+    ANTHROPIC_DEFAULT_OPUS_MODEL: model,
+    ANTHROPIC_DEFAULT_SONNET_MODEL: model,
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: model,
+    CLAUDE_CODE_API_KEY_HELPER_TTL_MS: "300000",
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+  };
+  writeText(claudePath, `${JSON.stringify(claudeSettings, null, 2)}\n`);
+
+  const codexConfig = [
+    `model = ${tomlString(model)}`,
+    'model_provider = "fde365"',
+    'model_reasoning_effort = "medium"',
+    "",
+    "[model_providers.fde365]",
+    'name = "FDE365"',
+    'base_url = "https://api.fde365.ai/v1"',
+    'wire_api = "responses"',
+    "",
+    "[model_providers.fde365.auth]",
+    `command = ${tomlString(tokenHelper)}`,
+    "timeout_ms = 5000",
+    "refresh_interval_ms = 0",
+    "",
+  ].join("\n");
+  writeText(codexPath, codexConfig);
+  return "ok";
+}

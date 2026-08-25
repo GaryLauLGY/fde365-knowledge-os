@@ -1,0 +1,40 @@
+name: Release FDE365 Obsidian plugin
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - name: Verify tag matches manifest
+        run: test "$(node -p 'require("./manifest.json").version')" = "$GITHUB_REF_NAME"
+      - run: npm run package:release
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release/main.js \
+            release/manifest.json \
+            release/styles.css \
+            release/fde365-logo.png \
+            release/fde365-logo-source.svg \
+            release/update-manifest.json \
+            release/FDE365-Knowledge-OS-Plugin-v"$GITHUB_REF_NAME".zip \
+            release/SHA256SUMS.txt \
+            --verify-tag \
+            --title "FDE365 Knowledge OS v$GITHUB_REF_NAME" \
+            --generate-notes
