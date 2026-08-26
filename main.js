@@ -8795,7 +8795,7 @@ if __name__ == "__main__":
         ".agents/skills/fde-write/references/source-evidence.md": "# 当前实现证据\n\n- 工作流规格：`tools/rewrite-owned-suite.py` 的 `fde-write`。\n- 六类资产路径：`六类资产库目录模板/.fde/config.yaml`。\n- 名称和历史映射：`改造清单/skill-manifest.json`。\n- 相似度验收：`tools/check-source-similarity.py`。\n",
         ".agents/skills/fde-write/references/source-map.md": "# 来源映射\n\n## 当前实现\n\n- 运行流程由 `tools/rewrite-owned-suite.py` 中的 `fde-write` 规格生成。\n- 资产模型来自本项目 `六类资产库目录模板/.fde/config.yaml`。\n- 用户要求是：英文 `fde-` 名称、老板能懂、服务当前六类资产库。\n\n## 历史对照\n\n- 历史能力对照：`dbskill-upstream/skills/dbs-content`。\n- 固定快照：`v2.17.15`，commit `af99c577bfb9f1926236671a882b15030242fe8b`。\n- 该快照只用于能力盘点、相似度检查和署名追溯，不在运行时加载。\n\n历史对照不代表当前运行规则。商业许可仍按项目 `NOTICE.md` 和授权清单处理。\n",
         ".agents/skills/fde-write/SKILL.md": "---\nname: fde-write\ndescription: |\n  根据六类资产库写公众号、小红书、朋友圈、搜索内容或口播稿。先列证据和写作合同，再写草稿。触发方式：/fde-write、「根据知识库写」「把这个选题写成稿」。\n---\n\n# 内容写作\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- 选题记录\n- 老板表达和禁区\n- 产品事实\n- 客户原话\n- 案例和方法\n- 目标平台\n\n## 必须保留的能力\n\n- 先诊断选题和材料缺口\n- 支持公众号、小红书、搜索、朋友圈和口播\n- 能生成实际草稿而不只给建议\n- 使用老板原话、产品事实、客户原话和案例\n- 成稿附来源和未核实项\n\n## 执行\n\n1. 确认平台、读者、目的和不能改的事实。\n2. 建立材料表：要用的原话、数字、案例和观点。\n3. 先给结构和缺口；缺口影响成稿时请求补充。\n4. 按平台模式写草稿，末尾附来源清单和未核实项。\n\n## 交付\n\n- 写作合同\n- 正文草稿\n- 来源清单\n- 未核实项\n- 下一轮修改重点\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 草稿写入内容库的 `草稿`\n- 用户确认后才进入 `待审核`\n- 不覆盖原稿\n\n## 停止条件\n\n- 产品事实或案例结果无法核实时不用确定语气\n- 未指定平台时不套平台格式\n- 不编客户原话\n\n## 接续\n\n- 写完用 fde-review\n- 只改开头用 fde-hook\n- 公众号排版用 fde-format\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
-        ".fde/config.yaml": "version: 2\nroot: .\nupdate_source: https://github.com/GaryLauLGY/fde365-knowledge-os\n\nlibraries:\n  owner: 1-老板说明书\n  product: 2-产品库\n  customer: 3-客户需求库\n  case: 4-素材案例库\n  method: 5-方法论库\n  content: 6-内容生产\n\ninbox:\n  recordings: 0-录音处理/待处理录音\n  processed: 0-录音处理/已处理\n\nruntime:\n  state: .fde/state\n  indexes: .fde/indexes\n  logs: .fde/logs\n  versions: .fde/versions\n  reports: .fde/reports\n  quarantine: .fde/quarantine\n\npolicy:\n  preserve_raw_files: true\n  require_source_on_write: true\n  allow_cross_project_read: false\n  confirm_before_delete: true\n",
+        ".fde/config.yaml": "version: 2\nroot: .\nupdate_source: https://fdekb.garylau.ai/plugin/latest.json\n\nlibraries:\n  owner: 1-老板说明书\n  product: 2-产品库\n  customer: 3-客户需求库\n  case: 4-素材案例库\n  method: 5-方法论库\n  content: 6-内容生产\n\ninbox:\n  recordings: 0-录音处理/待处理录音\n  processed: 0-录音处理/已处理\n\nruntime:\n  state: .fde/state\n  indexes: .fde/indexes\n  logs: .fde/logs\n  versions: .fde/versions\n  reports: .fde/reports\n  quarantine: .fde/quarantine\n\npolicy:\n  preserve_raw_files: true\n  require_source_on_write: true\n  allow_cross_project_read: false\n  confirm_before_delete: true\n",
         "0-录音处理/待处理录音/README.md": "# 待处理材料\n\n把录音转写、聊天导出、会议纪要或口述文本放在这里。\n\n每份文件尽量保留：\n\n- 原始文件名。\n- 发生日期。\n- 参与人或来源。\n- 是否允许写入正式资产库。\n\n调用 `/fde-ingest` 后，先看分流预览，再确认写入。\n",
         "0-录音处理/已处理/README.md": "# 已处理记录\n\n这里保存处理稿和批次记录，不代替原始材料。\n\n处理稿应包含：\n\n- 原始文件路径。\n- 处理日期。\n- 写入了哪些资产文件。\n- 哪些内容仍待确认。\n- 是否发现重复或冲突。\n",
         "0-录音处理/README.md": "# 录音处理区\n\n这里保存尚未整理和已经整理的录音转写、聊天导出、会议纪要和口述材料。它不是第 7 个资产库。\n\n## 目录\n\n- `待处理录音`：原始材料。\n- `已处理`：处理记录和结构化笔记。\n\n## 流程\n\n1. 把原始文件放进待处理目录。\n2. 调用 `/fde-ingest`。\n3. 先查看分流预览。\n4. 确认后写入六类资产库。\n5. 原文件不删除；处理记录写明原始路径。\n",
@@ -10428,10 +10428,10 @@ var require_github_updater = __commonJS({
       }
       return { ...value, version };
     }
-    function isTrustedReleaseAssetUrl(value, repository) {
+    function isTrustedUpdateAssetUrl(value, version, asset) {
       try {
         const url = new URL(value);
-        return url.protocol === "https:" && url.hostname === "github.com" && url.pathname.startsWith(`/${repository}/releases/download/`);
+        return url.protocol === "https:" && url.hostname === "fdekb.garylau.ai" && url.username === "" && url.password === "" && url.search === "" && url.hash === "" && url.pathname === `/plugin/releases/${normalizeVersion(version)}/${asset}`;
       } catch (_) {
         return false;
       }
@@ -10439,7 +10439,7 @@ var require_github_updater = __commonJS({
     module2.exports = {
       UPDATE_FILES,
       compareVersions,
-      isTrustedReleaseAssetUrl,
+      isTrustedUpdateAssetUrl,
       normalizeVersion,
       sha256,
       validateUpdateManifest
@@ -10517,7 +10517,8 @@ var FDE365_MODELS = Object.freeze([
 var DEFAULT_FDE365_MODEL = "gpt-5.6-luna";
 var ONBOARDING_VERSION = 3;
 var FDE365_RELEASE_REPOSITORY = "GaryLauLGY/fde365-knowledge-os";
-var FDE365_RELEASE_API = `https://api.github.com/repos/${FDE365_RELEASE_REPOSITORY}/releases/latest`;
+var FDE365_UPDATE_ORIGIN = "https://fdekb.garylau.ai";
+var FDE365_RELEASE_API = `${FDE365_UPDATE_ORIGIN}/plugin/latest.json`;
 var UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1e3;
 var ONBOARDING_STEPS = Object.freeze([
   {
@@ -11357,7 +11358,7 @@ var VaultBootstrapService = class {
     return result;
   }
 };
-var GitHubReleaseUpdateService = class {
+var Fde365UpdateService = class {
   constructor(plugin) {
     this.plugin = plugin;
     this.app = plugin.app;
@@ -11371,12 +11372,11 @@ var GitHubReleaseUpdateService = class {
       url,
       method: "GET",
       headers: {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28"
+        Accept: "application/json, application/octet-stream;q=0.9"
       },
       throw: false
     });
-    if (response.status < 200 || response.status >= 300) throw new Error(`GitHub 返回 HTTP ${response.status}`);
+    if (response.status < 200 || response.status >= 300) throw new Error(`FDE365 更新服务返回 HTTP ${response.status}`);
     return response;
   }
   async ensureAdapterFolder(path) {
@@ -11401,7 +11401,7 @@ var GitHubReleaseUpdateService = class {
       const releaseResponse = await this.request(FDE365_RELEASE_API);
       const release = releaseResponse.json;
       const latestVersion = GitHubUpdater.normalizeVersion(release?.tag_name);
-      if (!latestVersion) throw new Error("GitHub Release 标签不是 x.y.z 版本号");
+      if (!latestVersion) throw new Error("FDE365 更新版本不是 x.y.z 格式");
       updates.lastCheckedAt = (/* @__PURE__ */ new Date()).toISOString();
       updates.lastError = "";
       if (GitHubUpdater.compareVersions(latestVersion, this.plugin.manifest.version) <= 0) {
@@ -11416,8 +11416,8 @@ var GitHubReleaseUpdateService = class {
       }
       const assets = Array.isArray(release.assets) ? release.assets : [];
       const manifestAsset = assets.find((asset) => asset?.name === "update-manifest.json");
-      if (!manifestAsset || !GitHubUpdater.isTrustedReleaseAssetUrl(manifestAsset.browser_download_url, FDE365_RELEASE_REPOSITORY)) {
-        throw new Error("Release 缺少可信的 update-manifest.json");
+      if (!manifestAsset || !GitHubUpdater.isTrustedUpdateAssetUrl(manifestAsset.browser_download_url, latestVersion, "update-manifest.json")) {
+        throw new Error("更新服务缺少可信的 update-manifest.json");
       }
       const updateManifestResponse = await this.request(manifestAsset.browser_download_url);
       const updateManifest = GitHubUpdater.validateUpdateManifest(updateManifestResponse.json, {
@@ -11454,8 +11454,8 @@ var GitHubReleaseUpdateService = class {
     const downloads = /* @__PURE__ */ new Map();
     for (const file of updateManifest.files) {
       const asset = releaseAssets.get(file.asset);
-      if (!asset || !GitHubUpdater.isTrustedReleaseAssetUrl(asset.browser_download_url, FDE365_RELEASE_REPOSITORY)) {
-        throw new Error(`Release 缺少可信文件：${file.asset}`);
+      if (!asset || !GitHubUpdater.isTrustedUpdateAssetUrl(asset.browser_download_url, updateManifest.version, file.asset)) {
+        throw new Error(`更新服务缺少可信文件：${file.asset}`);
       }
       if (Number(asset.size || 0) > 10 * 1024 * 1024) throw new Error(`更新文件过大：${file.asset}`);
       const response = await this.request(asset.browser_download_url);
@@ -11556,7 +11556,7 @@ var AIKnowledgeOSSettingTab = class extends PluginSettingTab {
     containerEl.createEl("h3", { text: "插件更新", attr: { id: "akos-settings-updates" } });
     const updates = this.plugin.settings.updates;
     const updateStatus = updates.pendingVersion ? `v${updates.pendingVersion} 已安装，重启 Obsidian 后生效。` : updates.lastError ? `最近检查失败：${updates.lastError}` : updates.lastCheckedAt ? `当前版本 v${this.plugin.manifest.version} · ${formatRelativeTime(Date.parse(updates.lastCheckedAt))}检查过更新。` : `当前版本 v${this.plugin.manifest.version} · 尚未检查更新。`;
-    new Setting(containerEl).setName("自动安装更新").setDesc("从 FDE365 官方 GitHub Release 获取并校验更新；不会读取或覆盖 Token、笔记和其他 Vault 数据。").addToggle((toggle) => toggle.setValue(updates.autoInstall).onChange(async (value) => {
+    new Setting(containerEl).setName("自动安装更新").setDesc("从 FDE365 国内更新服务获取并校验更新；不会读取或覆盖 Token、笔记和其他 Vault 数据。").addToggle((toggle) => toggle.setValue(updates.autoInstall).onChange(async (value) => {
       updates.autoInstall = value;
       await this.plugin.saveSettings();
     }));
@@ -11639,7 +11639,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
-    this.updateService = new GitHubReleaseUpdateService(this);
+    this.updateService = new Fde365UpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
     await this.migrateProviderSettings();
     this.lastFile = this.app.workspace.getActiveFile();
@@ -12133,7 +12133,7 @@ module.exports.__testables = Object.freeze({
   AIProviderError,
   AIProviderManager,
   Fde365Provider,
-  GitHubReleaseUpdateService,
+  Fde365UpdateService,
   VaultBootstrapService,
   mergeSettings,
   buildOpenAIMessages,
@@ -12147,5 +12147,6 @@ module.exports.__testables = Object.freeze({
   ONBOARDING_STEPS,
   ONBOARDING_VERSION,
   FDE365_RELEASE_REPOSITORY,
-  FDE365_RELEASE_API
+  FDE365_RELEASE_API,
+  FDE365_UPDATE_ORIGIN
 });

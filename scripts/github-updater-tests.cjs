@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const {
   UPDATE_FILES,
   compareVersions,
-  isTrustedReleaseAssetUrl,
+  isTrustedUpdateAssetUrl,
   normalizeVersion,
   sha256,
   validateUpdateManifest,
@@ -18,15 +18,19 @@ assert.equal(sha256(Buffer.from("fde365")), "84dd9ff904516ed6e42b134bd01c63f43bc
 
 const repository = "GaryLauLGY/fde365-knowledge-os";
 assert.equal(
-  isTrustedReleaseAssetUrl(`https://github.com/${repository}/releases/download/1.0.1/main.js`, repository),
+  isTrustedUpdateAssetUrl("https://fdekb.garylau.ai/plugin/releases/1.0.1/main.js", "1.0.1", "main.js"),
   true,
 );
 assert.equal(
-  isTrustedReleaseAssetUrl(`https://github.example.com/${repository}/releases/download/1.0.1/main.js`, repository),
+  isTrustedUpdateAssetUrl("https://github.com/GaryLauLGY/fde365-knowledge-os/releases/download/1.0.1/main.js", "1.0.1", "main.js"),
   false,
 );
 assert.equal(
-  isTrustedReleaseAssetUrl("https://github.com/attacker/repo/releases/download/1.0.1/main.js", repository),
+  isTrustedUpdateAssetUrl("https://fdekb.garylau.ai/plugin/releases/1.0.1/data.json", "1.0.1", "main.js"),
+  false,
+);
+assert.equal(
+  isTrustedUpdateAssetUrl("https://fdekb.garylau.ai/plugin/releases/1.0.2/main.js", "1.0.1", "main.js"),
   false,
 );
 
@@ -52,4 +56,4 @@ assert.throws(() => validateUpdateManifest({
   version: "1.0.1",
 }), /文件数量不正确|未知或重复文件/);
 
-console.log("PASS GitHub updater enforces semantic versions, trusted FDE365 release URLs and an exact file allowlist.");
+console.log("PASS FDE365 updater enforces semantic versions, trusted mirror URLs and an exact file allowlist.");

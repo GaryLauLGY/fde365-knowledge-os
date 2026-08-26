@@ -28,11 +28,11 @@ if (/Remove-Item[^\n]+pluginTarget/i.test(updater)) throw new Error("Windows upd
 if (!tokenHelper.includes("Write-Output") || tokenHelper.includes("[Console]::Out")) {
   throw new Error("Windows Token helper must use capturable pipeline output");
 }
-if (release.version !== "1.13.7" || !release.windowsUrl.startsWith("https://github.com/obsidianmd/obsidian-releases/releases/download/")) {
-  throw new Error("Windows Obsidian release must use the pinned official GitHub asset");
+if (release.version !== "1.13.7" || release.windowsUrl !== "https://fdekb.garylau.ai/vendor/obsidian/1.13.7/windows") {
+  throw new Error("Windows Obsidian release must use the FDE365 update mirror");
 }
-if (!release.codexWindowsUrl.startsWith("https://github.com/openai/codex/releases/download/") || !/^[a-f0-9]{64}$/.test(release.codexWindowsSha256)) {
-  throw new Error("Windows Codex fallback must use a pinned, checksummed official OpenAI release");
+if (release.codexWindowsUrl !== "https://fdekb.garylau.ai/vendor/codex/0.149.1/windows-x86_64.zip" || !/^[a-f0-9]{64}$/.test(release.codexWindowsSha256)) {
+  throw new Error("Windows Codex fallback must use the FDE365 update mirror with SHA-256");
 }
 const allText = await Promise.all(requiredFiles.map((name) => readFile(`${root}/${name}`, "utf8")));
 const joined = allText.join("\n");

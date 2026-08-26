@@ -1,6 +1,6 @@
 version: 2
 root: .
-update_source: https://github.com/GaryLauLGY/fde365-knowledge-os
+update_source: https://fdekb.garylau.ai/plugin/latest.json
 
 libraries:
   owner: 1-老板说明书

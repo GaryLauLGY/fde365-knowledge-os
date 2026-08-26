@@ -255,7 +255,7 @@ function Install-FdeOfficialApplications([object]$Context, [string]$ReleaseConfi
     Ensure-FdeDirectory $temp
     try {
         if ($null -eq (Get-FdeObsidianPath $Context)) {
-            Write-Host "正在从 Obsidian 官方 GitHub 下载 Obsidian $($release.version)…"
+            Write-Host "正在从 FDE365 国内下载服务获取 Obsidian $($release.version)…"
             $installer = Join-Path $temp "Obsidian.exe"
             Invoke-WebRequest -UseBasicParsing -Uri $release.windowsUrl -OutFile $installer
             $signature = Get-AuthenticodeSignature -FilePath $installer
@@ -289,7 +289,7 @@ function Install-FdeOfficialApplications([object]$Context, [string]$ReleaseConfi
                 & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $codexScript
                 if ($LASTEXITCODE -ne 0) { throw "Codex 官方安装程序退出码：$LASTEXITCODE" }
             } catch {
-                Write-Host "官方脚本无法访问，改用 OpenAI 官方 GitHub Release…" -ForegroundColor Yellow
+                Write-Host "官方脚本无法访问，改用 FDE365 国内下载服务…" -ForegroundColor Yellow
                 $codexZip = Join-Path $temp "codex-windows.zip"
                 $codexExtract = Join-Path $temp "codex-extracted"
                 Invoke-WebRequest -UseBasicParsing -Uri $release.codexWindowsUrl -OutFile $codexZip

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2] - 2026-08-26
+
+- 插件自动更新改用 `fdekb.garylau.ai`，用户端不再直接连接 GitHub。
+- macOS 与 Windows 安装器中的 Obsidian 下载、Windows Codex 备用下载改用同一国内更新服务。
+- 新增 Cloudflare Worker 固定白名单代理；不提供任意 URL 转发，不接收或保存 Token。
+- 保留现有更新等待行为，不增加 15 秒超时。
+
 ## [1.0.1] - 2026-08-26
 
 ### Changed

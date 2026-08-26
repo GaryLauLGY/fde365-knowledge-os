@@ -24,6 +24,8 @@ const requiredFiles = [
   "scripts/package-release.mjs",
   ".github/workflows/release.yml",
   ".github/workflows/verify.yml",
+  "infra/cloudflare-update-proxy/src/worker.mjs",
+  "infra/cloudflare-update-proxy/wrangler.toml",
 ];
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
@@ -61,15 +63,19 @@ for (const forbidden of ["/kb-", ".kb/config.yaml", "wis-kb-", "对话 · KB", "
 const source = await readFile("source.js", "utf8");
 for (const required of [
   "GaryLauLGY/fde365-knowledge-os",
-  "releases/latest",
+  "https://fdekb.garylau.ai",
+  "/plugin/latest.json",
   "update-manifest.json",
   "check-for-updates",
   "automatic update check failed",
 ]) {
-  if (!source.includes(required)) throw new Error(`GitHub updater is missing: ${required}`);
+  if (!source.includes(required)) throw new Error(`FDE365 updater is missing: ${required}`);
 }
 const updater = await readFile("github-updater.js", "utf8");
-if (updater.includes('target: "data.json"')) throw new Error("GitHub updater must never replace data.json");
+if (updater.includes('target: "data.json"')) throw new Error("FDE365 updater must never replace data.json");
+if (source.includes("https://api.github.com/") || source.includes("https://github.com/")) {
+  throw new Error("Plugin runtime must not connect to GitHub directly");
+}
 const releaseWorkflow = await readFile(".github/workflows/release.yml", "utf8");
 for (const required of ["release/main.js", "release/manifest.json", "release/styles.css", "release/update-manifest.json"]) {
   if (!releaseWorkflow.includes(required)) throw new Error(`Release workflow is missing: ${required}`);

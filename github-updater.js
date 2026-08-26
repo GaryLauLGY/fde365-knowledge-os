@@ -53,12 +53,16 @@ function validateUpdateManifest(value, expected = {}) {
   return { ...value, version };
 }
 
-function isTrustedReleaseAssetUrl(value, repository) {
+function isTrustedUpdateAssetUrl(value, version, asset) {
   try {
     const url = new URL(value);
     return url.protocol === "https:"
-      && url.hostname === "github.com"
-      && url.pathname.startsWith(`/${repository}/releases/download/`);
+      && url.hostname === "fdekb.garylau.ai"
+      && url.username === ""
+      && url.password === ""
+      && url.search === ""
+      && url.hash === ""
+      && url.pathname === `/plugin/releases/${normalizeVersion(version)}/${asset}`;
   } catch (_) {
     return false;
   }
@@ -67,7 +71,7 @@ function isTrustedReleaseAssetUrl(value, repository) {
 module.exports = {
   UPDATE_FILES,
   compareVersions,
-  isTrustedReleaseAssetUrl,
+  isTrustedUpdateAssetUrl,
   normalizeVersion,
   sha256,
   validateUpdateManifest,

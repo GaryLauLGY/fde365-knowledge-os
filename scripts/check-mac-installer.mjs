@@ -43,10 +43,9 @@ for (const path of jxaHelperFiles) {
 
 const releaseConfig = await readFile(`${installerRoot}/obsidian-release.env`, "utf8");
 if (!/OBSIDIAN_VERSION="1\.13\.7"/.test(releaseConfig)) throw new Error("Unexpected Obsidian release version");
-if (!/https:\/\/github\.com\/obsidianmd\/obsidian-releases\/releases\/download\//.test(releaseConfig)) {
-  throw new Error("Obsidian download must use the official repository");
+if (!/https:\/\/fdekb\.garylau\.ai\/vendor\/obsidian\/1\.13\.7\/mac/.test(releaseConfig)) {
+  throw new Error("Obsidian download must use the FDE365 update mirror");
 }
-if (/mirror|cdn\./i.test(releaseConfig)) throw new Error("Unofficial Obsidian mirror is not allowed");
 
 const installScript = await readFile(commandFiles[0], "utf8");
 for (const required of [

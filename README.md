@@ -10,7 +10,7 @@
 
 ## 自动更新
 
-- 插件默认每 6 小时从 FDE365 官方 GitHub Release 检查一次新版本，启动后也会自动检查。
+- 插件默认每 6 小时从 `fdekb.garylau.ai` 国内更新服务检查一次新版本，启动后也会自动检查。
 - 更新文件下载后会先校验固定仓库、插件 ID、版本、文件白名单和 SHA-256，再替换插件运行文件；`data.json`、Token、知识笔记与其他 Vault 数据不在更新范围内。
 - 安装完成后重启 Obsidian 即可启用新版本。也可在“设置 → FDE365 Knowledge OS → 插件更新”手动检查。
 - 官方发布仓库：<https://github.com/GaryLauLGY/fde365-knowledge-os>

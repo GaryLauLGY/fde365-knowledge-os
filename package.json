@@ -1,6 +1,6 @@
 {
   "name": "fde365-knowledge-os",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "The FDE365 six-asset knowledge cockpit for Obsidian.",
   "license": "SEE LICENSES.md",
@@ -14,8 +14,8 @@
     "package:windows": "node scripts/check-windows-installer.mjs && node scripts/package-windows-installer.mjs",
     "simulate:mac": "node scripts/simulate-mac-install.mjs",
     "package:release": "node scripts/package-release.mjs",
-    "test": "node scripts/blueprint-tests.mjs && node scripts/fde-workspace-tests.cjs && node scripts/provider-tests.cjs && node scripts/github-updater-tests.cjs",
-    "lint": "node --check source.js && node --check fde-workspace.js && node --check github-updater.js && node --check scripts/build-blueprint.mjs && node --check scripts/blueprint-tests.mjs && node --check scripts/fde-workspace-tests.cjs && node --check scripts/check-release.mjs && node --check scripts/check-mac-installer.mjs && node --check scripts/check-windows-installer.mjs && node --check scripts/package-release.mjs && node --check scripts/package-mac-installer.mjs && node --check scripts/package-windows-installer.mjs && node --check scripts/simulate-mac-install.mjs && node --check scripts/github-updater-tests.cjs",
+    "test": "node scripts/blueprint-tests.mjs && node scripts/fde-workspace-tests.cjs && node scripts/provider-tests.cjs && node scripts/github-updater-tests.cjs && node --test infra/cloudflare-update-proxy/test/worker.test.mjs",
+    "lint": "node --check source.js && node --check fde-workspace.js && node --check github-updater.js && node --check infra/cloudflare-update-proxy/src/worker.mjs && node --check scripts/build-blueprint.mjs && node --check scripts/blueprint-tests.mjs && node --check scripts/fde-workspace-tests.cjs && node --check scripts/check-release.mjs && node --check scripts/check-mac-installer.mjs && node --check scripts/check-windows-installer.mjs && node --check scripts/package-release.mjs && node --check scripts/package-mac-installer.mjs && node --check scripts/package-windows-installer.mjs && node --check scripts/simulate-mac-install.mjs && node --check scripts/github-updater-tests.cjs",
     "verify": "npm run lint && npm run check && npm test && npm run build && git diff --exit-code -- main.js"
   },
   "devDependencies": {

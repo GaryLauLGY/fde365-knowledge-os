@@ -72,7 +72,8 @@ const FDE365_MODELS = Object.freeze([
 const DEFAULT_FDE365_MODEL = "gpt-5.6-luna";
 const ONBOARDING_VERSION = 3;
 const FDE365_RELEASE_REPOSITORY = "GaryLauLGY/fde365-knowledge-os";
-const FDE365_RELEASE_API = `https://api.github.com/repos/${FDE365_RELEASE_REPOSITORY}/releases/latest`;
+const FDE365_UPDATE_ORIGIN = "https://fdekb.garylau.ai";
+const FDE365_RELEASE_API = `${FDE365_UPDATE_ORIGIN}/plugin/latest.json`;
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 const ONBOARDING_STEPS = Object.freeze([
@@ -4211,7 +4212,7 @@ class KnowledgeGraphView extends KnowledgeDashboardView {
   }
 }
 
-class GitHubReleaseUpdateService {
+class Fde365UpdateService {
   constructor(plugin) {
     this.plugin = plugin;
     this.app = plugin.app;
@@ -4227,12 +4228,11 @@ class GitHubReleaseUpdateService {
       url,
       method: "GET",
       headers: {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
+        Accept: "application/json, application/octet-stream;q=0.9",
       },
       throw: false,
     });
-    if (response.status < 200 || response.status >= 300) throw new Error(`GitHub 返回 HTTP ${response.status}`);
+    if (response.status < 200 || response.status >= 300) throw new Error(`FDE365 更新服务返回 HTTP ${response.status}`);
     return response;
   }
 
@@ -4258,7 +4258,7 @@ class GitHubReleaseUpdateService {
       const releaseResponse = await this.request(FDE365_RELEASE_API);
       const release = releaseResponse.json;
       const latestVersion = GitHubUpdater.normalizeVersion(release?.tag_name);
-      if (!latestVersion) throw new Error("GitHub Release 标签不是 x.y.z 版本号");
+      if (!latestVersion) throw new Error("FDE365 更新版本不是 x.y.z 格式");
       updates.lastCheckedAt = new Date().toISOString();
       updates.lastError = "";
 
@@ -4275,8 +4275,8 @@ class GitHubReleaseUpdateService {
 
       const assets = Array.isArray(release.assets) ? release.assets : [];
       const manifestAsset = assets.find((asset) => asset?.name === "update-manifest.json");
-      if (!manifestAsset || !GitHubUpdater.isTrustedReleaseAssetUrl(manifestAsset.browser_download_url, FDE365_RELEASE_REPOSITORY)) {
-        throw new Error("Release 缺少可信的 update-manifest.json");
+      if (!manifestAsset || !GitHubUpdater.isTrustedUpdateAssetUrl(manifestAsset.browser_download_url, latestVersion, "update-manifest.json")) {
+        throw new Error("更新服务缺少可信的 update-manifest.json");
       }
       const updateManifestResponse = await this.request(manifestAsset.browser_download_url);
       const updateManifest = GitHubUpdater.validateUpdateManifest(updateManifestResponse.json, {
@@ -4316,8 +4316,8 @@ class GitHubReleaseUpdateService {
     const downloads = new Map();
     for (const file of updateManifest.files) {
       const asset = releaseAssets.get(file.asset);
-      if (!asset || !GitHubUpdater.isTrustedReleaseAssetUrl(asset.browser_download_url, FDE365_RELEASE_REPOSITORY)) {
-        throw new Error(`Release 缺少可信文件：${file.asset}`);
+      if (!asset || !GitHubUpdater.isTrustedUpdateAssetUrl(asset.browser_download_url, updateManifest.version, file.asset)) {
+        throw new Error(`更新服务缺少可信文件：${file.asset}`);
       }
       if (Number(asset.size || 0) > 10 * 1024 * 1024) throw new Error(`更新文件过大：${file.asset}`);
       const response = await this.request(asset.browser_download_url);
@@ -4475,7 +4475,7 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           : `当前版本 v${this.plugin.manifest.version} · 尚未检查更新。`;
     new Setting(containerEl)
       .setName("自动安装更新")
-      .setDesc("从 FDE365 官方 GitHub Release 获取并校验更新；不会读取或覆盖 Token、笔记和其他 Vault 数据。")
+      .setDesc("从 FDE365 国内更新服务获取并校验更新；不会读取或覆盖 Token、笔记和其他 Vault 数据。")
       .addToggle((toggle) => toggle
         .setValue(updates.autoInstall)
         .onChange(async (value) => {
@@ -5720,7 +5720,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
-    this.updateService = new GitHubReleaseUpdateService(this);
+    this.updateService = new Fde365UpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
     await this.migrateProviderSettings();
     this.lastFile = this.app.workspace.getActiveFile();
@@ -6253,7 +6253,7 @@ module.exports.__testables = Object.freeze({
   AIProviderError,
   AIProviderManager,
   Fde365Provider,
-  GitHubReleaseUpdateService,
+  Fde365UpdateService,
   VaultBootstrapService,
   mergeSettings,
   buildOpenAIMessages,
@@ -6268,4 +6268,5 @@ module.exports.__testables = Object.freeze({
   ONBOARDING_VERSION,
   FDE365_RELEASE_REPOSITORY,
   FDE365_RELEASE_API,
+  FDE365_UPDATE_ORIGIN,
 });

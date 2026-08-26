@@ -34,7 +34,7 @@ const {
   AIProviderError,
   AIProviderManager,
   Fde365Provider,
-  GitHubReleaseUpdateService,
+  Fde365UpdateService,
   mergeSettings,
   buildOpenAIMessages,
   FDE365_BASE_URL,
@@ -47,6 +47,7 @@ const {
   ONBOARDING_VERSION,
   FDE365_RELEASE_REPOSITORY,
   FDE365_RELEASE_API,
+  FDE365_UPDATE_ORIGIN,
 } = PluginClass.__testables;
 const GitHubUpdater = require("../github-updater.js");
 
@@ -197,7 +198,7 @@ function apiPlugin(overrides = {}) {
     assert.equal(manager.getSelected().id, "fde365");
   });
 
-  await test("GitHub updater installs only verified runtime files and preserves data.json", async () => {
+  await test("FDE365 updater installs only verified runtime files and preserves data.json", async () => {
     const pluginDirectory = ".obsidian/plugins/fde365-knowledge-os";
     const files = new Map();
     const folders = new Set([".obsidian", ".obsidian/plugins", pluginDirectory, `${pluginDirectory}/assets`]);
@@ -234,7 +235,7 @@ function apiPlugin(overrides = {}) {
     const asset = (name) => ({
       name,
       size: remote.get(name)?.length || 1024,
-      browser_download_url: `https://github.com/${FDE365_RELEASE_REPOSITORY}/releases/download/1.0.1/${name}`,
+      browser_download_url: `${FDE365_UPDATE_ORIGIN}/plugin/releases/1.0.1/${name}`,
     });
     const release = {
       tag_name: "1.0.1",
@@ -253,7 +254,7 @@ function apiPlugin(overrides = {}) {
       settings: mergeSettings({}),
       saveSettings: async () => {},
     };
-    const result = await new GitHubReleaseUpdateService(plugin).check({ forceInstall: true });
+    const result = await new Fde365UpdateService(plugin).check({ forceInstall: true });
     assert.equal(result.status, "installed");
     assert.equal(plugin.settings.updates.pendingVersion, "1.0.1");
     assert.equal(files.get(`${pluginDirectory}/main.js`).toString(), "new-main");
