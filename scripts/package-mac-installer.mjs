@@ -115,7 +115,7 @@ await audit(bundleRoot);
 const zipPath = join(releaseRoot, `${bundleName}.zip`);
 zip(stageRoot, zipPath, bundleName);
 const hash = await sha256(zipPath);
-await writeFile(join(releaseRoot, "SHA256SUMS.txt"), `${hash}  ${basename(zipPath)}\n`, "utf8");
+await writeFile(join(releaseRoot, "SHA256SUMS-Mac.txt"), `${hash}  ${basename(zipPath)}\n`, "utf8");
 await rm(stageRoot, { recursive: true, force: true });
 
 console.log(`Packaged Mac installer v${version}`);

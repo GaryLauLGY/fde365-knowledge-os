@@ -38,7 +38,7 @@ jobs:
             release/FDE365-Knowledge-OS-Plugin-v"$GITHUB_REF_NAME".zip \
             release/SHA256SUMS.txt \
             mac-release/FDE365-Knowledge-OS-Mac-v"$GITHUB_REF_NAME".zip \
-            mac-release/SHA256SUMS.txt \
+            mac-release/SHA256SUMS-Mac.txt \
             windows-release/FDE365-Knowledge-OS-Windows-v"$GITHUB_REF_NAME".zip \
             windows-release/SHA256SUMS-Windows.txt \
             --verify-tag \
