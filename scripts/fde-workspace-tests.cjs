@@ -69,11 +69,19 @@ for (const route of ["libraries", "network", "content", "skills", "health"]) {
 }
 
 const workspaceSource = readFileSync(fileURLToPath(new URL("../fde-workspace.js", `file://${__filename}`)), "utf8");
-for (const feature of ["AssistantContextModal", "renderAssistantKnowledge", "renderAssistantSkills", "renderAssistantHistory"]) {
+for (const feature of ["AssistantContextModal", "AssistantNotePickerModal", "renderAssistantKnowledge", "renderAssistantSkills", "renderAssistantHistory"]) {
   assert.match(workspaceSource, new RegExp(feature), `unified assistant must include ${feature}`);
 }
 assert.doesNotMatch(workspaceSource, /AssistantProviderModal|codex-cli|claude-cli|openai-compatible/, "workspace must not expose alternative provider switching");
 assert.match(workspaceSource, /配置 Token/, "assistant must route unconfigured users to Token settings");
+assert.match(workspaceSource, /primarySelected \? "已选笔记" : "选择笔记"/, "primary-note control must open a real note selector and expose its selected state");
+assert.doesNotMatch(workspaceSource, /请先在FDE365知识库中打开一篇业务笔记/, "primary-note control must not require users to open a note before selecting it");
+assert.match(source, /if \(scope !== "none" && !sourceFiles\.length\) addFile\(this\.app\.workspace\.getActiveFile\(\)\)/, "an explicitly selected note must replace rather than silently combine with the active editor note");
+assert.doesNotMatch(source, /if \(scope === "none"[^\n]*return context/, "explicitly selected notes must still be sent when automatic context is disabled");
+assert.match(workspaceSource, /plugin\.fdeAssistantSession \|\| \(plugin\.fdeAssistantSession = \{/, "all middle workspace views must share one plugin-level assistant session");
+assert.doesNotMatch(workspaceSource, /async onClose\(\) \{\s*if \(this\.assistantRequestId\)/, "switching or closing a middle workspace view must not cancel the shared assistant request");
+assert.match(workspaceSource, /pageSkills\(\) \{\s*return \["fde-start", "fde-library", "fde-write"\];/, "assistant quick Skills must be independent from the middle workspace page");
+assert.doesNotMatch(workspaceSource, /当前页面：\$\{this\.pageKey\}/, "assistant identity must not change with the middle workspace page");
 
 const styles = readFileSync(fileURLToPath(new URL("../styles.css", `file://${__filename}`)), "utf8");
 assert.match(styles, /button\.wis-library-tab[\s\S]*?height:\s*auto\s*!important/, "library tabs must override native fixed button height");
@@ -99,4 +107,4 @@ assert.match(styles, /\.wis-brand-logo\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?fle
 
 assert.doesNotMatch(workspaceSource, /(?:\/kb-|\.kb(?:\/|\b)|wis-kb-|对话 · KB|\["kb", "KB"\])/, "workspace must not retain the legacy KB product namespace");
 
-console.log("PASS FDE workspace uses six libraries, six content stages, 35 skills, unified AI modes, overflow-safe controls and source-aware quality rules");
+console.log("PASS FDE workspace uses six libraries, six content stages, 35 skills, persistent assistant state, overflow-safe controls and source-aware quality rules");

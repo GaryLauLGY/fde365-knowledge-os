@@ -6109,7 +6109,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       });
       remaining -= excerpt.length;
     }
-    if (scope === "none" || remaining <= 0) return context;
+    if (remaining <= 0) return context;
     const candidates = [];
     const addFile = (value) => {
       const file = value instanceof TFile ? value : typeof value === "string" ? this.app.vault.getAbstractFileByPath(value) : null;
@@ -6118,7 +6118,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       if (insideKnowledgeBase && !isRuntimeOrSkill && file.extension === "md" && !candidates.some((item) => item.path === file.path)) candidates.push(file);
     };
     sourceFiles.forEach(addFile);
-    addFile(this.app.workspace.getActiveFile());
+    if (scope !== "none" && !sourceFiles.length) addFile(this.app.workspace.getActiveFile());
 
     if (scope === "retrieved") {
       const words = String(prompt || "").toLowerCase().split(/[\s，。！？；、,.!?;:：]+/).filter((word) => word.length > 1).slice(0, 12);

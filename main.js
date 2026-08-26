@@ -9094,6 +9094,56 @@ var require_fde_workspace = __commonJS({
         });
       }
     };
+    function selectableAssistantFiles(app) {
+      return app.vault.getMarkdownFiles().filter((file) => file.path.startsWith(`${ROOT2}/`) && !file.path.startsWith(`${ROOT2}/.agents/`) && !file.path.startsWith(`${ROOT2}/.fde/`) && !file.path.startsWith(`${ROOT2}/7-系统/`)).sort((a, b) => b.stat.mtime - a.stat.mtime);
+    }
+    var AssistantNotePickerModal = class extends Modal2 {
+      constructor(app, selectedPath, onSelect) {
+        super(app);
+        this.selectedPath = selectedPath || "";
+        this.onSelect = onSelect;
+      }
+      onOpen() {
+        const root = this.contentEl;
+        root.addClass("wis-modal");
+        root.addClass("wis-context-modal");
+        root.createEl("h2", { text: "选择一篇笔记" });
+        root.createEl("p", { text: "选择本次对话的主要笔记。只有你发送消息时，这篇笔记的片段才会交给FDE365 AI。", cls: "wis-modal-note" });
+        const search = root.createEl("input", {
+          cls: "wis-modal-input",
+          attr: { type: "search", placeholder: "按标题或路径搜索…", "aria-label": "搜索主要笔记" }
+        });
+        const list = root.createDiv({ cls: "wis-context-file-list" });
+        const files = selectableAssistantFiles(this.app);
+        const render = () => {
+          list.empty();
+          const query = search.value.trim().toLowerCase();
+          const matches = files.filter((file) => !query || `${file.basename} ${file.path}`.toLowerCase().includes(query)).slice(0, 80);
+          if (!matches.length) list.createDiv({ text: "没有匹配的知识库笔记", cls: "wis-empty" });
+          matches.forEach((file) => {
+            const selected = file.path === this.selectedPath;
+            const row = list.createEl("button", { cls: `wis-context-file${selected ? " is-selected" : ""}` });
+            makeIcon(row, selected ? "check-circle-2" : "file-text");
+            const copy = row.createDiv();
+            copy.createEl("strong", { text: file.basename });
+            copy.createSpan({ text: file.path });
+            row.addEventListener("click", async () => {
+              this.close();
+              await this.onSelect(file.path);
+            });
+          });
+        };
+        search.addEventListener("input", render);
+        render();
+        const actions = root.createDiv({ cls: "wis-modal-actions" });
+        if (this.selectedPath) makeButton(actions, "清除选择", "x", "is-secondary", async () => {
+          this.close();
+          await this.onSelect("");
+        });
+        makeButton(actions, "取消", "x", "is-secondary", () => this.close());
+        window.setTimeout(() => search.focus(), 50);
+      }
+    };
     var AssistantContextModal = class extends Modal2 {
       constructor(app, selectedPaths, onSubmit) {
         super(app);
@@ -9101,7 +9151,7 @@ var require_fde_workspace = __commonJS({
         this.onSubmit = onSubmit;
       }
       contextFiles() {
-        return this.app.vault.getMarkdownFiles().filter((file) => file.path.startsWith(`${ROOT2}/`) && !file.path.startsWith(`${ROOT2}/.agents/`) && !file.path.startsWith(`${ROOT2}/.fde/`) && !file.path.startsWith(`${ROOT2}/7-系统/`)).sort((a, b) => b.stat.mtime - a.stat.mtime);
+        return selectableAssistantFiles(this.app);
       }
       onOpen() {
         const root = this.contentEl;
@@ -9555,13 +9605,58 @@ ${BASE_SKILL_RULES}
         this.app = plugin.app;
         this.service = plugin.fdeWorkspace;
         this.pageKey = pageKey;
-        this.assistantMessages = [];
-        this.assistantLoading = false;
-        this.assistantRequestId = null;
-        this.assistantMode = "chat";
-        this.assistantDraft = "";
-        this.assistantSourcePaths = [];
+        this.assistantSession = plugin.fdeAssistantSession || (plugin.fdeAssistantSession = {
+          messages: [],
+          loading: false,
+          requestId: null,
+          mode: "chat",
+          draft: "",
+          primaryPath: "",
+          sourcePaths: []
+        });
         this.renderToken = 0;
+      }
+      get assistantMessages() {
+        return this.assistantSession.messages;
+      }
+      set assistantMessages(value) {
+        this.assistantSession.messages = value;
+      }
+      get assistantLoading() {
+        return this.assistantSession.loading;
+      }
+      set assistantLoading(value) {
+        this.assistantSession.loading = value;
+      }
+      get assistantRequestId() {
+        return this.assistantSession.requestId;
+      }
+      set assistantRequestId(value) {
+        this.assistantSession.requestId = value;
+      }
+      get assistantMode() {
+        return this.assistantSession.mode;
+      }
+      set assistantMode(value) {
+        this.assistantSession.mode = value;
+      }
+      get assistantDraft() {
+        return this.assistantSession.draft;
+      }
+      set assistantDraft(value) {
+        this.assistantSession.draft = value;
+      }
+      get assistantPrimaryPath() {
+        return this.assistantSession.primaryPath;
+      }
+      set assistantPrimaryPath(value) {
+        this.assistantSession.primaryPath = value;
+      }
+      get assistantSourcePaths() {
+        return this.assistantSession.sourcePaths;
+      }
+      set assistantSourcePaths(value) {
+        this.assistantSession.sourcePaths = value;
       }
       getViewType() {
         return VIEW_TYPES[this.pageKey];
@@ -9577,7 +9672,6 @@ ${BASE_SKILL_RULES}
         await this.render();
       }
       async onClose() {
-        if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
         this.contentEl.removeClass("wis-view-content");
       }
       async refresh() {
@@ -9657,19 +9751,10 @@ ${BASE_SKILL_RULES}
         status.createSpan({ text: "create-only · 不覆盖原始材料" });
       }
       pageSkills() {
-        const map = {
-          dashboard: ["fde-start", "fde-health", "fde-focus"],
-          inbox: ["fde-ingest", "fde-interview", "fde-export"],
-          libraries: ["fde-library", "fde-organize", "fde-interview"],
-          network: ["fde-library", "fde-organize", "fde-diagnose"],
-          content: ["fde-topics", "fde-write", "fde-review"],
-          skills: ["fde-start", "fde-save", "fde-resume"],
-          health: ["fde-health", "fde-organize", "fde-safety"]
-        };
-        return map[this.pageKey] || map.dashboard;
+        return ["fde-start", "fde-library", "fde-write"];
       }
       assistantContextFiles() {
-        return this.assistantSourcePaths.map((path) => this.app.vault.getAbstractFileByPath(path)).filter((file) => file instanceof TFile2);
+        return [...new Set([this.assistantPrimaryPath, ...this.assistantSourcePaths].filter(Boolean))].map((path) => this.app.vault.getAbstractFileByPath(path)).filter((file) => file instanceof TFile2);
       }
       isAssistantContextFile(file) {
         return file instanceof TFile2 && file.extension === "md" && file.path.startsWith(`${ROOT2}/`) && !file.path.startsWith(`${ROOT2}/.agents/`) && !file.path.startsWith(`${ROOT2}/.fde/`) && !file.path.startsWith(`${ROOT2}/7-系统/`);
@@ -9804,21 +9889,18 @@ ${BASE_SKILL_RULES}
       renderAssistantComposer(panel) {
         const composer = panel.createDiv({ cls: "wis-composer" });
         const toolbar = composer.createDiv({ cls: "wis-composer-toolbar" });
-        const active = this.app.workspace.getActiveFile();
-        const activeAttached = this.isAssistantContextFile(active) && this.assistantSourcePaths.includes(active.path);
-        const note = makeButton(toolbar, "当前笔记", "file-text", `is-tool${activeAttached ? " is-active" : ""}`);
-        note.setAttr("title", activeAttached ? "移除当前笔记上下文" : "添加当前笔记为上下文");
-        note.addEventListener("click", async () => {
-          if (!this.isAssistantContextFile(active)) {
-            new Notice2("请先在FDE365知识库中打开一篇业务笔记");
-            return;
-          }
-          this.assistantSourcePaths = activeAttached ? this.assistantSourcePaths.filter((path) => path !== active.path) : [.../* @__PURE__ */ new Set([...this.assistantSourcePaths, active.path])];
+        const primary = this.app.vault.getAbstractFileByPath(this.assistantPrimaryPath);
+        const primarySelected = primary instanceof TFile2;
+        const note = makeButton(toolbar, primarySelected ? "已选笔记" : "选择笔记", "file-search-2", `is-tool${primarySelected ? " is-active" : ""}`);
+        note.setAttr("title", primarySelected ? `当前选择：${primary.path}；点击重新选择` : "点击搜索并选择一篇知识库笔记");
+        note.addEventListener("click", () => new AssistantNotePickerModal(this.app, this.assistantPrimaryPath, async (path) => {
+          this.assistantPrimaryPath = path;
+          if (path) this.assistantSourcePaths = this.assistantSourcePaths.filter((item) => item !== path);
           await this.render();
-        });
+        }).open());
         const attach = makeButton(toolbar, "添加上下文", "paperclip", "is-tool");
         attach.addEventListener("click", () => new AssistantContextModal(this.app, this.assistantSourcePaths, async (paths) => {
-          this.assistantSourcePaths = paths;
+          this.assistantSourcePaths = paths.filter((path) => path !== this.assistantPrimaryPath);
           await this.render();
         }).open());
         const fresh = makeButton(toolbar, "新对话", "message-square-plus", "is-tool");
@@ -9828,7 +9910,7 @@ ${BASE_SKILL_RULES}
           this.assistantDraft = "";
           await this.render();
         });
-        if (this.assistantSourcePaths.length) {
+        if (this.assistantContextFiles().length) {
           const files = composer.createDiv({ cls: "wis-composer-context" });
           this.assistantContextFiles().forEach((file) => {
             const chip = files.createEl("button", { cls: "wis-context-chip", attr: { title: file.path } });
@@ -9836,6 +9918,7 @@ ${BASE_SKILL_RULES}
             chip.createSpan({ text: file.basename });
             makeIcon(chip, "x");
             chip.addEventListener("click", async () => {
+              if (this.assistantPrimaryPath === file.path) this.assistantPrimaryPath = "";
               this.assistantSourcePaths = this.assistantSourcePaths.filter((path) => path !== file.path);
               await this.render();
             });
@@ -9867,7 +9950,7 @@ ${BASE_SKILL_RULES}
               requestId,
               prompt,
               history: this.assistantMessages.slice(0, -1),
-              systemPrompt: `你是FDE365 AI 工作区。当前页面：${this.pageKey}。
+              systemPrompt: `你是独立于中间工作台页面的FDE365 AI 工作区。
 ${BASE_SKILL_RULES}
 插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容，不要要求用户再提供同一文件。先直接回答，再列使用的来源路径和仍待确认的内容。`,
               sourceFiles: this.assistantContextFiles(),
@@ -9892,7 +9975,7 @@ ${BASE_SKILL_RULES}
           } finally {
             this.assistantLoading = false;
             this.assistantRequestId = null;
-            await this.render();
+            this.plugin.refreshDashboard();
           }
         };
         send.addEventListener("click", () => void submit());
@@ -12061,7 +12144,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       });
       remaining -= excerpt.length;
     }
-    if (scope === "none" || remaining <= 0) return context;
+    if (remaining <= 0) return context;
     const candidates = [];
     const addFile = (value) => {
       const file = value instanceof TFile ? value : typeof value === "string" ? this.app.vault.getAbstractFileByPath(value) : null;
@@ -12070,7 +12153,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       if (insideKnowledgeBase && !isRuntimeOrSkill && file.extension === "md" && !candidates.some((item) => item.path === file.path)) candidates.push(file);
     };
     sourceFiles.forEach(addFile);
-    addFile(this.app.workspace.getActiveFile());
+    if (scope !== "none" && !sourceFiles.length) addFile(this.app.workspace.getActiveFile());
     if (scope === "retrieved") {
       const words = String(prompt || "").toLowerCase().split(/[\s，。！？；、,.!?;:：]+/).filter((word) => word.length > 1).slice(0, 12);
       const scored = [];
