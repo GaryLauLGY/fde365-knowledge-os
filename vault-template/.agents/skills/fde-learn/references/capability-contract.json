@@ -1,0 +1,16 @@
+{
+  "skill": "fde-learn",
+  "implementation": "fde-skills-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "把一个课题拆成连续学习内容",
+    "根据上一篇反馈调整深度、角度和节奏",
+    "每轮提供说明、示例和练习",
+    "保留学习进度并生成下一篇"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "skill": "fde-write",
+  "implementation": "fde-skills-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "先诊断选题和材料缺口",
+    "支持公众号、小红书、搜索、朋友圈和口播",
+    "能生成实际草稿而不只给建议",
+    "使用老板原话、产品事实、客户原话和案例",
+    "成稿附来源和未核实项"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

@@ -30,10 +30,11 @@ jobs:
         shell: pwsh
         run: |
           $qa = Join-Path $env:RUNNER_TEMP "fde365-windows-qa"
+          $version = node -p "require('./manifest.json').version"
           $bundle = Join-Path $qa "bundle"
           New-Item -ItemType Directory -Path $bundle -Force | Out-Null
-          Expand-Archive -LiteralPath "windows-release/FDE365-Knowledge-OS-Windows-v1.0.0.zip" -DestinationPath $bundle
-          $root = Join-Path $bundle "FDE365-Knowledge-OS-Windows-v1.0.0"
+          Expand-Archive -LiteralPath "windows-release/FDE365-Knowledge-OS-Windows-v$version.zip" -DestinationPath $bundle
+          $root = Join-Path $bundle "FDE365-Knowledge-OS-Windows-v$version"
           $env:FDE365_SIMULATION = "1"
           $env:FDE365_NONINTERACTIVE = "1"
           $env:FDE365_TOKEN_INPUT = "windows-ci-placeholder-token"

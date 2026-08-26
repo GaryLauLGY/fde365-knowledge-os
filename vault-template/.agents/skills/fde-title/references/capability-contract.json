@@ -1,0 +1,17 @@
+{
+  "skill": "fde-title",
+  "implementation": "fde-skills-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "从 75 个自有标题结构中筛选",
+    "根据平台、读者和正文选择",
+    "输出候选和 Top 3",
+    "说明结构选择原因",
+    "检查标题承诺能被正文支持"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

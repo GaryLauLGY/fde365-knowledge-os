@@ -1,0 +1,16 @@
+{
+  "skill": "fde-define",
+  "implementation": "fde-skills-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "收集一个词在不同场景的用法",
+    "换成可观察的人、动作和结果",
+    "建立当前任务的暂定定义",
+    "提供包含项、排除项和反例"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

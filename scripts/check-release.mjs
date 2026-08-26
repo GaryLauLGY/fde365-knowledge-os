@@ -18,7 +18,7 @@ const requiredFiles = [
   "DEFUDDLE-LICENSE.txt",
   "scripts/build-blueprint.mjs",
   "scripts/blueprint-tests.mjs",
-  "scripts/kb-workspace-tests.cjs",
+  "scripts/fde-workspace-tests.cjs",
   "scripts/provider-tests.cjs",
   "scripts/github-updater-tests.cjs",
   "scripts/package-release.mjs",
@@ -53,6 +53,9 @@ for (const required of ["https://api.fde365.ai/v1", "claude-fable-5", "claude-op
 }
 for (const forbidden of ["xingji-liubai", "xjlb-"]) {
   if (main.toLowerCase().includes(forbidden)) throw new Error(`Legacy plugin identifier is still present in runtime: ${forbidden}`);
+}
+for (const forbidden of ["/kb-", ".kb/config.yaml", "wis-kb-", "对话 · KB", "[\"kb\", \"KB\"]"]) {
+  if (main.includes(forbidden)) throw new Error(`Legacy KB product namespace is still present in runtime: ${forbidden}`);
 }
 
 const source = await readFile("source.js", "utf8");

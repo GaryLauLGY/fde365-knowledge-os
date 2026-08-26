@@ -14,7 +14,7 @@ const {
 } = require("obsidian");
 const Defuddle = require("./defuddle.js");
 const KNOWLEDGE_BLUEPRINT = require("./blueprint.json");
-const KBWorkspace = require("./kb-workspace.js");
+const FDEWorkspace = require("./fde-workspace.js");
 const GitHubUpdater = require("./github-updater.js");
 
 const VIEW_TYPE = "ai-knowledge-os-dashboard";
@@ -268,8 +268,8 @@ function formatNumber(value) {
 }
 
 function formatSize(bytes) {
-  if (!bytes) return "0 KB";
-  const units = ["B", "KB", "MB", "GB"];
+  if (!bytes) return "0 KiB";
+  const units = ["B", "KiB", "MiB", "GiB"];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / Math.pow(1024, index);
   return `${value >= 10 || index === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`;
@@ -5710,27 +5710,27 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     await this.loadSettings();
     this.knowledgeRoot = await resolveKnowledgeRoot(this.app);
     configureKnowledgeRoot(this.knowledgeRoot);
-    KBWorkspace.configureKnowledgeRoot(this.knowledgeRoot);
+    FDEWorkspace.configureKnowledgeRoot(this.knowledgeRoot);
     this.isUnloading = false;
     this.runtimeInitialized = false;
     this.startupTimer = null;
     this.updateStartupTimer = null;
     this.router = new KnowledgeOSRouter(this);
     this.bootstrapService = new VaultBootstrapService(this, { ...KNOWLEDGE_BLUEPRINT, root: this.knowledgeRoot });
-    this.kbWorkspace = new KBWorkspace.KBWorkspaceService(this);
+    this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
     this.updateService = new GitHubReleaseUpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
     await this.migrateProviderSettings();
     this.lastFile = this.app.workspace.getActiveFile();
-    this.registerView(VIEW_TYPE, (leaf) => new KBWorkspace.KBDashboardView(leaf, this));
-    this.registerView(INBOX_VIEW_TYPE, (leaf) => new KBWorkspace.KBInboxView(leaf, this));
-    this.registerView(KNOWLEDGE_VIEW_TYPE, (leaf) => new KBWorkspace.KBLibrariesView(leaf, this));
-    this.registerView(GRAPH_VIEW_TYPE, (leaf) => new KBWorkspace.KBNetworkView(leaf, this));
-    this.registerView(PROJECT_VIEW_TYPE, (leaf) => new KBWorkspace.KBContentView(leaf, this));
-    this.registerView(AGENT_VIEW_TYPE, (leaf) => new KBWorkspace.FDESkillsView(leaf, this));
-    this.registerView(ANALYTICS_VIEW_TYPE, (leaf) => new KBWorkspace.KBHealthView(leaf, this));
+    this.registerView(VIEW_TYPE, (leaf) => new FDEWorkspace.FDEDashboardView(leaf, this));
+    this.registerView(INBOX_VIEW_TYPE, (leaf) => new FDEWorkspace.FDEInboxView(leaf, this));
+    this.registerView(KNOWLEDGE_VIEW_TYPE, (leaf) => new FDEWorkspace.FDELibrariesView(leaf, this));
+    this.registerView(GRAPH_VIEW_TYPE, (leaf) => new FDEWorkspace.FDENetworkView(leaf, this));
+    this.registerView(PROJECT_VIEW_TYPE, (leaf) => new FDEWorkspace.FDEContentView(leaf, this));
+    this.registerView(AGENT_VIEW_TYPE, (leaf) => new FDEWorkspace.FDESkillsView(leaf, this));
+    this.registerView(ANALYTICS_VIEW_TYPE, (leaf) => new FDEWorkspace.FDEHealthView(leaf, this));
     this.addRibbonIcon("orbit", "打开FDE365 Knowledge OS", () => this.activateView());
     this.addCommand({
       id: "open-dashboard",
@@ -5825,7 +5825,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     try {
       const shouldNotify = Number(this.settings.blueprint?.version || 0) < KNOWLEDGE_BLUEPRINT.version;
       await this.bootstrapService.ensure({ notify: shouldNotify });
-      await this.kbWorkspace.reloadConfig();
+      await this.fdeWorkspace.reloadConfig();
     } catch (error) {
       console.error("FDE365 Knowledge OS: failed to initialize knowledge blueprint", error);
       new Notice("FDE365知识库初始化失败；可在设置中重新检查", 8000);
@@ -6101,7 +6101,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     const addFile = (value) => {
       const file = value instanceof TFile ? value : typeof value === "string" ? this.app.vault.getAbstractFileByPath(value) : null;
       const insideKnowledgeBase = file instanceof TFile && file.path.startsWith(`${ROOT}/`);
-      const isRuntimeOrSkill = insideKnowledgeBase && (file.path.startsWith(`${ROOT}/.agents/`) || file.path.startsWith(`${ROOT}/.kb/`));
+      const isRuntimeOrSkill = insideKnowledgeBase && (file.path.startsWith(`${ROOT}/.agents/`) || file.path.startsWith(`${ROOT}/.fde/`));
       if (insideKnowledgeBase && !isRuntimeOrSkill && file.extension === "md" && !candidates.some((item) => item.path === file.path)) candidates.push(file);
     };
     sourceFiles.forEach(addFile);
@@ -6111,7 +6111,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       const words = String(prompt || "").toLowerCase().split(/[\s，。！？；、,.!?;:：]+/).filter((word) => word.length > 1).slice(0, 12);
       const scored = [];
       for (const file of this.app.vault.getMarkdownFiles()) {
-        if (!file.path.startsWith(`${ROOT}/`) || file.path.startsWith(`${ROOT}/.agents/`) || file.path.startsWith(`${ROOT}/.kb/`) || file.path.startsWith(`${ROOT}/7-系统/`)) continue;
+        if (!file.path.startsWith(`${ROOT}/`) || file.path.startsWith(`${ROOT}/.agents/`) || file.path.startsWith(`${ROOT}/.fde/`) || file.path.startsWith(`${ROOT}/7-系统/`)) continue;
         if (candidates.some((item) => item.path === file.path) || file.path.startsWith(`${AGENT_ROOT}/运行记录/`) || file.path.startsWith(`${AGENT_ROOT}/输出/`)) continue;
         const content = await this.app.vault.cachedRead(file);
         const haystack = `${file.basename}\n${content}`.toLowerCase();

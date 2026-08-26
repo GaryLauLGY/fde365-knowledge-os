@@ -135,7 +135,7 @@ const communityPlugins = await readJson(join(fakeVault, ".obsidian", "community-
 if (!Array.isArray(communityPlugins) || !communityPlugins.includes(manifest.id)) {
   fail("FDE365 插件没有在模拟 Vault 中启用");
 }
-await access(join(fakeVault, "FDE365知识库", "kb-manifest.json"));
+await access(join(fakeVault, "FDE365知识库", "fde-manifest.json"));
 pass("知识库模板已部署，社区插件已启用");
 
 const supportRoot = join(fakeHome, "Library", "Application Support", "FDE365 Knowledge OS");

@@ -1,0 +1,15 @@
+{
+  "skill": "fde-save",
+  "implementation": "fde-skills-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "保存目标、来源、结论、未知项和下一步",
+    "写入当前知识库而非用户主目录",
+    "生成状态 ID 和恢复提示"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

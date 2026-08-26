@@ -1,0 +1,17 @@
+{
+  "skill": "fde-connect",
+  "implementation": "fde-skills-owned",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "支持单个 Skill、绝对路径和 Skill 集合目录",
+    "支持连接、取消和状态检查",
+    "覆盖 Claude Code、Codex、通用 Agents 和 Grok",
+    "普通目标目录不覆盖",
+    "连接后验证 name 和目标"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}
