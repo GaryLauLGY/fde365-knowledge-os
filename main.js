@@ -9108,7 +9108,7 @@ var require_fde_workspace = __commonJS({
         root.addClass("wis-modal");
         root.addClass("wis-context-modal");
         root.createEl("h2", { text: "选择一篇笔记" });
-        root.createEl("p", { text: "选择本次对话的主要笔记。只有你发送消息时，这篇笔记的片段才会交给FDE365 AI。", cls: "wis-modal-note" });
+        root.createEl("p", { text: "选择本次任务的主要笔记。FDE365 Agent 会优先使用这篇笔记的内容。", cls: "wis-modal-note" });
         const search = root.createEl("input", {
           cls: "wis-modal-input",
           attr: { type: "search", placeholder: "按标题或路径搜索…", "aria-label": "搜索主要笔记" }
@@ -9612,7 +9612,9 @@ ${BASE_SKILL_RULES}
           mode: "chat",
           draft: "",
           primaryPath: "",
-          sourcePaths: []
+          sourcePaths: [],
+          sessionId: "",
+          activity: []
         });
         this.renderToken = 0;
       }
@@ -9657,6 +9659,18 @@ ${BASE_SKILL_RULES}
       }
       set assistantSourcePaths(value) {
         this.assistantSession.sourcePaths = value;
+      }
+      get assistantSessionId() {
+        return this.assistantSession.sessionId || "";
+      }
+      set assistantSessionId(value) {
+        this.assistantSession.sessionId = value || "";
+      }
+      get assistantActivity() {
+        return this.assistantSession.activity || [];
+      }
+      set assistantActivity(value) {
+        this.assistantSession.activity = Array.isArray(value) ? value : [];
       }
       getViewType() {
         return VIEW_TYPES[this.pageKey];
@@ -9802,10 +9816,10 @@ ${BASE_SKILL_RULES}
           const avatar = loading.createDiv({ cls: "wis-message-avatar" });
           makeIcon(avatar, "sparkles");
           const bubble = loading.createDiv({ cls: "wis-message-bubble" });
-          bubble.createEl("strong", { text: "正在结合六类资产回答…" });
+          bubble.createEl("strong", { text: this.assistantActivity.at(-1)?.label || "正在启动本地 Codex Agent…" });
           const stop = makeButton(bubble, "停止生成", "square", "is-secondary");
           stop.addEventListener("click", () => {
-            if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+            if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
           });
         }
         return true;
@@ -9905,9 +9919,11 @@ ${BASE_SKILL_RULES}
         }).open());
         const fresh = makeButton(toolbar, "新对话", "message-square-plus", "is-tool");
         fresh.addEventListener("click", async () => {
-          if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+          if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
           this.assistantMessages = [];
           this.assistantDraft = "";
+          this.assistantSessionId = "";
+          this.assistantActivity = [];
           await this.render();
         });
         if (this.assistantContextFiles().length) {
@@ -9925,7 +9941,7 @@ ${BASE_SKILL_RULES}
           });
         }
         const row = composer.createDiv({ cls: "wis-composer-row" });
-        const input = row.createEl("textarea", { attr: { placeholder: "问六类资产，或描述要推进的工作…", rows: "3", "aria-label": "询问FDE365 AI" } });
+        const input = row.createEl("textarea", { attr: { placeholder: "问六类资产，或描述要推进的工作…", rows: "3", "aria-label": "交给 FDE365 Agent" } });
         input.value = this.assistantDraft;
         input.addEventListener("input", () => {
           this.assistantDraft = input.value;
@@ -9933,7 +9949,7 @@ ${BASE_SKILL_RULES}
         const send = makeButton(row, this.assistantLoading ? "停止" : "发送", this.assistantLoading ? "square" : "arrow-up", this.assistantLoading ? "is-secondary" : "is-primary");
         const submit = async () => {
           if (this.assistantLoading) {
-            if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+            if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
             return;
           }
           const prompt = input.value.trim();
@@ -9942,6 +9958,7 @@ ${BASE_SKILL_RULES}
           this.assistantMessages.push({ role: "user", content: prompt });
           this.assistantDraft = "";
           this.assistantLoading = true;
+          this.assistantActivity = [];
           await this.render();
           const requestId = `fde365-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
           this.assistantRequestId = requestId;
@@ -9950,12 +9967,18 @@ ${BASE_SKILL_RULES}
               requestId,
               prompt,
               history: this.assistantMessages.slice(0, -1),
-              systemPrompt: `你是独立于中间工作台页面的FDE365 AI 工作区。
+              systemPrompt: `你是独立于中间工作台页面的 FDE365 本地 Agent。
 ${BASE_SKILL_RULES}
-插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容，不要要求用户再提供同一文件。先直接回答，再列使用的来源路径和仍待确认的内容。`,
+插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容。需要时使用本地工具检查 Vault，写入前说明目标并等待用户确认。`,
               sourceFiles: this.assistantContextFiles(),
-              localContext: await this.service.assistantRuntimeContext(prompt)
+              localContext: await this.service.assistantRuntimeContext(prompt),
+              sessionId: this.assistantSessionId,
+              onEvent: (event) => {
+                this.assistantActivity = [...this.assistantActivity, event].slice(-8);
+                this.plugin.refreshDashboard();
+              }
             });
+            this.assistantSessionId = result.conversationId || this.assistantSessionId;
             const message = {
               role: "assistant",
               content: result.content,
@@ -9975,6 +9998,7 @@ ${BASE_SKILL_RULES}
           } finally {
             this.assistantLoading = false;
             this.assistantRequestId = null;
+            this.assistantActivity = [];
             this.plugin.refreshDashboard();
           }
         };
@@ -9987,7 +10011,7 @@ ${BASE_SKILL_RULES}
         });
         const contextScope = this.plugin.settings.ai.assistant.contextScope;
         composer.createDiv({
-          text: contextScope === "retrieved" ? "本地检索上下文开启" : contextScope === "none" ? "仅发送显式上下文" : "当前笔记上下文开启",
+          text: contextScope === "retrieved" ? "Agent 已预附加本地检索结果" : contextScope === "none" ? "Agent 按任务需要读取 Vault" : "Agent 已预附加当前笔记",
           cls: "wis-composer-note"
         });
       }
@@ -9995,18 +10019,19 @@ ${BASE_SKILL_RULES}
         const panel = app.createEl("aside", { cls: "wis-assistant" });
         const head = panel.createDiv({ cls: "wis-assistant-head" });
         const title = head.createDiv();
-        title.createSpan({ text: "FDE365 AI", cls: "wis-eyebrow" });
+        title.createSpan({ text: "FDE365 AGENT", cls: "wis-eyebrow" });
         title.createEl("strong", { text: "对话 · FDE · Skills · 历史" });
         const capability = this.plugin.providerManager.describeSelected();
+        const agentCapability = this.plugin.agentRuntime?.describe?.() || { available: false, error: "本地 Agent 未就绪" };
         const headActions = head.createDiv({ cls: "wis-assistant-head-actions" });
         const provider = headActions.createEl("button", {
-          cls: `wis-provider-dot${capability.configured && capability.compatible ? " is-ready" : ""}`,
-          attr: { title: [capability.label, capability.model, capability.error].filter(Boolean).join(" · ") }
+          cls: `wis-provider-dot${capability.configured && capability.compatible && agentCapability.available ? " is-ready" : ""}`,
+          attr: { title: ["FDE365 Codex Agent", capability.model, capability.error, agentCapability.error].filter(Boolean).join(" · ") }
         });
-        provider.createSpan({ text: capability.configured ? capability.model : "配置 Token" });
+        provider.createSpan({ text: !capability.configured ? "配置 Token" : agentCapability.available ? capability.model : "缺少 Codex 组件" });
         provider.addEventListener("click", () => this.plugin.openSettings("ai"));
         const body = panel.createDiv({ cls: "wis-assistant-body" });
-        body.createEl("p", { text: "对话、FDE 与本地工作流共享六类资产规则；关键结论返回来源。", cls: "wis-assistant-rule" });
+        body.createEl("p", { text: "本地 Codex Agent 可读取当前 Vault、运行 FDE Skills；写入前会向你确认。", cls: "wis-assistant-rule" });
         const tabs = body.createDiv({ cls: "wis-assistant-tabs", attr: { role: "tablist", "aria-label": "AI 工作区" } });
         [["chat", "对话"], ["fde", "FDE"], ["skills", "Skills"], ["history", "历史"]].forEach(([id, label]) => {
           const tab = tabs.createEl("button", { cls: this.assistantMode === id ? "is-active" : "", attr: { role: "tab", "aria-selected": String(this.assistantMode === id) } });
@@ -10605,6 +10630,622 @@ var require_github_updater = __commonJS({
   }
 });
 
+// fde-agent-runtime.js
+var require_fde_agent_runtime = __commonJS({
+  "fde-agent-runtime.js"(exports2, module2) {
+    var { spawn } = require("node:child_process");
+    var fs = require("node:fs");
+    var os = require("node:os");
+    var path = require("node:path");
+    var readline = require("node:readline");
+    var APP_SERVER_REQUEST_TIMEOUT_MS = 3e4;
+    var STDERR_LIMIT = 8192;
+    var FdeAgentRuntimeError = class extends Error {
+      constructor(code, message, details = {}) {
+        super(message);
+        this.name = "FdeAgentRuntimeError";
+        this.code = code;
+        this.details = details;
+      }
+    };
+    function isFile(pathValue) {
+      try {
+        return Boolean(pathValue && fs.statSync(pathValue).isFile());
+      } catch {
+        return false;
+      }
+    }
+    function pathCandidates(home) {
+      const values = [];
+      const add = (value) => {
+        if (value && !values.includes(value)) values.push(value);
+      };
+      if (process.platform === "win32") {
+        add(path.join(home, ".local", "bin", "codex.exe"));
+        add(path.join(home, ".local", "bin", "codex.cmd"));
+        if (process.env.APPDATA) add(path.join(process.env.APPDATA, "npm", "codex.cmd"));
+      } else {
+        add(path.join(home, ".local", "bin", "codex"));
+        add("/opt/homebrew/bin/codex");
+        add("/usr/local/bin/codex");
+        add("/Applications/ChatGPT.app/Contents/Resources/codex");
+      }
+      for (const directory of String(process.env.PATH || "").split(path.delimiter).filter(Boolean)) {
+        add(path.join(directory, process.platform === "win32" ? "codex.exe" : "codex"));
+        if (process.platform === "win32") add(path.join(directory, "codex.cmd"));
+      }
+      return values;
+    }
+    function locateCodexBinary(home = os.homedir()) {
+      return pathCandidates(home).find(isFile) || null;
+    }
+    function isolatedCodexHome(vaultPath, pluginDirectory = ".obsidian/plugins/fde365-knowledge-os") {
+      return path.join(path.resolve(vaultPath), ...String(pluginDirectory).split(/[\\/]+/).filter(Boolean), ".fde365-agent", "codex-home");
+    }
+    function codexConfigPath(codexHome) {
+      return path.join(codexHome, "config.toml");
+    }
+    function buildIsolatedCodexConfig(model) {
+      const escapedModel = String(model || "gpt-5.6-luna").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      return [
+        `model = "${escapedModel}"`,
+        'model_provider = "fde365"',
+        'model_reasoning_effort = "medium"',
+        "check_for_update_on_startup = false",
+        'web_search = "disabled"',
+        "",
+        "[model_providers.fde365]",
+        'name = "FDE365"',
+        'base_url = "https://api.fde365.ai/v1"',
+        'wire_api = "responses"',
+        'env_key = "FDE365_TOKEN"',
+        ""
+      ].join("\n");
+    }
+    function ensureIsolatedCodexConfig(codexHome, model) {
+      const configPath = codexConfigPath(codexHome);
+      const content = buildIsolatedCodexConfig(model);
+      fs.mkdirSync(codexHome, { recursive: true, mode: 448 });
+      let current = "";
+      try {
+        current = fs.readFileSync(configPath, "utf8");
+      } catch {
+      }
+      if (current !== content) fs.writeFileSync(configPath, content, { encoding: "utf8", mode: 384 });
+      try {
+        fs.chmodSync(configPath, 384);
+      } catch {
+      }
+      return configPath;
+    }
+    function hasManagedCodexConfig(codexHome) {
+      try {
+        const config = fs.readFileSync(codexConfigPath(codexHome), "utf8");
+        return config.includes('model_provider = "fde365"') && config.includes('base_url = "https://api.fde365.ai/v1"') && config.includes('wire_api = "responses"') && config.includes('env_key = "FDE365_TOKEN"');
+      } catch {
+        return false;
+      }
+    }
+    function buildSpawnSpec(command) {
+      const args = ["app-server", "--stdio"];
+      if (process.platform === "win32" && /\.(?:cmd|bat)$/i.test(command)) {
+        const comspec = process.env.ComSpec || process.env.COMSPEC || "cmd.exe";
+        return {
+          command: comspec,
+          args: ["/d", "/s", "/c", `"${command}" ${args.join(" ")}`],
+          windowsVerbatimArguments: true
+        };
+      }
+      return { command, args, windowsVerbatimArguments: false };
+    }
+    function buildChildEnvironment(codexHome, token) {
+      return {
+        ...process.env,
+        CODEX_HOME: codexHome,
+        FDE365_TOKEN: token,
+        NO_COLOR: "1"
+      };
+    }
+    function isRecord(value) {
+      return Boolean(value && typeof value === "object" && !Array.isArray(value));
+    }
+    function deferred() {
+      let resolve;
+      let reject;
+      const promise = new Promise((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+      });
+      return { promise, resolve, reject };
+    }
+    var JsonRpcTransport = class {
+      constructor(proc, onNotification, onServerRequest, onExitMessage) {
+        this.proc = proc;
+        this.onNotification = onNotification;
+        this.onServerRequest = onServerRequest;
+        this.onExitMessage = onExitMessage;
+        this.nextId = 1;
+        this.pending = /* @__PURE__ */ new Map();
+        this.disposed = false;
+        this.reader = readline.createInterface({ input: proc.stdout });
+        this.reader.on("line", (line) => this.handleLine(line));
+        proc.on("close", () => {
+          const error = new Error(onExitMessage());
+          this.disposed = true;
+          this.rejectAll(error);
+          this.onNotification("fde/processExited", { error });
+        });
+        proc.on("error", (error) => {
+          this.disposed = true;
+          this.rejectAll(error);
+          this.onNotification("fde/processExited", { error });
+        });
+      }
+      request(method, params, timeoutMs = APP_SERVER_REQUEST_TIMEOUT_MS) {
+        if (this.disposed) return Promise.reject(new Error("Codex app-server transport is closed"));
+        const id = this.nextId++;
+        const result = deferred();
+        const timer = timeoutMs > 0 ? setTimeout(() => {
+          this.pending.delete(id);
+          result.reject(new Error(`Codex app-server request timeout: ${method}`));
+        }, timeoutMs) : null;
+        this.pending.set(id, { ...result, timer });
+        this.send({ jsonrpc: "2.0", id, method, params });
+        return result.promise;
+      }
+      notify(method, params) {
+        const message = { jsonrpc: "2.0", method };
+        if (params !== void 0) message.params = params;
+        this.send(message);
+      }
+      send(message) {
+        if (this.disposed || !this.proc.stdin?.writable) return;
+        this.proc.stdin.write(`${JSON.stringify(message)}
+`);
+      }
+      handleLine(line) {
+        let message;
+        try {
+          message = JSON.parse(line);
+        } catch {
+          return;
+        }
+        if (!isRecord(message)) return;
+        const { id, method, params } = message;
+        if (id !== void 0 && !method) {
+          const pending = this.pending.get(Number(id));
+          if (!pending) return;
+          this.pending.delete(Number(id));
+          if (pending.timer) clearTimeout(pending.timer);
+          if (message.error) pending.reject(new Error(String(message.error.message || "Codex app-server error")));
+          else pending.resolve(message.result);
+          return;
+        }
+        if (typeof method === "string" && id === void 0) {
+          try {
+            this.onNotification(method, params);
+          } catch {
+          }
+          return;
+        }
+        if (typeof method === "string" && id !== void 0) {
+          Promise.resolve(this.onServerRequest(method, params)).then(
+            (result) => this.send({ jsonrpc: "2.0", id, result }),
+            (error) => this.send({ jsonrpc: "2.0", id, error: { code: -32603, message: error instanceof Error ? error.message : String(error) } })
+          );
+        }
+      }
+      rejectAll(error) {
+        for (const pending of this.pending.values()) {
+          if (pending.timer) clearTimeout(pending.timer);
+          pending.reject(error);
+        }
+        this.pending.clear();
+      }
+      dispose() {
+        if (this.disposed) return;
+        this.disposed = true;
+        this.reader.close();
+        this.rejectAll(new Error("Codex app-server transport closed"));
+      }
+    };
+    function contextBlock(context = []) {
+      if (!Array.isArray(context) || !context.length) return "";
+      return [
+        "以下是用户明确允许使用的本地上下文。引用结论时保留来源路径：",
+        ...context.map((item) => `
+### ${item.title || item.path || "本地上下文"}
+来源：${item.path || "未标注"}
+${item.excerpt || ""}`)
+      ].join("\n");
+    }
+    function buildTurnPrompt(request) {
+      const messages = Array.isArray(request.messages) ? request.messages : [];
+      const userMessages = messages.filter((message) => message?.role !== "system" && message?.content);
+      const current = userMessages.at(-1)?.content || "";
+      const history = request.sessionId ? [] : userMessages.slice(0, -1);
+      const parts = [];
+      if (history.length) {
+        parts.push("以下是迁移到本地 Agent 前的最近对话：");
+        for (const message of history.slice(-6)) parts.push(`${message.role === "assistant" ? "FDE365" : "用户"}：${message.content}`);
+      }
+      const local = contextBlock(request.context);
+      if (local) parts.push(local);
+      parts.push(String(current));
+      return parts.filter(Boolean).join("\n\n");
+    }
+    function buildBaseInstructions(request, vaultPath, knowledgeRoot) {
+      const system = (Array.isArray(request.messages) ? request.messages : []).find((message) => message?.role === "system")?.content || "";
+      return [
+        "你是嵌入 Obsidian 的 FDE365 本地 Agent。你拥有本地工具，但必须遵守以下边界：",
+        `- 工作目录固定为当前 Vault：${vaultPath}`,
+        `- FDE365 知识库根目录：${knowledgeRoot}`,
+        "- 只读取完成当前任务所需的文件；不得读取 Vault 外的文件、凭据、浏览器数据或其他项目。",
+        "- 不得读取或输出 .obsidian/plugins/fde365-knowledge-os/data.json、Token、密钥或任何凭据。",
+        "- 禁止删除、清空或覆盖原始材料；写入必须优先新建草稿，并等待宿主界面逐次确认。",
+        "- 禁止网络访问、安装软件、修改 Obsidian 插件配置或修改 .fde/.agents 运行合同。",
+        "- 当用户调用 /fde-* 时，先读取知识库内对应 .agents/skills/<skill>/SKILL.md，再按合同执行。",
+        "- 对话问题可以直接回答；需要落盘时先说明拟修改的路径和内容，随后使用本地工具触发确认。",
+        system
+      ].filter(Boolean).join("\n");
+    }
+    function summarizeToolEvent(event) {
+      if (event.type === "file-change") return event.path ? `准备修改 ${event.path}` : "准备修改知识库文件";
+      if (event.type === "command") return event.command ? `准备运行：${event.command}` : "准备运行本地命令";
+      if (event.type === "tool") return event.label || "正在使用本地工具";
+      return event.label || "本地 Agent 正在工作";
+    }
+    function redact(value, token) {
+      const text = String(value || "");
+      return token ? text.split(token).join("[REDACTED]") : text;
+    }
+    var FdeCodexAgentRuntime2 = class {
+      constructor(plugin, options = {}) {
+        this.plugin = plugin;
+        this.options = options;
+        this.proc = null;
+        this.transport = null;
+        this.stderr = "";
+        this.runtimeBinary = "";
+        this.loadedThreads = /* @__PURE__ */ new Set();
+        this.active = null;
+        this.pendingNotifications = [];
+      }
+      get vaultPath() {
+        const value = this.plugin.app.vault.adapter.getBasePath?.();
+        if (!value) throw new FdeAgentRuntimeError("VAULT_PATH_UNAVAILABLE", "无法确定当前 Vault 的本地路径");
+        return path.resolve(value);
+      }
+      get codexHome() {
+        if (this.options.codexHome) return path.resolve(this.options.codexHome);
+        const pluginDirectory = this.plugin.manifest.dir || `.obsidian/plugins/${this.plugin.manifest.id}`;
+        return isolatedCodexHome(this.vaultPath, pluginDirectory);
+      }
+      describe() {
+        const binary = this.options.codexPath || locateCodexBinary();
+        const configured = hasManagedCodexConfig(this.codexHome);
+        return {
+          available: Boolean(binary),
+          ready: Boolean(this.proc && !this.proc.killed && this.transport && !this.transport.disposed),
+          binary,
+          configured,
+          isolated: true,
+          label: binary ? configured ? "Codex Agent" : "Codex Agent · 首次运行自动配置" : "缺少 Codex 运行组件",
+          error: !binary ? "未找到 Codex 运行组件；请先安装官方 Codex 应用或命令行组件" : null
+        };
+      }
+      async ensureReady() {
+        const token = String(this.plugin.settings?.ai?.fde365?.token || "").trim();
+        const model = String(this.plugin.settings?.ai?.fde365?.model || "gpt-5.6-luna").trim();
+        const binary = this.options.codexPath || locateCodexBinary();
+        if (!binary) throw new FdeAgentRuntimeError("AGENT_RUNTIME_MISSING", "未找到 Codex 运行组件；请先安装官方 Codex 应用或命令行组件");
+        if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+        try {
+          ensureIsolatedCodexConfig(this.codexHome, model);
+        } catch (error) {
+          throw new FdeAgentRuntimeError("AGENT_CONFIG_FAILED", `无法创建当前 Vault 的独立 Agent 配置：${error instanceof Error ? error.message : String(error)}`);
+        }
+        if (this.transport && !this.transport.disposed && this.proc && !this.proc.killed && this.runtimeBinary === binary) return;
+        await this.shutdown();
+        const spec = buildSpawnSpec(binary);
+        const proc = spawn(spec.command, spec.args, {
+          cwd: this.vaultPath,
+          env: buildChildEnvironment(this.codexHome, token),
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+          windowsVerbatimArguments: spec.windowsVerbatimArguments
+        });
+        this.proc = proc;
+        this.stderr = "";
+        proc.stderr.on("data", (chunk) => {
+          this.stderr = `${this.stderr}${redact(Buffer.isBuffer(chunk) ? chunk.toString("utf8") : chunk, token)}`.slice(-STDERR_LIMIT);
+        });
+        this.transport = new JsonRpcTransport(
+          proc,
+          (method, params) => this.handleNotification(method, params),
+          (method, params) => this.handleServerRequest(method, params),
+          () => this.stderr.trim() ? `Codex Agent 已退出：${this.stderr.trim()}` : "Codex Agent 已退出"
+        );
+        try {
+          await this.transport.request("initialize", {
+            clientInfo: { name: "fde365-knowledge-os", version: this.plugin.manifest.version },
+            capabilities: { experimentalApi: true }
+          });
+          this.transport.notify("initialized");
+          this.runtimeBinary = binary;
+        } catch (error) {
+          await this.shutdown();
+          throw new FdeAgentRuntimeError("AGENT_START_FAILED", redact(error instanceof Error ? error.message : error, token));
+        }
+      }
+      async complete(request) {
+        if (this.active) throw new FdeAgentRuntimeError("AGENT_BUSY", "本地 Agent 正在执行另一个任务，请等待完成或先停止");
+        const settings = this.plugin.settings.ai.fde365;
+        const token = String(settings.token || "").trim();
+        const model = String(settings.model || "").trim();
+        if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+        await this.ensureReady();
+        const baseInstructions = buildBaseInstructions(request, this.vaultPath, this.plugin.knowledgeRoot || "FDE365知识库");
+        let threadId = String(request.sessionId || "").trim();
+        try {
+          if (threadId && !this.loadedThreads.has(threadId)) {
+            const resumed = await this.transport.request("thread/resume", {
+              threadId,
+              model,
+              approvalPolicy: "on-request",
+              sandbox: "read-only",
+              baseInstructions,
+              cwd: this.vaultPath
+            });
+            threadId = String(resumed?.thread?.id || threadId);
+            this.loadedThreads.add(threadId);
+          } else if (!threadId) {
+            const started = await this.transport.request("thread/start", {
+              model,
+              cwd: this.vaultPath,
+              approvalPolicy: "on-request",
+              sandbox: "read-only",
+              baseInstructions,
+              experimentalRawEvents: true,
+              ephemeral: false
+            });
+            threadId = String(started?.thread?.id || "");
+            if (!threadId) throw new Error("Codex Agent 未返回会话 ID");
+            this.loadedThreads.add(threadId);
+          }
+          const done = deferred();
+          this.active = {
+            requestId: request.requestId,
+            threadId,
+            turnId: null,
+            text: "",
+            events: [],
+            done,
+            onEvent: typeof request.onEvent === "function" ? request.onEvent : null
+          };
+          this.pendingNotifications = [];
+          const timeoutMs = Math.max(3e4, Number(settings.timeoutMs) || 12e4);
+          const turnResult = await this.transport.request("turn/start", {
+            threadId,
+            input: [{ type: "text", text: buildTurnPrompt({ ...request, sessionId: threadId }), text_elements: [] }],
+            approvalPolicy: "on-request",
+            model,
+            effort: "medium",
+            summary: "concise",
+            sandboxPolicy: { type: "readOnly", networkAccess: false }
+          }, Math.min(timeoutMs, APP_SERVER_REQUEST_TIMEOUT_MS));
+          this.active.turnId = String(turnResult?.turn?.id || "");
+          this.flushPendingNotifications();
+          if (!this.active.turnId) throw new Error("Codex Agent 未返回任务 ID");
+          let timer;
+          const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new FdeAgentRuntimeError("TIMEOUT", `Codex Agent 运行超过 ${Math.round(timeoutMs / 1e3)} 秒`)), timeoutMs);
+          });
+          let completed;
+          try {
+            completed = await Promise.race([done.promise, timeout]);
+          } finally {
+            clearTimeout(timer);
+          }
+          if (!String(completed.content || "").trim()) throw new FdeAgentRuntimeError("EMPTY_RESPONSE", "Codex Agent 没有返回可见内容");
+          return {
+            content: completed.content,
+            provider: "fde365-agent",
+            providerVersion: "codex-app-server-responses",
+            model,
+            conversationId: threadId,
+            usage: completed.usage || null,
+            toolEvents: completed.events
+          };
+        } catch (error) {
+          if (this.active?.threadId && this.active?.turnId && this.transport) {
+            void this.transport.request("turn/interrupt", {
+              threadId: this.active.threadId,
+              turnId: this.active.turnId
+            }).catch(() => void 0);
+          } else if (this.active && !this.active.turnId) {
+            await this.shutdown();
+          }
+          if (error instanceof FdeAgentRuntimeError) throw error;
+          throw new FdeAgentRuntimeError("AGENT_FAILED", redact(error instanceof Error ? error.message : error, token));
+        } finally {
+          this.active = null;
+          this.pendingNotifications = [];
+        }
+      }
+      event(event) {
+        if (!this.active) return;
+        const normalized = { ...event, label: event.label || summarizeToolEvent(event) };
+        this.active.events.push(normalized);
+        try {
+          this.active.onEvent?.(normalized);
+        } catch {
+        }
+      }
+      handleNotification(method, params) {
+        if (!this.active) return;
+        if (method === "fde/processExited") {
+          this.active.done.reject(new FdeAgentRuntimeError("AGENT_EXITED", params?.error?.message || "Codex Agent 已退出"));
+          return;
+        }
+        if (!this.active.turnId && method !== "turn/started") {
+          this.pendingNotifications.push({ method, params });
+          return;
+        }
+        if (method === "turn/started" && !this.active.turnId && String(params?.threadId || "") === this.active.threadId) {
+          this.active.turnId = String(params?.turn?.id || "");
+          this.flushPendingNotifications();
+          return;
+        }
+        const threadId = String(params?.threadId || "");
+        const turnId = String(params?.turnId || params?.turn_id || params?.turn?.id || "");
+        if (threadId && threadId !== this.active.threadId) return;
+        if (turnId && this.active.turnId && turnId !== this.active.turnId) return;
+        if (method === "item/agentMessage/delta") {
+          this.active.text += String(params?.delta || "");
+          return;
+        }
+        if (method === "item/completed" && params?.item?.type === "agentMessage") {
+          const text = String(params.item.text || "");
+          if (text && !this.active.text.includes(text)) this.active.text = text;
+          return;
+        }
+        if (method === "item/started") {
+          const item = params?.item || {};
+          if (item.type === "commandExecution") this.event({ type: "command", command: String(item.command || ""), label: `正在运行：${String(item.command || "本地命令")}` });
+          else if (item.type === "fileChange") this.event({ type: "file-change", label: "正在准备知识库文件变更" });
+          else if (item.type === "webSearch") this.event({ type: "tool", label: "网络搜索已被 FDE365 安全策略禁用" });
+          return;
+        }
+        if (method === "item/fileChange/patchUpdated") {
+          for (const change of Array.isArray(params?.changes) ? params.changes : []) {
+            this.event({ type: "file-change", path: String(change.path || ""), diff: String(change.diff || "") });
+          }
+          return;
+        }
+        if (method === "thread/tokenUsage/updated") {
+          this.active.usage = params?.tokenUsage || null;
+          return;
+        }
+        if (method === "error" && !params?.willRetry) {
+          this.active.done.reject(new FdeAgentRuntimeError("AGENT_FAILED", String(params?.error?.message || "Codex Agent 运行失败")));
+          return;
+        }
+        if (method === "turn/completed") {
+          const status = String(params?.turn?.status || "completed");
+          if (status === "failed") {
+            this.active.done.reject(new FdeAgentRuntimeError("AGENT_FAILED", String(params?.turn?.error?.message || "Codex Agent 运行失败")));
+          } else if (status === "interrupted") {
+            this.active.done.reject(new FdeAgentRuntimeError("CANCELLED", "任务已取消"));
+          } else {
+            this.active.done.resolve({ content: this.active.text.trim(), events: this.active.events, usage: this.active.usage || null });
+          }
+        }
+      }
+      flushPendingNotifications() {
+        if (!this.active?.turnId || !this.pendingNotifications.length) return;
+        const pending = this.pendingNotifications;
+        this.pendingNotifications = [];
+        for (const item of pending) if (item) this.handleNotification(item.method, item.params);
+      }
+      insideVault(value) {
+        if (!value) return true;
+        const resolved = path.resolve(this.vaultPath, String(value));
+        const relative = path.relative(this.vaultPath, resolved);
+        return relative === "" || !relative.startsWith("..") && !path.isAbsolute(relative);
+      }
+      async handleServerRequest(method, params) {
+        if (method === "item/commandExecution/requestApproval") {
+          const command = String(params?.command || "");
+          if (params?.networkApprovalContext) return { decision: "decline" };
+          if (!this.insideVault(params?.cwd)) return { decision: "decline" };
+          if (/(?:^|\s)(?:rm\s+-rf|rmdir\s+\/s|del\s+\/s|format\s+|diskpart\b|git\s+reset\s+--hard)(?:\s|$)/i.test(command)) return { decision: "decline" };
+          const allowed = await this.plugin.requestAgentApproval?.({
+            kind: "command",
+            title: "允许本地 Agent 运行命令？",
+            description: params?.reason || "Codex Agent 请求运行本地命令。",
+            items: [command || "未提供命令", params?.cwd ? `目录：${params.cwd}` : `目录：${this.vaultPath}`]
+          });
+          return { decision: allowed ? "accept" : "decline" };
+        }
+        if (method === "item/fileChange/requestApproval") {
+          if (params?.grantRoot && !this.insideVault(params.grantRoot)) return { decision: "decline" };
+          const allowed = await this.plugin.requestAgentApproval?.({
+            kind: "file-change",
+            title: "允许本地 Agent 修改知识库？",
+            description: params?.reason || "Codex Agent 请求写入当前 Vault。",
+            items: [params?.grantRoot ? `允许范围：${params.grantRoot}` : `允许范围：当前 Vault（${this.vaultPath}）`, "只允许本次操作；不会永久放行。"]
+          });
+          return { decision: allowed ? "accept" : "decline" };
+        }
+        if (method === "item/permissions/requestApproval") {
+          return { permissions: {}, scope: "turn" };
+        }
+        if (method === "item/tool/requestUserInput") {
+          const answers = await this.plugin.requestAgentQuestion?.(Array.isArray(params?.questions) ? params.questions : []);
+          const mapped = {};
+          for (const [key, value] of Object.entries(answers || {})) mapped[key] = { answers: Array.isArray(value) ? value : [String(value)] };
+          return { answers: mapped };
+        }
+        if (method === "item/tool/call") throw new Error(`不支持的本地动态工具：${String(params?.tool || "unknown")}`);
+        throw new Error(`不支持的 Codex Agent 请求：${method}`);
+      }
+      cancel(requestId) {
+        if (!this.active || requestId && this.active.requestId !== requestId) return false;
+        const { threadId, turnId, done } = this.active;
+        if (threadId && turnId && this.transport) void this.transport.request("turn/interrupt", { threadId, turnId }).catch(() => void 0);
+        done.reject(new FdeAgentRuntimeError("CANCELLED", "任务已取消"));
+        return true;
+      }
+      async shutdown() {
+        if (this.active) this.active.done.reject(new FdeAgentRuntimeError("CANCELLED", "Agent 运行已停止"));
+        this.active = null;
+        this.pendingNotifications = [];
+        this.loadedThreads.clear();
+        this.runtimeBinary = "";
+        this.transport?.dispose();
+        this.transport = null;
+        if (this.proc && !this.proc.killed) {
+          const proc = this.proc;
+          await new Promise((resolve) => {
+            const timer = setTimeout(() => {
+              try {
+                proc.kill("SIGKILL");
+              } catch {
+              }
+              resolve();
+            }, 3e3);
+            proc.once("close", () => {
+              clearTimeout(timer);
+              resolve();
+            });
+            try {
+              proc.kill("SIGTERM");
+            } catch {
+              clearTimeout(timer);
+              resolve();
+            }
+          });
+        }
+        this.proc = null;
+        this.stderr = "";
+      }
+    };
+    module2.exports = {
+      FdeAgentRuntimeError,
+      FdeCodexAgentRuntime: FdeCodexAgentRuntime2,
+      buildIsolatedCodexConfig,
+      buildChildEnvironment,
+      buildTurnPrompt,
+      codexConfigPath,
+      ensureIsolatedCodexConfig,
+      hasManagedCodexConfig,
+      isolatedCodexHome,
+      locateCodexBinary
+    };
+  }
+});
+
 // source.js
 var {
   ItemView,
@@ -10624,6 +11265,7 @@ var Defuddle = require_defuddle();
 var KNOWLEDGE_BLUEPRINT = require_blueprint();
 var FDEWorkspace = require_fde_workspace();
 var GitHubUpdater = require_github_updater();
+var { FdeCodexAgentRuntime } = require_fde_agent_runtime();
 var VIEW_TYPE = "ai-knowledge-os-dashboard";
 var INBOX_VIEW_TYPE = "ai-knowledge-os-inbox";
 var KNOWLEDGE_VIEW_TYPE = "ai-knowledge-os-knowledge";
@@ -10716,9 +11358,9 @@ var ONBOARDING_STEPS = Object.freeze([
     icon: "bot",
     eyebrow: "第三步 · 协作",
     title: "让 AI 在你选定的范围内工作",
-    description: "只有你主动发送时，选定的问题和上下文才会交给FDE365 AI 服务。Token 只保存在当前 Vault。",
+    description: "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。Token 只保存在当前 Vault。",
     highlights: [
-      { icon: "message-square", title: "FDE365 AI", text: "基于当前笔记或显式选中的文件对话。" },
+      { icon: "bot", title: "FDE365 Agent", text: "可读取 Vault、运行 Skills，需要写入时向你确认。" },
       { icon: "wand-sparkles", title: "35 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
       { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" }
     ]
@@ -11409,6 +12051,87 @@ var AIProviderManager = class {
     for (const provider of this.providers.values()) provider.cancelAll?.();
   }
 };
+var AgentApprovalModal = class extends Modal {
+  constructor(app, options, resolve) {
+    super(app);
+    this.options = options;
+    this.resolveApproval = resolve;
+    this.settled = false;
+  }
+  finish(value) {
+    if (this.settled) return;
+    this.settled = true;
+    this.resolveApproval(Boolean(value));
+    this.close();
+  }
+  onOpen() {
+    this.contentEl.addClass("akos-modal", "fde-agent-approval-modal");
+    this.contentEl.createEl("h2", { text: this.options.title || "允许本地 Agent 执行？" });
+    this.contentEl.createEl("p", { text: this.options.description || "FDE365 Agent 请求执行本地操作。", cls: "akos-modal-description" });
+    const list = this.contentEl.createEl("ul", { cls: "fde-agent-approval-items" });
+    for (const item of this.options.items || []) list.createEl("li", { text: String(item) });
+    const actions = this.contentEl.createDiv({ cls: "akos-modal-actions" });
+    const reject = actions.createEl("button", { text: "不允许" });
+    const allow = actions.createEl("button", { text: "仅允许这一次", cls: "mod-cta" });
+    reject.addEventListener("click", () => this.finish(false));
+    allow.addEventListener("click", () => this.finish(true));
+  }
+  onClose() {
+    if (!this.settled) {
+      this.settled = true;
+      this.resolveApproval(false);
+    }
+    this.contentEl.empty();
+  }
+};
+var AgentQuestionModal = class extends Modal {
+  constructor(app, questions, resolve) {
+    super(app);
+    this.questions = questions;
+    this.resolveAnswers = resolve;
+    this.inputs = /* @__PURE__ */ new Map();
+    this.settled = false;
+  }
+  finish(answers) {
+    if (this.settled) return;
+    this.settled = true;
+    this.resolveAnswers(answers);
+    this.close();
+  }
+  onOpen() {
+    this.contentEl.addClass("akos-modal", "fde-agent-question-modal");
+    this.contentEl.createEl("h2", { text: "FDE365 Agent 需要你确认" });
+    for (const question of this.questions) {
+      const id = String(question?.id || `question-${this.inputs.size + 1}`);
+      const group = this.contentEl.createDiv({ cls: "fde-agent-question" });
+      group.createEl("strong", { text: String(question?.header || question?.question || "请补充信息") });
+      if (question?.header && question?.question) group.createEl("p", { text: String(question.question), cls: "akos-modal-description" });
+      const options = Array.isArray(question?.options) ? question.options : [];
+      if (options.length) {
+        const select = group.createEl("select");
+        for (const option of options) select.createEl("option", { text: String(option?.label || option), value: String(option?.label || option) });
+        this.inputs.set(id, select);
+      } else {
+        const input = group.createEl("input", { type: "text", attr: { placeholder: "输入你的回答…" } });
+        this.inputs.set(id, input);
+      }
+    }
+    const actions = this.contentEl.createDiv({ cls: "akos-modal-actions" });
+    actions.createEl("button", { text: "取消" }).addEventListener("click", () => this.finish({}));
+    actions.createEl("button", { text: "继续", cls: "mod-cta" }).addEventListener("click", () => {
+      const answers = {};
+      for (const [id, input] of this.inputs) answers[id] = input.value;
+      this.finish(answers);
+    });
+  }
+  onClose() {
+    if (!this.settled) {
+      this.settled = true;
+      this.resolveAnswers({});
+    }
+    this.contentEl.empty();
+  }
+};
 async function ensureVaultFolder(app, path) {
   const normalized = normalizePath(path);
   const parts = normalized.split("/");
@@ -11739,10 +12462,8 @@ var AIKnowledgeOSSettingTab = class extends PluginSettingTab {
         this.display();
       }
     }));
-    new Setting(containerEl).setName("发送的本地上下文").setDesc("只把选定的笔记片段交给FDE365 AI；不会默认提交整个 Vault。").addDropdown((dropdown) => dropdown.addOption("none", "不发送笔记").addOption("active-note", "当前活动笔记").addOption("retrieved", "当前笔记与本地检索片段").setValue(this.plugin.settings.ai.assistant.contextScope).onChange(async (value) => {
-      this.plugin.settings.ai.assistant.contextScope = ["none", "retrieved"].includes(value) ? value : "active-note";
-      await this.plugin.saveSettings();
-    }));
+    const agentRuntime = this.plugin.agentRuntime?.describe?.() || { available: false, ready: false, error: "本地 Agent 尚未初始化" };
+    new Setting(containerEl).setName("本地 Agent").setDesc(agentRuntime.available ? `Codex app-server 已就绪${agentRuntime.ready ? " · 运行中" : ""}；配置隔离在当前 Vault，不修改本机 Codex App，也无需重新运行安装器。` : agentRuntime.error);
     const api = this.plugin.settings.ai.fde365;
     new Setting(containerEl).setName("Token").setDesc(api.token ? "Token 已保存在当前 Vault；输入新值可替换，发布包不会包含该配置。" : "填写购买后获得的 Token；它只保存在当前 Vault。").addText((text) => {
       text.inputEl.type = "password";
@@ -11765,10 +12486,6 @@ var AIKnowledgeOSSettingTab = class extends PluginSettingTab {
         this.plugin.refreshDashboard();
       });
     });
-    new Setting(containerEl).setName("Temperature").setDesc("范围 0–2，知识问答建议 0.2–0.5。").addSlider((slider) => slider.setLimits(0, 2, 0.1).setDynamicTooltip().setValue(Number(api.temperature) || 0).onChange(async (value) => {
-      api.temperature = value;
-      await this.plugin.saveSettings();
-    }));
     containerEl.createEl("h3", { text: "资产网络", attr: { id: "akos-settings-graph" } });
     new Setting(containerEl).setName("默认连接深度").setDesc("控制资产网络初次打开时展示的卫星节点和路径搜索深度。").addDropdown((dropdown) => dropdown.addOption("1", "1 层").addOption("2", "2 层").addOption("3", "3 层").setValue(String(this.plugin.settings.graphDefaultDepth || 2)).onChange(async (value) => {
       this.plugin.settings.graphDefaultDepth = Number(value);
@@ -11797,6 +12514,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
+    this.agentRuntime = new FdeCodexAgentRuntime(this);
     this.updateService = new Fde365UpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
     await this.migrateProviderSettings();
@@ -11928,6 +12646,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.onboardingModal?.close();
     this.onboardingModal = null;
     this.providerManager?.cancelAll?.();
+    void this.agentRuntime?.shutdown?.();
     if (this.startupTimer !== null) window.clearTimeout(this.startupTimer);
     this.startupTimer = null;
     if (this.updateStartupTimer !== null) window.clearTimeout(this.updateStartupTimer);
@@ -12125,7 +12844,18 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     return added;
   }
   providerLabel(providerId) {
+    if (providerId === "fde365-agent") return "FDE365 Codex Agent";
     return this.providerManager.get(providerId)?.label || providerId || "AI Provider";
+  }
+  requestAgentApproval(options) {
+    return new Promise((resolve) => new AgentApprovalModal(this.app, options, resolve).open());
+  }
+  requestAgentQuestion(questions) {
+    if (!questions.length) return Promise.resolve({});
+    return new Promise((resolve) => new AgentQuestionModal(this.app, questions, resolve).open());
+  }
+  cancelAgentRequest(requestId) {
+    return this.agentRuntime?.cancel?.(requestId) || false;
   }
   async buildAssistantContext(prompt, sourceFiles = [], localContext = []) {
     const settings = this.settings.ai.assistant;
@@ -12183,14 +12913,15 @@ ${content}`.toLowerCase();
     }
     return context;
   }
-  async askAssistant({ requestId, prompt, history = [], systemPrompt, sourceFiles = [], localContext = [] }) {
+  async askAssistant({ requestId, prompt, history = [], systemPrompt, sourceFiles = [], localContext = [], sessionId = "", onEvent = null }) {
     const context = await this.buildAssistantContext(prompt, sourceFiles, localContext);
     const messages = [
       { role: "system", content: systemPrompt || "你是FDE365知识助手。" },
       ...history.filter((message) => !message.error && ["user", "assistant"].includes(message.role) && message.content).slice(-6).map((message) => ({ role: message.role, content: message.content })),
       { role: "user", content: prompt }
     ];
-    return this.providerManager.complete({ requestId, mode: "chat", messages, context });
+    await this.providerManager.preflight();
+    return this.agentRuntime.complete({ requestId, mode: "chat", messages, context, sessionId, onEvent });
   }
   async saveAssistantOutput(message, viewName = "AI 助手") {
     await ensureVaultFolder(this.app, AI_OUTPUT_ROOT);
@@ -12236,20 +12967,22 @@ ${message.content}
     let capability;
     try {
       ({ provider, capability } = await this.providerManager.preflight());
+      const runtime = this.agentRuntime.describe();
+      if (!runtime.available) throw new AIProviderError("AGENT_RUNTIME_MISSING", runtime.error || "未找到 Codex Agent 运行组件");
     } catch (error) {
       new Notice(`无法启动 Agent：${error instanceof Error ? error.message : String(error)}`);
       if (["PROVIDER_NOT_CONFIGURED", "PROVIDER_UNAVAILABLE", "INCOMPATIBLE_VERSION", "AUTH_FAILED", "MODEL_NOT_FOUND"].includes(error?.code)) this.openSettings("ai");
       return null;
     }
     const task = await this.agentTaskStore.createRun(agent, prompt, sources, {
-      provider: provider.id,
-      providerVersion: capability.version || "",
+      provider: "fde365-agent",
+      providerVersion: "codex-app-server-responses",
       model: capability.model || "",
-      label: provider.label
+      label: "FDE365 Codex Agent"
     });
-    new Notice(`${agent.name} 已进入执行队列 · ${provider.label}`);
+    new Notice(`${agent.name} 已进入执行队列 · FDE365 Codex Agent`);
     await this.agentTaskStore.transition(task, AGENT_RUN_STATUSES.RUNNING, {
-      provider_version: capability.version,
+      provider_version: "codex-app-server-responses",
       model: capability.model || "",
       started_at: (/* @__PURE__ */ new Date()).toISOString(),
       error: ""
@@ -12257,7 +12990,7 @@ ${message.content}
     this.refreshDashboard();
     try {
       const context = await this.buildAssistantContext(prompt, sources, agent.localContext || []);
-      const result = await provider.complete({
+      const result = await this.agentRuntime.complete({
         requestId: task.taskId,
         mode: "agent",
         messages: [

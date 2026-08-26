@@ -39,16 +39,17 @@ function run(argv) {
   if (!claudePath || !codexPath || !tokenHelper) throw new Error("客户端配置参数不完整");
   const model = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "gpt-5.6-luna";
 
-  const claudeSettings = readJson(claudePath);
-  claudeSettings.apiKeyHelper = tokenHelper;
-  claudeSettings.env = {
-    ANTHROPIC_BASE_URL: "https://api.fde365.ai",
-    ANTHROPIC_MODEL: model,
-    ANTHROPIC_DEFAULT_OPUS_MODEL: model,
-    ANTHROPIC_DEFAULT_SONNET_MODEL: model,
-    ANTHROPIC_DEFAULT_HAIKU_MODEL: model,
-    CLAUDE_CODE_API_KEY_HELPER_TTL_MS: "300000",
-    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+  const claudeSettings = {
+    apiKeyHelper: tokenHelper,
+    env: {
+      ANTHROPIC_BASE_URL: "https://api.fde365.ai",
+      ANTHROPIC_MODEL: model,
+      ANTHROPIC_DEFAULT_OPUS_MODEL: model,
+      ANTHROPIC_DEFAULT_SONNET_MODEL: model,
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: model,
+      CLAUDE_CODE_API_KEY_HELPER_TTL_MS: "300000",
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+    },
   };
   writeText(claudePath, `${JSON.stringify(claudeSettings, null, 2)}\n`);
 
@@ -56,6 +57,8 @@ function run(argv) {
     `model = ${tomlString(model)}`,
     'model_provider = "fde365"',
     'model_reasoning_effort = "medium"',
+    "check_for_update_on_startup = false",
+    'web_search = "disabled"',
     "",
     "[model_providers.fde365]",
     'name = "FDE365"',

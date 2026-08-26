@@ -1611,6 +1611,29 @@
   margin-top: 18px;
 }
 
+.fde-agent-approval-items {
+  margin: 12px 0 0;
+  padding: 12px 12px 12px 30px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-secondary);
+}
+
+.fde-agent-approval-items li + li {
+  margin-top: 6px;
+}
+
+.fde-agent-question {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.fde-agent-question input,
+.fde-agent-question select {
+  width: 100%;
+}
+
 /* Typography and icon alignment audit — tuned for the Obsidian desktop viewport. */
 .akos-icon {
   display: inline-flex;

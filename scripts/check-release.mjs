@@ -2,6 +2,7 @@ import { access, readFile } from "node:fs/promises";
 
 const requiredFiles = [
   "source.js",
+  "fde-agent-runtime.js",
   "main.js",
   "github-updater.js",
   "styles.css",
@@ -16,10 +17,13 @@ const requiredFiles = [
   "KB-SUITE-LICENSE.txt",
   "KB-SUITE-NOTICE.md",
   "DEFUDDLE-LICENSE.txt",
+  "CLAUDIAN-LICENSE.txt",
   "scripts/build-blueprint.mjs",
+  "scripts/build-plugin.mjs",
   "scripts/blueprint-tests.mjs",
   "scripts/fde-workspace-tests.cjs",
   "scripts/provider-tests.cjs",
+  "scripts/fde-agent-runtime-tests.cjs",
   "scripts/github-updater-tests.cjs",
   "scripts/package-release.mjs",
   ".github/workflows/release.yml",
@@ -44,7 +48,7 @@ if (versions[manifest.version] !== manifest.minAppVersion) throw new Error(`vers
 if (blueprint.root !== "FDE365知识库" || blueprint.version < 1) throw new Error("Invalid knowledge blueprint metadata");
 
 const main = await readFile("main.js", "utf8");
-for (const forbidden of ["tikbit.ai", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "process.env.CODEX_HOME =", "process.env.ANTHROPIC_"]) {
+for (const forbidden of ["tikbit.ai", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "process.env.CODEX_HOME =", "process.env.FDE365_TOKEN =", "process.env.ANTHROPIC_"]) {
   if (main.includes(forbidden)) throw new Error(`Forbidden vendor/config takeover string found: ${forbidden}`);
 }
 for (const forbidden of ["Codex CLI", "Claude CLI", "选择 AI Provider", "自定义 API（OpenAI-compatible）"]) {
@@ -52,6 +56,15 @@ for (const forbidden of ["Codex CLI", "Claude CLI", "选择 AI Provider", "自�
 }
 for (const required of ["https://api.fde365.ai/v1", "claude-fable-5", "claude-opus-4-8", "gpt-5.6-sol", "gpt-5.6-luna", "Token", "FDE365知识库", "fde365-six-assets"]) {
   if (!main.includes(required)) throw new Error(`Built runtime is missing: ${required}`);
+}
+for (const required of ["codex-app-server-responses", "thread/start", "turn/start", "FDE365 Codex Agent"]) {
+  if (!main.includes(required)) throw new Error(`Built Agent runtime is missing: ${required}`);
+}
+for (const required of ['env_key = "FDE365_TOKEN"', ".fde365-agent", "无需重新运行安装器"]) {
+  if (!main.includes(required)) throw new Error(`Built isolated Agent runtime is missing: ${required}`);
+}
+for (const forbidden of ["需要重新运行 FDE365 安装器", "Codex 尚未由 FDE365 接管配置", 'text: "重新运行安装器"', 'path.join(home, ".codex"']) {
+  if (main.includes(forbidden)) throw new Error(`Built runtime still depends on user-level Codex takeover: ${forbidden}`);
 }
 for (const forbidden of ["xingji-liubai", "xjlb-"]) {
   if (main.toLowerCase().includes(forbidden)) throw new Error(`Legacy plugin identifier is still present in runtime: ${forbidden}`);

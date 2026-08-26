@@ -24,6 +24,7 @@ const runtimeFiles = [
   "KB-SUITE-LICENSE.txt",
   "KB-SUITE-NOTICE.md",
   "DEFUDDLE-LICENSE.txt",
+  "CLAUDIAN-LICENSE.txt",
 ];
 const forbiddenNames = [/^data\.json$/i, /^workspace.*\.json$/i, /^\.DS_Store$/i];
 const secretPatterns = [

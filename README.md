@@ -24,7 +24,7 @@
 2. 打开 Obsidian 设置 → FDE365 Knowledge OS → AI 服务，在 **Token** 一栏填写。
 3. 从 `claude-fable-5`、`claude-opus-4-8`、`gpt-5.6-sol`、`gpt-5.6-luna` 中选择模型并点击“测试连接”。
 
-Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记或发布包。插件不会读取或修改系统环境变量和其他 AI 客户端配置。
+Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记或发布包。首次运行右侧 Agent 时，插件会在当前 Vault 的插件目录内自动创建独立 Codex 配置，并只向该 Agent 子进程临时传入 Token；不会修改 `~/.codex`、本机 Codex App、Shell 或系统环境变量。独立插件更新后无需重新运行安装器。
 
 ## 知识库结构
 
@@ -42,7 +42,7 @@ Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记�
 
 ## 面板与工作流
 
-- **FDE365 AI**：右侧统一工作区保留对话、当前笔记、文件上下文、新对话、历史、六库状态和 Skill 路由；点击模型状态可直接打开 Token 与模型设置。
+- **FDE365 Agent**：右侧统一工作区通过本地 Codex app-server 运行，可读取当前 Vault、运行 FDE Skills，并在用户确认后修改文件；每个 Vault 使用独立配置，不影响本机 Codex App，插件更新后也无需重跑安装器。
 - **总览**：六库真实文件数、来源覆盖率、未知项、内容阶段和近期资产；不把 Skill、系统文件或 README 计入资产。
 - **待处理**：原始材料先落盘，再由 `/fde-ingest` 按“原文 → 事实 → 推断 → 未知”整理，保留来源路径。
 - **六类资产**：老板说明书、产品、客户需求、素材案例、方法论和内容生产是唯一正式分类，不再额外发明 AI 主题分类。
@@ -51,7 +51,7 @@ Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记�
 - **FDE Skills**：展示并运行全部 35 个本地 Skill；执行时要求 Provider 先读取对应 `SKILL.md` 合同。
 - **知识体检**：检查来源覆盖、未知项、版本、阶段冲突、路径边界和 Skill 部署完整性。
 
-插件上下文严格限制在 `FDE365知识库/` 的六类资产内，不会跨项目扫描 Vault。统计与体检全部在本地完成；只有用户主动发送的请求和选定上下文会交给当前 Provider。
+统计与体检全部在本地完成。只有用户主动发起 Agent 请求时，当前任务和所需上下文才会通过 FDE365 服务发送给模型；本地文件工具由 Codex app-server 执行，Token 不会写进会话或笔记。
 
 模板源来自 `ozrwayne/kb-suite`，许可和上游声明见 [LICENSES.md](./LICENSES.md)、[KB-SUITE-LICENSE.txt](./KB-SUITE-LICENSE.txt) 与 [KB-SUITE-NOTICE.md](./KB-SUITE-NOTICE.md)。目前交付按本地自用/内部验证处理；商用分发前需要重新确认上游非商业许可。
 

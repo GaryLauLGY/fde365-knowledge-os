@@ -3,8 +3,6 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 FDE365_SUPPORT="$HOME/Library/Application Support/FDE365 Knowledge OS"
-TOKEN_HELPER="$FDE365_SUPPORT/bin/fde365-token"
-MODEL_FILE="$FDE365_SUPPORT/model.txt"
 
 find_claude() {
   for candidate in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null || true)"; do
@@ -14,15 +12,4 @@ find_claude() {
 }
 
 CLAUDE_BIN="$(find_claude)" || { printf '尚未安装 Claude Code，请重新运行 FDE365 安装器。\n' >&2; exit 1; }
-FDE365_TOKEN="$($TOKEN_HELPER)" || exit 1
-IFS= read -r FDE365_MODEL < "$MODEL_FILE"
-
-unset ANTHROPIC_API_KEY
-export ANTHROPIC_AUTH_TOKEN="$FDE365_TOKEN"
-export ANTHROPIC_BASE_URL="https://api.fde365.ai"
-export ANTHROPIC_MODEL="$FDE365_MODEL"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="$FDE365_MODEL"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="$FDE365_MODEL"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="$FDE365_MODEL"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 exec "$CLAUDE_BIN" "$@"

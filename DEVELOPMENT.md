@@ -7,15 +7,16 @@
 1. 用FDE365蓝白视觉提供知识驾驶舱；
 2. 首次启用时以 create-only 方式初始化六类资产知识库；
 3. 把 FDE Skills 的 35 个工作流作为项目能力部署在知识库内，并让面板直接反映其信息架构和合同；
-4. 在用户主动发起请求时，通过内置的FDE365 AI 服务地址调用用户所选模型。
+4. 在用户主动发起请求时，通过本地 Codex app-server 运行可读写 Vault 的 FDE365 Agent。
 
-插件不得修改 Shell 环境变量、`~/.codex`、`~/.claude` 或其他插件配置，也不得提供或静默切换其他 Provider。
+插件本体不改写用户主目录、Shell 配置或系统环境变量。右侧 Agent 在当前 Vault 的插件目录内自动维护独立 `CODEX_HOME`，仅向自己启动的 `codex app-server` 子进程传入该路径和当前 Vault Token；不会修改 `~/.codex`，也不会影响本机 Codex App。更新插件后无需重新运行安装器。
 
 ## 2. 目录与构建产物
 
 | 路径 | 作用 |
 | --- | --- |
-| `source.js` | Obsidian 生命周期、初始化服务和固定 AI Provider |
+| `source.js` | Obsidian 生命周期、初始化服务、Agent 授权界面和固定 AI Provider |
+| `fde-agent-runtime.js` | Codex app-server JSON-RPC 连接、会话恢复、工具事件和写入确认 |
 | `fde-workspace.js` | 六库运行模型、35 个 Skill 目录、内容流水线和七个主视图 |
 | `styles.css` | FDE365 Logo、蓝白主题、响应式驾驶舱样式 |
 | `vault-template/` | 知识库模板的唯一编辑源 |
@@ -49,23 +50,22 @@ Obsidian `layoutReady` 后，`VaultBootstrapService` 读取 `blueprint.json`，�
 node scripts/build-blueprint.mjs
 ```
 
-## 4. AI Provider
+## 4. AI Provider 与本地 Agent
 
-运行时只注册 `Fde365Provider`。服务根地址固定为 `https://api.fde365.ai/v1`，请求固定发送到 `/chat/completions`；设置页不显示或接受服务地址。
+运行时只注册 `Fde365Provider`用于 Token 校验与连接测试。右侧对话和 35 个 FDE Skills 统一由 `FdeCodexAgentRuntime` 通过 `codex app-server --stdio` 执行，线上请求使用 FDE365 的 OpenAI Responses 兼容接口。
 
 用户只配置：
 
 - Token；
 - `claude-fable-5`、`claude-opus-4-8`、`gpt-5.6-sol`、`gpt-5.6-luna` 四个模型之一；
-- 可选温度。
 
-Token 只保存在当前 Vault 的 `.obsidian/plugins/fde365-knowledge-os/data.json`。该文件必须保持 Git 忽略；插件不会把 Token 转换为系统环境变量。旧版自定义 API 配置升级时只迁移凭据和受支持模型，不保留用户填写的服务地址。
+Token 只保存在当前 Vault 的 `.obsidian/plugins/fde365-knowledge-os/data.json`。该文件必须保持 Git 忽略。隔离配置只声明 `env_key = "FDE365_TOKEN"`，Token 仅在启动 Agent 子进程时临时传入，不写入隔离 `config.toml`，也不会进入 `~/.codex/config.toml`。
 
 ## 5. UI 结构
 
 主视图包含总览、待处理、六类资产、资产网络、内容生产、FDE Skills 和知识体检。侧栏、Logo、卡片和 AI 面板统一使用FDE365蓝白色系；核心视觉识别是六类资产卡片和贯穿页面的六阶段内容流。
 
-右侧“FDE365 AI”是单一、稳定的工作面。它合并了对话、当前模型状态、当前笔记与显式文件上下文、新对话、保存输出、历史记录、六库状态和 35 个 FDE Skills 路由。所有请求仍经过项目自己的 ProviderManager，不依赖或改写第三方插件配置。
+右侧“FDE365 Agent”是单一、稳定的工作面。它合并了对话、当前模型状态、当前笔记与显式文件上下文、新对话、保存输出、历史记录、六库状态和 35 个 FDE Skills 路由。会话实例保存在插件级内存中，切换中间工作台不会重建 Agent 会话。
 
 首次启用会在初始化完成后打开五步新人指引悬浮窗，介绍收集、六类资产、AI 协作、本地边界以及购买和填写 Token 的完整路径。完成、跳过或关闭后记录当前指引版本，后续启动不再打扰；用户仍可通过命令面板或设置页面重新打开。
 

@@ -43,6 +43,10 @@ async function executable(path) {
   await access(path, constants.X_OK);
 }
 
+async function exists(path) {
+  try { await access(path); return true; } catch { return false; }
+}
+
 async function walk(dir) {
   const files = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -147,8 +151,8 @@ const claudeSettings = await readJson(join(fakeHome, ".claude", "settings.json")
 if (claudeSettings.env?.ANTHROPIC_BASE_URL !== "https://api.fde365.ai") fail("Claude Base URL 不正确");
 if (claudeSettings.env?.ANTHROPIC_MODEL !== simulationModel) fail("Claude 模型不正确");
 if (claudeSettings.apiKeyHelper !== join(supportRoot, "bin", "fde365-token")) fail("Claude Token 助手不正确");
-if (claudeSettings.permissions?.allow?.[0] !== "Read") fail("Claude 原有非连接设置没有保留");
-pass("Claude Code 配置完成，并保留原有非连接设置");
+if (claudeSettings.permissions !== undefined || claudeSettings.env?.OLD_PROVIDER !== undefined) fail("Claude 旧 Provider 配置没有被接管覆盖");
+pass("Claude Code 用户级配置已由 FDE365 完整接管");
 
 const codexConfig = await readFile(join(fakeHome, ".codex", "config.toml"), "utf8");
 for (const expected of [
@@ -156,21 +160,21 @@ for (const expected of [
   'model_provider = "fde365"',
   'base_url = "https://api.fde365.ai/v1"',
   'wire_api = "responses"',
+  "check_for_update_on_startup = false",
+  'web_search = "disabled"',
   `[model_providers.fde365.auth]`,
   `command = "${join(supportRoot, "bin", "fde365-token").replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`,
 ]) {
   if (!codexConfig.includes(expected)) fail(`Codex 配置缺少：${expected}`);
 }
 pass("Codex 配置完成，并使用 FDE365 Responses 接口");
+if (codexConfig.includes('model_provider = "old"') || codexConfig.includes("[mcp_servers.keep]")) fail("Codex 旧 Provider 配置没有被接管覆盖");
 
-for (const shellName of [".zshrc", ".zprofile", ".bash_profile"]) {
-  const shellConfig = await readFile(join(fakeHome, shellName), "utf8");
-  if (!shellConfig.includes("# >>> FDE365 Knowledge OS >>>")) fail(`${shellName} 缺少 FDE365 环境块`);
+if (await readFile(join(fakeHome, ".zshrc"), "utf8") !== originalZshrc) fail("模拟安装修改了原有 .zshrc 内容");
+for (const shellName of [".zprofile", ".bash_profile"]) {
+  if (await exists(join(fakeHome, shellName))) fail(`模拟安装不应创建 ${shellName}`);
 }
-if (!(await readFile(join(fakeHome, ".zshrc"), "utf8")).includes("export KEEP_ME=1")) {
-  fail("模拟安装覆盖了原有 .zshrc 内容");
-}
-pass("zsh/bash 环境已配置，原有 Shell 内容仍保留");
+pass("Shell 配置和环境变量保持不变");
 
 const desktopTools = join(fakeHome, "Desktop", "FDE365 工具");
 for (const launcher of [
@@ -192,10 +196,10 @@ if (!backupDirEntry) fail("没有创建旧配置备份目录");
 const backupDir = join(backupRoot, backupDirEntry.name);
 const backupFiles = await walk(backupDir);
 const backupContents = await Promise.all(backupFiles.map((path) => readFile(path, "utf8")));
-for (const original of [originalClaude, originalCodex, originalZshrc]) {
+for (const original of [originalClaude, originalCodex]) {
   if (!backupContents.includes(original)) fail("旧配置备份内容不完整");
 }
-pass("Claude、Codex 与 Shell 的旧配置已完整备份");
+pass("Claude 与 Codex 的旧配置已完整备份");
 
 const tokenHelper = join(supportRoot, "bin", "fde365-token");
 const tokenResult = run("/bin/bash", [tokenHelper], {

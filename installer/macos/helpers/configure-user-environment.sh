@@ -19,7 +19,7 @@ DESKTOP_TOOLS="$HOME/Desktop/FDE365 工具"
 
 /bin/mkdir -p "$FDE365_BIN" "$BACKUP_DIR" "$HOME/.claude" "$HOME/.codex" "$DESKTOP_TOOLS"
 
-for target in "$CLAUDE_SETTINGS" "$CODEX_CONFIG" "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bash_profile"; do
+for target in "$CLAUDE_SETTINGS" "$CODEX_CONFIG"; do
   if [ -f "$target" ]; then
     safe_name="$(printf '%s' "$target" | /usr/bin/sed 's#[ /]#_#g')"
     /bin/cp -p "$target" "$BACKUP_DIR/$safe_name"
@@ -39,30 +39,6 @@ printf '%s\n' "$MODEL" > "$FDE365_SUPPORT/model.txt"
 /usr/bin/osascript -l JavaScript "$SOURCE_HELPERS/write-client-config.jxa" \
   "$CLAUDE_SETTINGS" "$CODEX_CONFIG" "$TOKEN_HELPER" "$MODEL" >/dev/null
 /bin/chmod 600 "$CLAUDE_SETTINGS" "$CODEX_CONFIG"
-
-update_shell_file() {
-  local shell_file="$1"
-  local clean_file
-  clean_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/fde365-shell.XXXXXX")"
-  if [ -f "$shell_file" ]; then
-    /usr/bin/sed '/# >>> FDE365 Knowledge OS >>>/,/# <<< FDE365 Knowledge OS <<</d' "$shell_file" > "$clean_file"
-  fi
-  {
-    /bin/cat "$clean_file"
-    printf '\n# >>> FDE365 Knowledge OS >>>\n'
-    printf 'export PATH="$HOME/Library/Application Support/FDE365 Knowledge OS/bin:$HOME/.local/bin:$PATH"\n'
-    printf 'unset ANTHROPIC_API_KEY\n'
-    printf 'unset ANTHROPIC_AUTH_TOKEN\n'
-    printf 'export ANTHROPIC_BASE_URL="https://api.fde365.ai"\n'
-    printf 'export ANTHROPIC_MODEL="%s"\n' "$MODEL"
-    printf '# <<< FDE365 Knowledge OS <<<\n'
-  } > "$shell_file"
-  /bin/rm -f "$clean_file"
-}
-
-update_shell_file "$HOME/.zshrc"
-update_shell_file "$HOME/.zprofile"
-update_shell_file "$HOME/.bash_profile"
 
 for launcher in "打开 FDE365 Claude.command" "打开 FDE365 Codex.command" "打开 FDE365 知识库.command"; do
   /usr/bin/ditto "$SOURCE_LAUNCHERS/$launcher" "$DESKTOP_TOOLS/$launcher"

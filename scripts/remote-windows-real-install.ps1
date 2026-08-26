@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2.0
 try { [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false) } catch {}
 
-$zip = Join-Path $QaRoot "FDE365-Knowledge-OS-Windows-v1.0.2.zip"
+$zip = Join-Path $QaRoot "FDE365-Knowledge-OS-Windows-v1.1.0.zip"
 $extract = Join-Path $QaRoot "extracted"
 $rollback = Join-Path $env:LOCALAPPDATA ("FDE365-TestRollback-" + [Guid]::NewGuid().ToString("N"))
 $support = Join-Path $env:LOCALAPPDATA "FDE365"
@@ -15,7 +15,7 @@ $configPaths = @(
     (Join-Path $env:USERPROFILE ".codex\config.toml"),
     (Join-Path $env:APPDATA "obsidian\obsidian.json")
 )
-$environmentNames = @("Path", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL")
+$environmentNames = @("Path", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL", "OPENAI_API_KEY", "OPENAI_BASE_URL")
 $environmentSnapshot = @{}
 $fileSnapshot = @()
 $supportExisted = Test-Path -LiteralPath $support
@@ -36,7 +36,7 @@ foreach ($path in $configPaths) {
 
 try {
     Expand-Archive -LiteralPath $zip -DestinationPath $extract
-    $bundle = Join-Path $extract "FDE365-Knowledge-OS-Windows-v1.0.2"
+    $bundle = Join-Path $extract "FDE365-Knowledge-OS-Windows-v1.1.0"
     $install = Join-Path $bundle "开始安装 FDE365.ps1"
     if (-not (Test-Path -LiteralPath $install)) { throw "发布包解压后的入口文件缺失。" }
 
@@ -98,7 +98,7 @@ try {
         ObsidianPublisher = [string]$signature.SignerCertificate.Subject
         ClaudeVersionDetected = $true
         CodexVersionDetected = $true
-        PluginVersion = "1.0.2"
+        PluginVersion = "1.1.0"
         FixedClaudeBaseUrl = $true
         FixedCodexBaseUrl = $true
         TokenStoredOnlyInVault = $true

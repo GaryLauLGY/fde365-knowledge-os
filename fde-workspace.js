@@ -323,7 +323,7 @@ class AssistantNotePickerModal extends Modal {
     root.addClass("wis-modal");
     root.addClass("wis-context-modal");
     root.createEl("h2", { text: "选择一篇笔记" });
-    root.createEl("p", { text: "选择本次对话的主要笔记。只有你发送消息时，这篇笔记的片段才会交给FDE365 AI。", cls: "wis-modal-note" });
+    root.createEl("p", { text: "选择本次任务的主要笔记。FDE365 Agent 会优先使用这篇笔记的内容。", cls: "wis-modal-note" });
     const search = root.createEl("input", {
       cls: "wis-modal-input",
       attr: { type: "search", placeholder: "按标题或路径搜索…", "aria-label": "搜索主要笔记" },
@@ -810,6 +810,8 @@ class FDEBaseView extends ItemView {
       draft: "",
       primaryPath: "",
       sourcePaths: [],
+      sessionId: "",
+      activity: [],
     });
     this.renderToken = 0;
   }
@@ -828,6 +830,10 @@ class FDEBaseView extends ItemView {
   set assistantPrimaryPath(value) { this.assistantSession.primaryPath = value; }
   get assistantSourcePaths() { return this.assistantSession.sourcePaths; }
   set assistantSourcePaths(value) { this.assistantSession.sourcePaths = value; }
+  get assistantSessionId() { return this.assistantSession.sessionId || ""; }
+  set assistantSessionId(value) { this.assistantSession.sessionId = value || ""; }
+  get assistantActivity() { return this.assistantSession.activity || []; }
+  set assistantActivity(value) { this.assistantSession.activity = Array.isArray(value) ? value : []; }
 
   getViewType() { return VIEW_TYPES[this.pageKey]; }
   getDisplayText() { return `${NAV_ITEMS.find((item) => item.key === this.pageKey)?.label || "FDE365"} · FDE365`; }
@@ -987,10 +993,10 @@ class FDEBaseView extends ItemView {
       const avatar = loading.createDiv({ cls: "wis-message-avatar" });
       makeIcon(avatar, "sparkles");
       const bubble = loading.createDiv({ cls: "wis-message-bubble" });
-      bubble.createEl("strong", { text: "正在结合六类资产回答…" });
+      bubble.createEl("strong", { text: this.assistantActivity.at(-1)?.label || "正在启动本地 Codex Agent…" });
       const stop = makeButton(bubble, "停止生成", "square", "is-secondary");
       stop.addEventListener("click", () => {
-        if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+        if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
       });
     }
     return true;
@@ -1095,9 +1101,11 @@ class FDEBaseView extends ItemView {
     }).open());
     const fresh = makeButton(toolbar, "新对话", "message-square-plus", "is-tool");
     fresh.addEventListener("click", async () => {
-      if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+      if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
       this.assistantMessages = [];
       this.assistantDraft = "";
+      this.assistantSessionId = "";
+      this.assistantActivity = [];
       await this.render();
     });
     if (this.assistantContextFiles().length) {
@@ -1115,13 +1123,13 @@ class FDEBaseView extends ItemView {
       });
     }
     const row = composer.createDiv({ cls: "wis-composer-row" });
-    const input = row.createEl("textarea", { attr: { placeholder: "问六类资产，或描述要推进的工作…", rows: "3", "aria-label": "询问FDE365 AI" } });
+    const input = row.createEl("textarea", { attr: { placeholder: "问六类资产，或描述要推进的工作…", rows: "3", "aria-label": "交给 FDE365 Agent" } });
     input.value = this.assistantDraft;
     input.addEventListener("input", () => { this.assistantDraft = input.value; });
     const send = makeButton(row, this.assistantLoading ? "停止" : "发送", this.assistantLoading ? "square" : "arrow-up", this.assistantLoading ? "is-secondary" : "is-primary");
     const submit = async () => {
       if (this.assistantLoading) {
-        if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+        if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
         return;
       }
       const prompt = input.value.trim();
@@ -1130,6 +1138,7 @@ class FDEBaseView extends ItemView {
       this.assistantMessages.push({ role: "user", content: prompt });
       this.assistantDraft = "";
       this.assistantLoading = true;
+      this.assistantActivity = [];
       await this.render();
       const requestId = `fde365-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       this.assistantRequestId = requestId;
@@ -1138,10 +1147,16 @@ class FDEBaseView extends ItemView {
           requestId,
           prompt,
           history: this.assistantMessages.slice(0, -1),
-          systemPrompt: `你是独立于中间工作台页面的FDE365 AI 工作区。\n${BASE_SKILL_RULES}\n插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容，不要要求用户再提供同一文件。先直接回答，再列使用的来源路径和仍待确认的内容。`,
+          systemPrompt: `你是独立于中间工作台页面的 FDE365 本地 Agent。\n${BASE_SKILL_RULES}\n插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容。需要时使用本地工具检查 Vault，写入前说明目标并等待用户确认。`,
           sourceFiles: this.assistantContextFiles(),
           localContext: await this.service.assistantRuntimeContext(prompt),
+          sessionId: this.assistantSessionId,
+          onEvent: (event) => {
+            this.assistantActivity = [...this.assistantActivity, event].slice(-8);
+            this.plugin.refreshDashboard();
+          },
         });
+        this.assistantSessionId = result.conversationId || this.assistantSessionId;
         const message = {
           role: "assistant",
           content: result.content,
@@ -1161,6 +1176,7 @@ class FDEBaseView extends ItemView {
       } finally {
         this.assistantLoading = false;
         this.assistantRequestId = null;
+        this.assistantActivity = [];
         this.plugin.refreshDashboard();
       }
     };
@@ -1173,7 +1189,7 @@ class FDEBaseView extends ItemView {
     });
     const contextScope = this.plugin.settings.ai.assistant.contextScope;
     composer.createDiv({
-      text: contextScope === "retrieved" ? "本地检索上下文开启" : contextScope === "none" ? "仅发送显式上下文" : "当前笔记上下文开启",
+      text: contextScope === "retrieved" ? "Agent 已预附加本地检索结果" : contextScope === "none" ? "Agent 按任务需要读取 Vault" : "Agent 已预附加当前笔记",
       cls: "wis-composer-note",
     });
   }
@@ -1182,18 +1198,19 @@ class FDEBaseView extends ItemView {
     const panel = app.createEl("aside", { cls: "wis-assistant" });
     const head = panel.createDiv({ cls: "wis-assistant-head" });
     const title = head.createDiv();
-    title.createSpan({ text: "FDE365 AI", cls: "wis-eyebrow" });
+    title.createSpan({ text: "FDE365 AGENT", cls: "wis-eyebrow" });
     title.createEl("strong", { text: "对话 · FDE · Skills · 历史" });
     const capability = this.plugin.providerManager.describeSelected();
+    const agentCapability = this.plugin.agentRuntime?.describe?.() || { available: false, error: "本地 Agent 未就绪" };
     const headActions = head.createDiv({ cls: "wis-assistant-head-actions" });
     const provider = headActions.createEl("button", {
-      cls: `wis-provider-dot${capability.configured && capability.compatible ? " is-ready" : ""}`,
-      attr: { title: [capability.label, capability.model, capability.error].filter(Boolean).join(" · ") },
+      cls: `wis-provider-dot${capability.configured && capability.compatible && agentCapability.available ? " is-ready" : ""}`,
+      attr: { title: ["FDE365 Codex Agent", capability.model, capability.error, agentCapability.error].filter(Boolean).join(" · ") },
     });
-    provider.createSpan({ text: capability.configured ? capability.model : "配置 Token" });
+    provider.createSpan({ text: !capability.configured ? "配置 Token" : agentCapability.available ? capability.model : "缺少 Codex 组件" });
     provider.addEventListener("click", () => this.plugin.openSettings("ai"));
     const body = panel.createDiv({ cls: "wis-assistant-body" });
-    body.createEl("p", { text: "对话、FDE 与本地工作流共享六类资产规则；关键结论返回来源。", cls: "wis-assistant-rule" });
+    body.createEl("p", { text: "本地 Codex Agent 可读取当前 Vault、运行 FDE Skills；写入前会向你确认。", cls: "wis-assistant-rule" });
     const tabs = body.createDiv({ cls: "wis-assistant-tabs", attr: { role: "tablist", "aria-label": "AI 工作区" } });
     [["chat", "对话"], ["fde", "FDE"], ["skills", "Skills"], ["history", "历史"]].forEach(([id, label]) => {
       const tab = tabs.createEl("button", { cls: this.assistantMode === id ? "is-active" : "", attr: { role: "tab", "aria-selected": String(this.assistantMode === id) } });

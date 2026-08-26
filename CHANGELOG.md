@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0] - 2026-08-26
+
+### Added
+
+- 右侧工作区升级为真正的本地 Codex Agent：通过 app-server 复用会话、读取当前 Vault、运行 FDE Skills，并在需要额外权限时弹出用户确认。
+- Agent 执行过程可向右侧面板回传本地工具状态，并保留跨工作台的会话 ID。
+
+### Changed
+
+- Agent 改为当前 Vault 独立 `CODEX_HOME`：插件自动生成 FDE365 API 配置，不接管 `~/.codex`，不影响本机 Codex App，也无需重新运行安装器。
+- Token 仍只在 Obsidian 中填写并保存一份；只在启动隔离 Agent 子进程时临时传入，不写入隔离配置或用户级配置。
+- macOS 与 Windows 安装器不再修改 Shell 或 Windows 用户环境变量。
+- 插件设置页只保留 Token 和四个固定模型选项，移除 Temperature 与 Provider 相关可编辑项。
+
 ## [1.0.4] - 2026-08-26
 
 ### Fixed

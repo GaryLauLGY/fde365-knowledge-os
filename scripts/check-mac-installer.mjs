@@ -83,6 +83,8 @@ for (const required of [
   'model_provider = "fde365"',
   'wire_api = "responses"',
   "[model_providers.fde365.auth]",
+  "check_for_update_on_startup = false",
+  'web_search = "disabled"',
 ]) {
   if (!clientConfigHelper.includes(required)) throw new Error(`Client configuration is missing: ${required}`);
 }
@@ -94,12 +96,12 @@ const environmentHelper = await readFile(`${installerRoot}/helpers/configure-use
 for (const required of [
   "$HOME/.claude/settings.json",
   "$HOME/.codex/config.toml",
-  "$HOME/.zshrc",
-  "$HOME/.zprofile",
-  "$HOME/.bash_profile",
   "backups/global-",
 ]) {
   if (!environmentHelper.includes(required)) throw new Error(`Global environment helper is missing: ${required}`);
+}
+for (const forbidden of ["$HOME/.zshrc", "$HOME/.zprofile", "$HOME/.bash_profile", "export OPENAI_BASE_URL", "export ANTHROPIC_BASE_URL", "unset OPENAI_API_KEY"]) {
+  if (environmentHelper.includes(forbidden)) throw new Error(`Installer must not modify shell environment files: ${forbidden}`);
 }
 
 const tokenBridge = await readFile(`${installerRoot}/helpers/fde365-token`, "utf8");

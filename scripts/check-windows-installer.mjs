@@ -19,10 +19,13 @@ for (const phrase of ["FDE365_TOKEN_INPUT", "FDE365_SIMULATION", "FDE365_VAULT_P
 }
 for (const phrase of [
   "https://api.fde365.ai/v1", "https://api.fde365.ai", "https://claude.ai/install.ps1",
-  "https://chatgpt.com/codex/install.ps1", "Get-AuthenticodeSignature", "ANTHROPIC_API_KEY",
+  "https://chatgpt.com/codex/install.ps1", "Get-AuthenticodeSignature",
   "https://registry.npmjs.org", "@anthropic-ai/claude-code", "Get-FileHash",
-  "ANTHROPIC_AUTH_TOKEN", "model_providers.fde365.auth",
+  "model_providers.fde365.auth", "check_for_update_on_startup", 'web_search = "disabled"',
 ]) if (!common.includes(phrase)) throw new Error(`Windows common helper is missing: ${phrase}`);
+if (/Set-FdeUserEnvironment|SetEnvironmentVariable\([^\n]+["']User["']/i.test(`${install}\n${common}`)) {
+  throw new Error("Windows installer must not modify persistent user environment variables");
+}
 if (!updater.includes("原 Token 和用户数据已保留")) throw new Error("Windows updater must preserve Token and user data");
 if (/Remove-Item[^\n]+pluginTarget/i.test(updater)) throw new Error("Windows updater must not remove the plugin directory");
 if (!tokenHelper.includes("Write-Output") || tokenHelper.includes("[Console]::Out")) {

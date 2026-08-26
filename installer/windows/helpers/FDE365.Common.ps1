@@ -165,17 +165,18 @@ function Write-FdeClientConfig([object]$Context, [string]$VaultPath, [string]$Mo
     [IO.File]::WriteAllText((Join-Path $Context.Support "model.txt"), $Model + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
     $tokenCommand = Get-FdeTokenCommand (Join-Path $bin "fde365-token.ps1")
 
-    $claude = Read-FdeJson $claudePath
-    Set-FdeProperty $claude "apiKeyHelper" $tokenCommand
-    Set-FdeProperty $claude "env" ([pscustomobject]@{
-        ANTHROPIC_BASE_URL = "https://api.fde365.ai"
-        ANTHROPIC_MODEL = $Model
-        ANTHROPIC_DEFAULT_OPUS_MODEL = $Model
-        ANTHROPIC_DEFAULT_SONNET_MODEL = $Model
-        ANTHROPIC_DEFAULT_HAIKU_MODEL = $Model
-        CLAUDE_CODE_API_KEY_HELPER_TTL_MS = "300000"
-        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
-    })
+    $claude = [pscustomobject]@{
+        apiKeyHelper = $tokenCommand
+        env = [pscustomobject]@{
+            ANTHROPIC_BASE_URL = "https://api.fde365.ai"
+            ANTHROPIC_MODEL = $Model
+            ANTHROPIC_DEFAULT_OPUS_MODEL = $Model
+            ANTHROPIC_DEFAULT_SONNET_MODEL = $Model
+            ANTHROPIC_DEFAULT_HAIKU_MODEL = $Model
+            CLAUDE_CODE_API_KEY_HELPER_TTL_MS = "300000"
+            CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
+        }
+    }
     Write-FdeJson $claudePath $claude
 
     $escapedCommand = $tokenCommand.Replace("'", "''")
@@ -183,6 +184,8 @@ function Write-FdeClientConfig([object]$Context, [string]$VaultPath, [string]$Mo
         'model = "' + $Model + '"',
         'model_provider = "fde365"',
         'model_reasoning_effort = "medium"',
+        'check_for_update_on_startup = false',
+        'web_search = "disabled"',
         '',
         '[model_providers.fde365]',
         'name = "FDE365"',
@@ -197,26 +200,6 @@ function Write-FdeClientConfig([object]$Context, [string]$VaultPath, [string]$Mo
     ) -join [Environment]::NewLine
     [IO.File]::WriteAllText($codexPath, $codex, (New-Object Text.UTF8Encoding($false)))
     return $backup
-}
-
-function Set-FdeUserEnvironment([object]$Context, [string]$Model) {
-    $bin = Join-Path $Context.Support "bin"
-    $localBin = Join-Path $Context.Home ".local\bin"
-    $pathValue = [Environment]::GetEnvironmentVariable("Path", "User")
-    $items = @($pathValue -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    foreach ($candidate in @($bin, $localBin)) {
-        if ($items -notcontains $candidate) { $items = @($candidate) + $items }
-    }
-    if (-not $Context.Simulation) {
-        [Environment]::SetEnvironmentVariable("Path", ($items -join ';'), "User")
-        [Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", $null, "User")
-        [Environment]::SetEnvironmentVariable("ANTHROPIC_AUTH_TOKEN", $null, "User")
-        [Environment]::SetEnvironmentVariable("ANTHROPIC_BASE_URL", "https://api.fde365.ai", "User")
-        [Environment]::SetEnvironmentVariable("ANTHROPIC_MODEL", $Model, "User")
-    } else {
-        $snapshot = [pscustomobject]@{ Path = ($items -join ';'); ANTHROPIC_BASE_URL = "https://api.fde365.ai"; ANTHROPIC_MODEL = $Model; cleared = @("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN") }
-        Write-FdeJson (Join-Path $Context.Support "simulation-user-environment.json") $snapshot
-    }
 }
 
 function Install-FdeDesktopTools([object]$Context, [string]$LaunchersPath) {

@@ -57,7 +57,6 @@ try {
 
     Write-Host "`n第 4 步 / 共 6 步：连接 Claude Code 和 Codex" -ForegroundColor Cyan
     $backup = Write-FdeClientConfig $context $vault $model $helpers
-    Set-FdeUserEnvironment $context $model
 
     Write-Host "`n第 5 步 / 共 6 步：创建桌面入口" -ForegroundColor Cyan
     Install-FdeDesktopTools $context $scriptRoot

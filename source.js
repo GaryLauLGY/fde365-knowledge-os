@@ -16,6 +16,7 @@ const Defuddle = require("./defuddle.js");
 const KNOWLEDGE_BLUEPRINT = require("./blueprint.json");
 const FDEWorkspace = require("./fde-workspace.js");
 const GitHubUpdater = require("./github-updater.js");
+const { FdeCodexAgentRuntime } = require("./fde-agent-runtime.js");
 
 const VIEW_TYPE = "ai-knowledge-os-dashboard";
 const INBOX_VIEW_TYPE = "ai-knowledge-os-inbox";
@@ -114,9 +115,9 @@ const ONBOARDING_STEPS = Object.freeze([
     icon: "bot",
     eyebrow: "第三步 · 协作",
     title: "让 AI 在你选定的范围内工作",
-    description: "只有你主动发送时，选定的问题和上下文才会交给FDE365 AI 服务。Token 只保存在当前 Vault。",
+    description: "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。Token 只保存在当前 Vault。",
     highlights: [
-      { icon: "message-square", title: "FDE365 AI", text: "基于当前笔记或显式选中的文件对话。" },
+      { icon: "bot", title: "FDE365 Agent", text: "可读取 Vault、运行 Skills，需要写入时向你确认。" },
       { icon: "wand-sparkles", title: "35 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
       { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" },
     ],
@@ -1182,6 +1183,95 @@ class ConfirmModal extends Modal {
   }
 
   onClose() {
+    this.contentEl.empty();
+  }
+}
+
+class AgentApprovalModal extends Modal {
+  constructor(app, options, resolve) {
+    super(app);
+    this.options = options;
+    this.resolveApproval = resolve;
+    this.settled = false;
+  }
+
+  finish(value) {
+    if (this.settled) return;
+    this.settled = true;
+    this.resolveApproval(Boolean(value));
+    this.close();
+  }
+
+  onOpen() {
+    this.contentEl.addClass("akos-modal", "fde-agent-approval-modal");
+    this.contentEl.createEl("h2", { text: this.options.title || "允许本地 Agent 执行？" });
+    this.contentEl.createEl("p", { text: this.options.description || "FDE365 Agent 请求执行本地操作。", cls: "akos-modal-description" });
+    const list = this.contentEl.createEl("ul", { cls: "fde-agent-approval-items" });
+    for (const item of this.options.items || []) list.createEl("li", { text: String(item) });
+    const actions = this.contentEl.createDiv({ cls: "akos-modal-actions" });
+    const reject = actions.createEl("button", { text: "不允许" });
+    const allow = actions.createEl("button", { text: "仅允许这一次", cls: "mod-cta" });
+    reject.addEventListener("click", () => this.finish(false));
+    allow.addEventListener("click", () => this.finish(true));
+  }
+
+  onClose() {
+    if (!this.settled) {
+      this.settled = true;
+      this.resolveApproval(false);
+    }
+    this.contentEl.empty();
+  }
+}
+
+class AgentQuestionModal extends Modal {
+  constructor(app, questions, resolve) {
+    super(app);
+    this.questions = questions;
+    this.resolveAnswers = resolve;
+    this.inputs = new Map();
+    this.settled = false;
+  }
+
+  finish(answers) {
+    if (this.settled) return;
+    this.settled = true;
+    this.resolveAnswers(answers);
+    this.close();
+  }
+
+  onOpen() {
+    this.contentEl.addClass("akos-modal", "fde-agent-question-modal");
+    this.contentEl.createEl("h2", { text: "FDE365 Agent 需要你确认" });
+    for (const question of this.questions) {
+      const id = String(question?.id || `question-${this.inputs.size + 1}`);
+      const group = this.contentEl.createDiv({ cls: "fde-agent-question" });
+      group.createEl("strong", { text: String(question?.header || question?.question || "请补充信息") });
+      if (question?.header && question?.question) group.createEl("p", { text: String(question.question), cls: "akos-modal-description" });
+      const options = Array.isArray(question?.options) ? question.options : [];
+      if (options.length) {
+        const select = group.createEl("select");
+        for (const option of options) select.createEl("option", { text: String(option?.label || option), value: String(option?.label || option) });
+        this.inputs.set(id, select);
+      } else {
+        const input = group.createEl("input", { type: "text", attr: { placeholder: "输入你的回答…" } });
+        this.inputs.set(id, input);
+      }
+    }
+    const actions = this.contentEl.createDiv({ cls: "akos-modal-actions" });
+    actions.createEl("button", { text: "取消" }).addEventListener("click", () => this.finish({}));
+    actions.createEl("button", { text: "继续", cls: "mod-cta" }).addEventListener("click", () => {
+      const answers = {};
+      for (const [id, input] of this.inputs) answers[id] = input.value;
+      this.finish(answers);
+    });
+  }
+
+  onClose() {
+    if (!this.settled) {
+      this.settled = true;
+      this.resolveAnswers({});
+    }
     this.contentEl.empty();
   }
 }
@@ -2258,6 +2348,7 @@ class KnowledgeDashboardView extends ItemView {
     this.assistantLoading = false;
     this.assistantDraft = "";
     this.assistantRequestId = null;
+    this.assistantSessionId = "";
     this.dashboardRecentMode = "used";
   }
 
@@ -2279,7 +2370,7 @@ class KnowledgeDashboardView extends ItemView {
   }
 
   async onClose() {
-    if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+    if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
     this.contentEl.removeClass("akos-view-content");
   }
 
@@ -2361,7 +2452,7 @@ class KnowledgeDashboardView extends ItemView {
       progress.createSpan({ text: "正在生成回答" });
       const stop = createButton(bubble, "停止生成", "square", "akos-assistant-stop");
       stop.addEventListener("click", () => {
-        if (this.assistantRequestId) this.plugin.providerManager.cancel(this.assistantRequestId);
+        if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
       });
     }
   }
@@ -2398,7 +2489,9 @@ class KnowledgeDashboardView extends ItemView {
         history: this.assistantMessages.slice(0, -1),
         systemPrompt: options.systemPrompt || "你是FDE365知识助手。基于用户明确允许发送的上下文回答，区分事实、推断和建议，不编造来源。",
         sourceFiles: typeof options.sourceFiles === "function" ? options.sourceFiles() : options.sourceFiles || [],
+        sessionId: this.assistantSessionId,
       });
+      this.assistantSessionId = result.conversationId || this.assistantSessionId;
       this.assistantMessages.push({
         role: "assistant",
         content: result.content,
@@ -4525,18 +4618,12 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           }
         }));
 
+    const agentRuntime = this.plugin.agentRuntime?.describe?.() || { available: false, ready: false, error: "本地 Agent 尚未初始化" };
     new Setting(containerEl)
-      .setName("发送的本地上下文")
-      .setDesc("只把选定的笔记片段交给FDE365 AI；不会默认提交整个 Vault。")
-      .addDropdown((dropdown) => dropdown
-        .addOption("none", "不发送笔记")
-        .addOption("active-note", "当前活动笔记")
-        .addOption("retrieved", "当前笔记与本地检索片段")
-        .setValue(this.plugin.settings.ai.assistant.contextScope)
-        .onChange(async (value) => {
-          this.plugin.settings.ai.assistant.contextScope = ["none", "retrieved"].includes(value) ? value : "active-note";
-          await this.plugin.saveSettings();
-        }));
+      .setName("本地 Agent")
+      .setDesc(agentRuntime.available
+        ? `Codex app-server 已就绪${agentRuntime.ready ? " · 运行中" : ""}；配置隔离在当前 Vault，不修改本机 Codex App，也无需重新运行安装器。`
+        : agentRuntime.error);
 
     const api = this.plugin.settings.ai.fde365;
     new Setting(containerEl)
@@ -4572,17 +4659,6 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           this.plugin.refreshDashboard();
         });
       });
-    new Setting(containerEl)
-      .setName("Temperature")
-      .setDesc("范围 0–2，知识问答建议 0.2–0.5。")
-      .addSlider((slider) => slider
-        .setLimits(0, 2, 0.1)
-        .setDynamicTooltip()
-        .setValue(Number(api.temperature) || 0)
-        .onChange(async (value) => {
-          api.temperature = value;
-          await this.plugin.saveSettings();
-        }));
     containerEl.createEl("h3", { text: "资产网络", attr: { id: "akos-settings-graph" } });
     new Setting(containerEl)
       .setName("默认连接深度")
@@ -5720,6 +5796,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
+    this.agentRuntime = new FdeCodexAgentRuntime(this);
     this.updateService = new Fde365UpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
     await this.migrateProviderSettings();
@@ -5860,6 +5937,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.onboardingModal?.close();
     this.onboardingModal = null;
     this.providerManager?.cancelAll?.();
+    void this.agentRuntime?.shutdown?.();
     if (this.startupTimer !== null) window.clearTimeout(this.startupTimer);
     this.startupTimer = null;
     if (this.updateStartupTimer !== null) window.clearTimeout(this.updateStartupTimer);
@@ -6089,7 +6167,21 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
   }
 
   providerLabel(providerId) {
+    if (providerId === "fde365-agent") return "FDE365 Codex Agent";
     return this.providerManager.get(providerId)?.label || providerId || "AI Provider";
+  }
+
+  requestAgentApproval(options) {
+    return new Promise((resolve) => new AgentApprovalModal(this.app, options, resolve).open());
+  }
+
+  requestAgentQuestion(questions) {
+    if (!questions.length) return Promise.resolve({});
+    return new Promise((resolve) => new AgentQuestionModal(this.app, questions, resolve).open());
+  }
+
+  cancelAgentRequest(requestId) {
+    return this.agentRuntime?.cancel?.(requestId) || false;
   }
 
   async buildAssistantContext(prompt, sourceFiles = [], localContext = []) {
@@ -6150,14 +6242,15 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     return context;
   }
 
-  async askAssistant({ requestId, prompt, history = [], systemPrompt, sourceFiles = [], localContext = [] }) {
+  async askAssistant({ requestId, prompt, history = [], systemPrompt, sourceFiles = [], localContext = [], sessionId = "", onEvent = null }) {
     const context = await this.buildAssistantContext(prompt, sourceFiles, localContext);
     const messages = [
       { role: "system", content: systemPrompt || "你是FDE365知识助手。" },
       ...history.filter((message) => !message.error && ["user", "assistant"].includes(message.role) && message.content).slice(-6).map((message) => ({ role: message.role, content: message.content })),
       { role: "user", content: prompt },
     ];
-    return this.providerManager.complete({ requestId, mode: "chat", messages, context });
+    await this.providerManager.preflight();
+    return this.agentRuntime.complete({ requestId, mode: "chat", messages, context, sessionId, onEvent });
   }
 
   async saveAssistantOutput(message, viewName = "AI 助手") {
@@ -6192,20 +6285,22 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     let capability;
     try {
       ({ provider, capability } = await this.providerManager.preflight());
+      const runtime = this.agentRuntime.describe();
+      if (!runtime.available) throw new AIProviderError("AGENT_RUNTIME_MISSING", runtime.error || "未找到 Codex Agent 运行组件");
     } catch (error) {
       new Notice(`无法启动 Agent：${error instanceof Error ? error.message : String(error)}`);
       if (["PROVIDER_NOT_CONFIGURED", "PROVIDER_UNAVAILABLE", "INCOMPATIBLE_VERSION", "AUTH_FAILED", "MODEL_NOT_FOUND"].includes(error?.code)) this.openSettings("ai");
       return null;
     }
     const task = await this.agentTaskStore.createRun(agent, prompt, sources, {
-      provider: provider.id,
-      providerVersion: capability.version || "",
+      provider: "fde365-agent",
+      providerVersion: "codex-app-server-responses",
       model: capability.model || "",
-      label: provider.label,
+      label: "FDE365 Codex Agent",
     });
-    new Notice(`${agent.name} 已进入执行队列 · ${provider.label}`);
+    new Notice(`${agent.name} 已进入执行队列 · FDE365 Codex Agent`);
     await this.agentTaskStore.transition(task, AGENT_RUN_STATUSES.RUNNING, {
-      provider_version: capability.version,
+      provider_version: "codex-app-server-responses",
       model: capability.model || "",
       started_at: new Date().toISOString(),
       error: "",
@@ -6213,7 +6308,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.refreshDashboard();
     try {
       const context = await this.buildAssistantContext(prompt, sources, agent.localContext || []);
-      const result = await provider.complete({
+      const result = await this.agentRuntime.complete({
         requestId: task.taskId,
         mode: "agent",
         messages: [
