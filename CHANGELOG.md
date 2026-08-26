@@ -12,6 +12,11 @@
 - 新增隔离的 Mac 全流程模拟安装环境，可在假的 HOME 中验证安装、备份、三端配置、桌面入口和 Token 动态读取，不下载或启动真实应用。
 - 新增由 `GaryLauLGY/fde365-knowledge-os` GitHub Releases 驱动的插件自动更新：启动后及每 6 小时检查，校验版本、仓库、文件白名单与 SHA-256 后安装，并提示重启 Obsidian。
 - 新增标准 Obsidian Release 资产和 GitHub Actions 发布流程，Release 直接包含 `main.js`、`manifest.json`、`styles.css`、Logo、更新清单、完整 ZIP 与校验文件。
+- 新增 Windows 一键安装、更新、诊断、官方应用下载与 PowerShell 5.1 自动化验收。
+
+### Changed
+
+- 插件内 Skills 产品名称统一为“FDE Skills”；35 个 `/kb-*` 技术 ID 继续保留，兼容已有知识库与自动化。
 
 ### Security
 
@@ -114,14 +119,14 @@
 
 ### Changed
 
-- 增加 kb Skills 目录卡片的垂直空间，确保第二行中文说明与下边框保持安全间距。
+- 增加 FDE Skills 目录卡片的垂直空间，确保第二行中文说明与下边框保持安全间距。
 - 统一 Skill 图标、两行文字和部署状态的垂直居中与行高。
 
 ## [0.2.3] - 2026-08-21
 
 ### Changed
 
-- 修复 kb Skills 页目录卡片被 Obsidian 原生按钮高度压缩，导致图标和说明跨出卡片的问题。
+- 修复 FDE Skills 页目录卡片被 Obsidian 原生按钮高度压缩，导致图标和说明跨出卡片的问题。
 - Skill 卡片改为自适应高度，并统一图标、标题、说明和部署状态的安全边界。
 
 ## [0.2.2] - 2026-08-21

@@ -3,7 +3,7 @@
   "name": "FDE365 Knowledge OS",
   "version": "1.0.0",
   "minAppVersion": "1.8.0",
-  "description": "FDE365六类资产与 AI 协作工作台，自动初始化知识库和 35 个 kb Skills，内置 Token 模型服务。",
+  "description": "FDE365六类资产与 AI 协作工作台，自动初始化知识库和 35 个 FDE Skills，内置 Token 模型服务。",
   "author": "FDE365",
   "isDesktopOnly": true
 }

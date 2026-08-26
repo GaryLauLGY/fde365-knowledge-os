@@ -103,7 +103,7 @@ const NAV_ITEMS = Object.freeze([
   { key: "libraries", label: "六类资产", note: "真源与版本", icon: "library" },
   { key: "network", label: "资产网络", note: "跨库关系", icon: "network" },
   { key: "content", label: "内容生产", note: "六阶段流水线", icon: "panels-top-left" },
-  { key: "skills", label: "kb Skills", note: "35 项工作流", icon: "blocks" },
+  { key: "skills", label: "FDE Skills", note: "35 项工作流", icon: "blocks" },
   { key: "health", label: "知识体检", note: "来源与冲突", icon: "activity" },
 ]);
 
@@ -866,7 +866,7 @@ class KBBaseView extends ItemView {
       const icon = welcome.createDiv({ cls: "wis-assistant-welcome-icon" });
       makeIcon(icon, "orbit");
       welcome.createEl("strong", { text: "在知识库里，和 AI 协作工作" });
-      welcome.createEl("p", { text: "连续对话、选取上下文、调用 KB Skills，并把可用结果保存回本地。" });
+      welcome.createEl("p", { text: "连续对话、选取上下文、调用 FDE Skills，并把可用结果保存回本地。" });
       const features = welcome.createDiv({ cls: "wis-assistant-feature-chips" });
       ["本地会话", "知识上下文", "结果留档"].forEach((label) => features.createSpan({ text: label }));
     }
@@ -919,13 +919,13 @@ class KBBaseView extends ItemView {
         onSubmit: async (value) => this.service.runSkill(skill.id, value),
       }).open());
     });
-    makeButton(parent, "查看全部 35 个 kb Skills", "blocks", "is-secondary wis-assistant-wide-action", () => this.plugin.router.navigate("skills"));
+    makeButton(parent, "查看全部 35 个 FDE Skills", "blocks", "is-secondary wis-assistant-wide-action", () => this.plugin.router.navigate("skills"));
   }
 
   renderAssistantHistory(parent) {
     const intro = parent.createDiv({ cls: "wis-assistant-section-head" });
     intro.createEl("strong", { text: "本地协作历史" });
-    intro.createSpan({ text: "显示已保存的 AI 回答和 kb Skill 运行记录，不读取外部账号历史。" });
+    intro.createSpan({ text: "显示已保存的 AI 回答和 FDE Skill 运行记录，不读取外部账号历史。" });
     const files = this.assistantHistoryFiles();
     const list = parent.createDiv({ cls: "wis-assistant-history" });
     if (!files.length) list.createDiv({ text: "还没有已保存的协作记录。对话回答可用“保存”写入本地。", cls: "wis-empty" });
@@ -1432,7 +1432,7 @@ class KBContentView extends KBBaseView {
   }
 }
 
-class KBSkillsView extends KBBaseView {
+class FDESkillsView extends KBBaseView {
   constructor(leaf, plugin) {
     super(leaf, plugin, "skills");
     this.selectedSkill = "kb-start";
@@ -1443,7 +1443,7 @@ class KBSkillsView extends KBBaseView {
     const header = main.createDiv({ cls: "wis-page-header" });
     const copy = header.createDiv();
     copy.createSpan({ text: "FDE365 · 本地工作流", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "kb Skills" });
+    copy.createEl("h1", { text: "FDE Skills" });
     copy.createEl("p", { text: "35 项能力随知识库部署在 .agents/skills。它们共享六库边界、来源规则、未知项和确认机制。" });
     const capability = this.plugin.providerManager.describeSelected();
     const status = header.createDiv({ cls: `wis-provider-status${capability.configured ? " is-ready" : ""}` });
@@ -1573,7 +1573,7 @@ module.exports = {
   KBLibrariesView,
   KBNetworkView,
   KBContentView,
-  KBSkillsView,
+  FDESkillsView,
   KBHealthView,
   parseConfigYaml,
   sourceFromContent,

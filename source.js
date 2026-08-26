@@ -91,7 +91,7 @@ const ONBOARDING_STEPS = Object.freeze([
     icon: "inbox",
     eyebrow: "第一步 · 收集",
     title: "先放进“待处理”，不用立刻想分类",
-    description: "当信息还不完整时，先保留原始材料和来源。等你有时间，再让 kb Skills 帮你整理。",
+    description: "当信息还不完整时，先保留原始材料和来源。等你有时间，再让 FDE Skills 帮你整理。",
     highlights: [
       { icon: "square-pen", title: "快速记录", text: "用命令面板新建待处理笔记。" },
       { icon: "globe", title: "收藏网页", text: "保留链接、正文和来源，方便以后追溯。" },
@@ -116,7 +116,7 @@ const ONBOARDING_STEPS = Object.freeze([
     description: "只有你主动发送时，选定的问题和上下文才会交给FDE365 AI 服务。Token 只保存在当前 Vault。",
     highlights: [
       { icon: "message-square", title: "FDE365 AI", text: "基于当前笔记或显式选中的文件对话。" },
-      { icon: "wand-sparkles", title: "35 个 kb Skills", text: "从收集、整理、写作到体检，按合同执行。" },
+      { icon: "wand-sparkles", title: "35 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
       { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" },
     ],
   },
@@ -4596,7 +4596,7 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           this.plugin.settings.graphDefaultDepth = Number(value);
           await this.plugin.saveSettings();
         }));
-    containerEl.createEl("h3", { text: "kb Skills", attr: { id: "akos-settings-agents" } });
+    containerEl.createEl("h3", { text: "FDE Skills", attr: { id: "akos-settings-agents" } });
     new Setting(containerEl)
       .setName("Skill 执行规则")
       .setDesc("35 个项目 Skill 位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。");
@@ -5729,7 +5729,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.registerView(KNOWLEDGE_VIEW_TYPE, (leaf) => new KBWorkspace.KBLibrariesView(leaf, this));
     this.registerView(GRAPH_VIEW_TYPE, (leaf) => new KBWorkspace.KBNetworkView(leaf, this));
     this.registerView(PROJECT_VIEW_TYPE, (leaf) => new KBWorkspace.KBContentView(leaf, this));
-    this.registerView(AGENT_VIEW_TYPE, (leaf) => new KBWorkspace.KBSkillsView(leaf, this));
+    this.registerView(AGENT_VIEW_TYPE, (leaf) => new KBWorkspace.FDESkillsView(leaf, this));
     this.registerView(ANALYTICS_VIEW_TYPE, (leaf) => new KBWorkspace.KBHealthView(leaf, this));
     this.addRibbonIcon("orbit", "打开FDE365 Knowledge OS", () => this.activateView());
     this.addCommand({
@@ -5782,7 +5782,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     });
     this.addCommand({
       id: "open-agent-center",
-      name: "打开 kb Skills",
+      name: "打开 FDE Skills",
       callback: () => this.activateAgents(),
     });
     this.addCommand({

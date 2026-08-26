@@ -20,7 +20,7 @@
 | `styles.css` | FDE365 Logo、蓝白主题、响应式驾驶舱样式 |
 | `vault-template/` | 知识库模板的唯一编辑源 |
 | `vault-template/.kb/config.yaml` | 六库路径和运行行为的事实来源 |
-| `vault-template/.agents/skills/` | 35 个项目本地 kb Skills 及其引用、脚本和模板 |
+| `vault-template/.agents/skills/` | 35 个项目本地 FDE Skills 及其引用、脚本和模板 |
 | `blueprint.json` | 由模板生成并打入插件的初始化蓝图 |
 | `assets/fde365-logo.png` | FDE365透明横版 Logo（运行时资源） |
 | `assets/fde365-logo-source.svg` | 用户提供的 FDE365原始 SVG |
@@ -63,9 +63,9 @@ Token 只保存在当前 Vault 的 `.obsidian/plugins/fde365-knowledge-os/data.j
 
 ## 5. UI 结构
 
-主视图包含总览、待处理、六类资产、资产网络、内容生产、kb Skills 和知识体检。侧栏、Logo、卡片和 AI 面板统一使用FDE365蓝白色系；核心视觉识别是六类资产卡片和贯穿页面的六阶段内容流。
+主视图包含总览、待处理、六类资产、资产网络、内容生产、FDE Skills 和知识体检。侧栏、Logo、卡片和 AI 面板统一使用FDE365蓝白色系；核心视觉识别是六类资产卡片和贯穿页面的六阶段内容流。
 
-右侧“FDE365 AI”是单一、稳定的工作面。它合并了对话、当前模型状态、当前笔记与显式文件上下文、新对话、保存输出、历史记录、六库状态和 35 个 kb Skills 路由。所有请求仍经过项目自己的 ProviderManager，不依赖或改写第三方插件配置。
+右侧“FDE365 AI”是单一、稳定的工作面。它合并了对话、当前模型状态、当前笔记与显式文件上下文、新对话、保存输出、历史记录、六库状态和 35 个 FDE Skills 路由。所有请求仍经过项目自己的 ProviderManager，不依赖或改写第三方插件配置。
 
 首次启用会在初始化完成后打开五步新人指引悬浮窗，介绍收集、六类资产、AI 协作、本地边界以及购买和填写 Token 的完整路径。完成、跳过或关闭后记录当前指引版本，后续启动不再打扰；用户仍可通过命令面板或设置页面重新打开。
 
@@ -74,7 +74,7 @@ Token 只保存在当前 Vault 的 `.obsidian/plugins/fde365-knowledge-os/data.j
 - 六类资产只使用 `.kb/config.yaml` 定义的正式分类；
 - 资产网络使用 Obsidian 已解析的真实链接，不生成演示节点；
 - 内容生产按选题、草稿、待审核、待发布、已发布、数据复盘推进，推进前必须确认；
-- kb Skills 展示 35 个已部署工作流，并将对应 `SKILL.md` 作为执行合同；
+- FDE Skills 展示 35 个已部署工作流，并将对应 `SKILL.md` 作为执行合同；
 - 知识体检检查来源、未知项、版本、阶段冲突、路径边界和 Skill 完整性。
 
 统计全部基于当前 Vault 的本地文件、元数据缓存、链接和任务，不上传遥测。只有用户点击发送时，明确选择的提示词和上下文才会交给当前 Provider。

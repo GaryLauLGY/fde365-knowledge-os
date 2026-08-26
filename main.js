@@ -8914,7 +8914,7 @@ var require_kb_workspace = __commonJS({
       { key: "libraries", label: "六类资产", note: "真源与版本", icon: "library" },
       { key: "network", label: "资产网络", note: "跨库关系", icon: "network" },
       { key: "content", label: "内容生产", note: "六阶段流水线", icon: "panels-top-left" },
-      { key: "skills", label: "kb Skills", note: "35 项工作流", icon: "blocks" },
+      { key: "skills", label: "FDE Skills", note: "35 项工作流", icon: "blocks" },
       { key: "health", label: "知识体检", note: "来源与冲突", icon: "activity" }
     ]);
     function makeIcon(parent, name, cls = "") {
@@ -9662,7 +9662,7 @@ ${BASE_SKILL_RULES}
           const icon = welcome.createDiv({ cls: "wis-assistant-welcome-icon" });
           makeIcon(icon, "orbit");
           welcome.createEl("strong", { text: "在知识库里，和 AI 协作工作" });
-          welcome.createEl("p", { text: "连续对话、选取上下文、调用 KB Skills，并把可用结果保存回本地。" });
+          welcome.createEl("p", { text: "连续对话、选取上下文、调用 FDE Skills，并把可用结果保存回本地。" });
           const features = welcome.createDiv({ cls: "wis-assistant-feature-chips" });
           ["本地会话", "知识上下文", "结果留档"].forEach((label) => features.createSpan({ text: label }));
         }
@@ -9713,12 +9713,12 @@ ${BASE_SKILL_RULES}
             onSubmit: async (value) => this.service.runSkill(skill.id, value)
           }).open());
         });
-        makeButton(parent, "查看全部 35 个 kb Skills", "blocks", "is-secondary wis-assistant-wide-action", () => this.plugin.router.navigate("skills"));
+        makeButton(parent, "查看全部 35 个 FDE Skills", "blocks", "is-secondary wis-assistant-wide-action", () => this.plugin.router.navigate("skills"));
       }
       renderAssistantHistory(parent) {
         const intro = parent.createDiv({ cls: "wis-assistant-section-head" });
         intro.createEl("strong", { text: "本地协作历史" });
-        intro.createSpan({ text: "显示已保存的 AI 回答和 kb Skill 运行记录，不读取外部账号历史。" });
+        intro.createSpan({ text: "显示已保存的 AI 回答和 FDE Skill 运行记录，不读取外部账号历史。" });
         const files = this.assistantHistoryFiles();
         const list = parent.createDiv({ cls: "wis-assistant-history" });
         if (!files.length) list.createDiv({ text: "还没有已保存的协作记录。对话回答可用“保存”写入本地。", cls: "wis-empty" });
@@ -10222,7 +10222,7 @@ ${BASE_SKILL_RULES}
         }
       }
     };
-    var KBSkillsView = class extends KBBaseView {
+    var FDESkillsView = class extends KBBaseView {
       constructor(leaf, plugin) {
         super(leaf, plugin, "skills");
         this.selectedSkill = "kb-start";
@@ -10232,7 +10232,7 @@ ${BASE_SKILL_RULES}
         const header = main.createDiv({ cls: "wis-page-header" });
         const copy = header.createDiv();
         copy.createSpan({ text: "FDE365 · 本地工作流", cls: "wis-eyebrow" });
-        copy.createEl("h1", { text: "kb Skills" });
+        copy.createEl("h1", { text: "FDE Skills" });
         copy.createEl("p", { text: "35 项能力随知识库部署在 .agents/skills。它们共享六库边界、来源规则、未知项和确认机制。" });
         const capability = this.plugin.providerManager.describeSelected();
         const status = header.createDiv({ cls: `wis-provider-status${capability.configured ? " is-ready" : ""}` });
@@ -10368,7 +10368,7 @@ ${BASE_SKILL_RULES}
       KBLibrariesView,
       KBNetworkView,
       KBContentView,
-      KBSkillsView,
+      FDESkillsView,
       KBHealthView,
       parseConfigYaml,
       sourceFromContent,
@@ -10535,7 +10535,7 @@ var ONBOARDING_STEPS = Object.freeze([
     icon: "inbox",
     eyebrow: "第一步 · 收集",
     title: "先放进“待处理”，不用立刻想分类",
-    description: "当信息还不完整时，先保留原始材料和来源。等你有时间，再让 kb Skills 帮你整理。",
+    description: "当信息还不完整时，先保留原始材料和来源。等你有时间，再让 FDE Skills 帮你整理。",
     highlights: [
       { icon: "square-pen", title: "快速记录", text: "用命令面板新建待处理笔记。" },
       { icon: "globe", title: "收藏网页", text: "保留链接、正文和来源，方便以后追溯。" },
@@ -10560,7 +10560,7 @@ var ONBOARDING_STEPS = Object.freeze([
     description: "只有你主动发送时，选定的问题和上下文才会交给FDE365 AI 服务。Token 只保存在当前 Vault。",
     highlights: [
       { icon: "message-square", title: "FDE365 AI", text: "基于当前笔记或显式选中的文件对话。" },
-      { icon: "wand-sparkles", title: "35 个 kb Skills", text: "从收集、整理、写作到体检，按合同执行。" },
+      { icon: "wand-sparkles", title: "35 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
       { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" }
     ]
   },
@@ -11616,7 +11616,7 @@ var AIKnowledgeOSSettingTab = class extends PluginSettingTab {
       this.plugin.settings.graphDefaultDepth = Number(value);
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "kb Skills", attr: { id: "akos-settings-agents" } });
+    containerEl.createEl("h3", { text: "FDE Skills", attr: { id: "akos-settings-agents" } });
     new Setting(containerEl).setName("Skill 执行规则").setDesc("35 个项目 Skill 位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。");
     containerEl.createEl("h3", { text: "内容生产", attr: { id: "akos-settings-projects" } });
     new Setting(containerEl).setName("六阶段数据来源").setDesc(`读取 ${PROJECT_ROOT}，按选题、草稿、待审核、待发布、已发布、数据复盘展示。`);
@@ -11648,7 +11648,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.registerView(KNOWLEDGE_VIEW_TYPE, (leaf) => new KBWorkspace.KBLibrariesView(leaf, this));
     this.registerView(GRAPH_VIEW_TYPE, (leaf) => new KBWorkspace.KBNetworkView(leaf, this));
     this.registerView(PROJECT_VIEW_TYPE, (leaf) => new KBWorkspace.KBContentView(leaf, this));
-    this.registerView(AGENT_VIEW_TYPE, (leaf) => new KBWorkspace.KBSkillsView(leaf, this));
+    this.registerView(AGENT_VIEW_TYPE, (leaf) => new KBWorkspace.FDESkillsView(leaf, this));
     this.registerView(ANALYTICS_VIEW_TYPE, (leaf) => new KBWorkspace.KBHealthView(leaf, this));
     this.addRibbonIcon("orbit", "打开FDE365 Knowledge OS", () => this.activateView());
     this.addCommand({
@@ -11701,7 +11701,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     });
     this.addCommand({
       id: "open-agent-center",
-      name: "打开 kb Skills",
+      name: "打开 FDE Skills",
       callback: () => this.activateAgents()
     });
     this.addCommand({
