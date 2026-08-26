@@ -2,7 +2,7 @@
 
 运行时以知识库根目录的 `.fde/config.yaml` 为准。
 
-- owner：老板说明书
+- owner：个人说明书
 - product：产品库
 - customer：客户需求库
 - case：素材案例库

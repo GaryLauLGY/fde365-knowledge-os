@@ -112,13 +112,45 @@ function buildSpawnSpec(command) {
   return { command, args, windowsVerbatimArguments: false };
 }
 
-function buildChildEnvironment(codexHome, token) {
+function buildChildEnvironment(codexHome, token, environment = process.env) {
   return {
-    ...process.env,
+    ...environment,
     CODEX_HOME: codexHome,
     FDE365_TOKEN: token,
     NO_COLOR: "1",
   };
+}
+
+function buildLocalCliEnvironment(environment = process.env) {
+  return {
+    ...environment,
+    NO_COLOR: "1",
+  };
+}
+
+function withOptionalModel(params, model) {
+  return model ? { ...params, model } : params;
+}
+
+function normalizeExecutionMode(value) {
+  return value === "yolo" ? "yolo" : "approval";
+}
+
+function executionPolicy(mode, vaultPath) {
+  const normalized = normalizeExecutionMode(mode);
+  return normalized === "yolo"
+    ? {
+        mode: normalized,
+        approvalPolicy: "never",
+        sandbox: "workspace-write",
+        sandboxPolicy: { type: "workspaceWrite", writableRoots: [path.resolve(vaultPath)], networkAccess: false },
+      }
+    : {
+        mode: normalized,
+        approvalPolicy: "on-request",
+        sandbox: "read-only",
+        sandboxPolicy: { type: "readOnly", networkAccess: false },
+      };
 }
 
 function isRecord(value) {
@@ -255,16 +287,20 @@ function buildTurnPrompt(request) {
 
 function buildBaseInstructions(request, vaultPath, knowledgeRoot) {
   const system = (Array.isArray(request.messages) ? request.messages : []).find((message) => message?.role === "system")?.content || "";
+  const executionMode = normalizeExecutionMode(request.executionMode);
+  const executionRule = executionMode === "yolo"
+    ? "- 当前为 YOLO 模式：在当前 Vault 内可直接执行命令、新建和修改文件，无需等待用户逐次批准；执行后汇报实际改动和验证结果。"
+    : "- 当前为需要批准模式：需要落盘或运行命令时，先说明目标，再使用本地工具触发宿主批准。";
   return [
     "你是嵌入 Obsidian 的 FDE365 本地 Agent。你拥有本地工具，但必须遵守以下边界：",
     `- 工作目录固定为当前 Vault：${vaultPath}`,
     `- FDE365 知识库根目录：${knowledgeRoot}`,
     "- 只读取完成当前任务所需的文件；不得读取 Vault 外的文件、凭据、浏览器数据或其他项目。",
     "- 不得读取或输出 .obsidian/plugins/fde365-knowledge-os/data.json、Token、密钥或任何凭据。",
-    "- 禁止删除、清空或覆盖原始材料；写入必须优先新建草稿，并等待宿主界面逐次确认。",
+    "- 禁止删除、清空或覆盖原始材料；写入必须优先新建草稿。",
     "- 禁止网络访问、安装软件、修改 Obsidian 插件配置或修改 .fde/.agents 运行合同。",
     "- 当用户调用 /fde-* 时，先读取知识库内对应 .agents/skills/<skill>/SKILL.md，再按合同执行。",
-    "- 对话问题可以直接回答；需要落盘时先说明拟修改的路径和内容，随后使用本地工具触发确认。",
+    executionRule,
     system,
   ].filter(Boolean).join("\n");
 }
@@ -306,16 +342,25 @@ class FdeCodexAgentRuntime {
     return isolatedCodexHome(this.vaultPath, pluginDirectory);
   }
 
+  get usesLocalCli() {
+    return this.options.mode === "local-cli";
+  }
+
   describe() {
     const binary = this.options.codexPath || locateCodexBinary();
-    const configured = hasManagedCodexConfig(this.codexHome);
+    const configured = this.usesLocalCli ? Boolean(binary) : hasManagedCodexConfig(this.codexHome);
     return {
       available: Boolean(binary),
       ready: Boolean(this.proc && !this.proc.killed && this.transport && !this.transport.disposed),
       binary,
       configured,
-      isolated: true,
-      label: binary ? (configured ? "Codex Agent" : "Codex Agent · 首次运行自动配置") : "缺少 Codex 运行组件",
+      mode: this.usesLocalCli ? "local-cli" : "isolated-fde365",
+      isolated: !this.usesLocalCli,
+      label: binary
+        ? this.usesLocalCli
+          ? "DEV · 本地 Codex CLI"
+          : configured ? "Codex Agent" : "Codex Agent · 首次运行自动配置"
+        : "缺少 Codex 运行组件",
       error: !binary
         ? "未找到 Codex 运行组件；请先安装官方 Codex 应用或命令行组件"
         : null,
@@ -327,18 +372,20 @@ class FdeCodexAgentRuntime {
     const model = String(this.plugin.settings?.ai?.fde365?.model || "gpt-5.6-luna").trim();
     const binary = this.options.codexPath || locateCodexBinary();
     if (!binary) throw new FdeAgentRuntimeError("AGENT_RUNTIME_MISSING", "未找到 Codex 运行组件；请先安装官方 Codex 应用或命令行组件");
-    if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
-    try {
-      ensureIsolatedCodexConfig(this.codexHome, model);
-    } catch (error) {
-      throw new FdeAgentRuntimeError("AGENT_CONFIG_FAILED", `无法创建当前 Vault 的独立 Agent 配置：${error instanceof Error ? error.message : String(error)}`);
+    if (!this.usesLocalCli) {
+      if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+      try {
+        ensureIsolatedCodexConfig(this.codexHome, model);
+      } catch (error) {
+        throw new FdeAgentRuntimeError("AGENT_CONFIG_FAILED", `无法创建当前 Vault 的独立 Agent 配置：${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     if (this.transport && !this.transport.disposed && this.proc && !this.proc.killed && this.runtimeBinary === binary) return;
     await this.shutdown();
     const spec = buildSpawnSpec(binary);
     const proc = spawn(spec.command, spec.args, {
       cwd: this.vaultPath,
-      env: buildChildEnvironment(this.codexHome, token),
+      env: this.usesLocalCli ? buildLocalCliEnvironment() : buildChildEnvironment(this.codexHome, token),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
       windowsVerbatimArguments: spec.windowsVerbatimArguments,
@@ -371,34 +418,33 @@ class FdeCodexAgentRuntime {
     if (this.active) throw new FdeAgentRuntimeError("AGENT_BUSY", "本地 Agent 正在执行另一个任务，请等待完成或先停止");
     const settings = this.plugin.settings.ai.fde365;
     const token = String(settings.token || "").trim();
-    const model = String(settings.model || "").trim();
-    if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+    const model = this.usesLocalCli ? "" : String(settings.model || "").trim();
+    if (!this.usesLocalCli && !token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
     await this.ensureReady();
 
-    const baseInstructions = buildBaseInstructions(request, this.vaultPath, this.plugin.knowledgeRoot || "FDE365知识库");
+    const execution = executionPolicy(this.plugin.settings?.ai?.assistant?.executionMode, this.vaultPath);
+    const baseInstructions = buildBaseInstructions({ ...request, executionMode: execution.mode }, this.vaultPath, this.plugin.knowledgeRoot || "FDE365知识库");
     let threadId = String(request.sessionId || "").trim();
     try {
       if (threadId && !this.loadedThreads.has(threadId)) {
-        const resumed = await this.transport.request("thread/resume", {
+        const resumed = await this.transport.request("thread/resume", withOptionalModel({
           threadId,
-          model,
-          approvalPolicy: "on-request",
-          sandbox: "read-only",
+          approvalPolicy: execution.approvalPolicy,
+          sandbox: execution.sandbox,
           baseInstructions,
           cwd: this.vaultPath,
-        });
+        }, model));
         threadId = String(resumed?.thread?.id || threadId);
         this.loadedThreads.add(threadId);
       } else if (!threadId) {
-        const started = await this.transport.request("thread/start", {
-          model,
+        const started = await this.transport.request("thread/start", withOptionalModel({
           cwd: this.vaultPath,
-          approvalPolicy: "on-request",
-          sandbox: "read-only",
+          approvalPolicy: execution.approvalPolicy,
+          sandbox: execution.sandbox,
           baseInstructions,
           experimentalRawEvents: true,
           ephemeral: false,
-        });
+        }, model));
         threadId = String(started?.thread?.id || "");
         if (!threadId) throw new Error("Codex Agent 未返回会话 ID");
         this.loadedThreads.add(threadId);
@@ -416,15 +462,14 @@ class FdeCodexAgentRuntime {
       };
       this.pendingNotifications = [];
       const timeoutMs = Math.max(30000, Number(settings.timeoutMs) || 120000);
-      const turnResult = await this.transport.request("turn/start", {
+      const turnResult = await this.transport.request("turn/start", withOptionalModel({
         threadId,
         input: [{ type: "text", text: buildTurnPrompt({ ...request, sessionId: threadId }), text_elements: [] }],
-        approvalPolicy: "on-request",
-        model,
+        approvalPolicy: execution.approvalPolicy,
         effort: "medium",
         summary: "concise",
-        sandboxPolicy: { type: "readOnly", networkAccess: false },
-      }, Math.min(timeoutMs, APP_SERVER_REQUEST_TIMEOUT_MS));
+        sandboxPolicy: execution.sandboxPolicy,
+      }, model), Math.min(timeoutMs, APP_SERVER_REQUEST_TIMEOUT_MS));
       this.active.turnId = String(turnResult?.turn?.id || "");
       this.flushPendingNotifications();
       if (!this.active.turnId) throw new Error("Codex Agent 未返回任务 ID");
@@ -444,7 +489,7 @@ class FdeCodexAgentRuntime {
         content: completed.content,
         provider: "fde365-agent",
         providerVersion: "codex-app-server-responses",
-        model,
+        model: model || "本机 Codex 默认模型",
         conversationId: threadId,
         usage: completed.usage || null,
         toolEvents: completed.events,
@@ -550,11 +595,13 @@ class FdeCodexAgentRuntime {
   }
 
   async handleServerRequest(method, params) {
+    const yolo = normalizeExecutionMode(this.plugin.settings?.ai?.assistant?.executionMode) === "yolo";
     if (method === "item/commandExecution/requestApproval") {
       const command = String(params?.command || "");
       if (params?.networkApprovalContext) return { decision: "decline" };
       if (!this.insideVault(params?.cwd)) return { decision: "decline" };
       if (/(?:^|\s)(?:rm\s+-rf|rmdir\s+\/s|del\s+\/s|format\s+|diskpart\b|git\s+reset\s+--hard)(?:\s|$)/i.test(command)) return { decision: "decline" };
+      if (yolo) return { decision: "accept" };
       const allowed = await this.plugin.requestAgentApproval?.({
         kind: "command",
         title: "允许本地 Agent 运行命令？",
@@ -565,6 +612,7 @@ class FdeCodexAgentRuntime {
     }
     if (method === "item/fileChange/requestApproval") {
       if (params?.grantRoot && !this.insideVault(params.grantRoot)) return { decision: "decline" };
+      if (yolo) return { decision: "accept" };
       const allowed = await this.plugin.requestAgentApproval?.({
         kind: "file-change",
         title: "允许本地 Agent 修改知识库？",
@@ -623,10 +671,14 @@ module.exports = {
   FdeCodexAgentRuntime,
   buildIsolatedCodexConfig,
   buildChildEnvironment,
+  buildLocalCliEnvironment,
+  buildBaseInstructions,
   buildTurnPrompt,
   codexConfigPath,
   ensureIsolatedCodexConfig,
   hasManagedCodexConfig,
   isolatedCodexHome,
+  executionPolicy,
+  normalizeExecutionMode,
   locateCodexBinary,
 };

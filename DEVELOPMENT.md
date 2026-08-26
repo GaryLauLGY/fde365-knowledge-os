@@ -9,7 +9,7 @@
 3. 把 FDE Skills 的 35 个工作流作为项目能力部署在知识库内，并让面板直接反映其信息架构和合同；
 4. 在用户主动发起请求时，通过本地 Codex app-server 运行可读写 Vault 的 FDE365 Agent。
 
-插件本体不改写用户主目录、Shell 配置或系统环境变量。右侧 Agent 在当前 Vault 的插件目录内自动维护独立 `CODEX_HOME`，仅向自己启动的 `codex app-server` 子进程传入该路径和当前 Vault Token；不会修改 `~/.codex`，也不会影响本机 Codex App。更新插件后无需重新运行安装器。
+插件本体不改写用户主目录、Shell 配置或系统环境变量。用户版的右侧 Agent 在当前 Vault 的插件目录内自动维护独立 `CODEX_HOME`，仅向自己启动的 `codex app-server` 子进程传入该路径和当前 Vault Token；开发版则原样继承 Obsidian 进程可见的本机 Codex CLI 环境，不注入 Token、不覆盖 `CODEX_HOME`。
 
 ## 2. 目录与构建产物
 
@@ -26,6 +26,7 @@
 | `assets/fde365-logo.png` | FDE365透明横版 Logo（运行时资源） |
 | `assets/fde365-logo-source.svg` | 用户提供的 FDE365原始 SVG |
 | `main.js` | esbuild 生成的 Obsidian 运行文件 |
+| `main.dev.js` | 开发通道运行文件，仅用于本地打包，不提交 Git |
 | `scripts/` | 蓝图生成、测试、发布检查和 ZIP 打包脚本 |
 
 发布包只包含运行所需文件、Logo 和许可，不包含测试 Vault、`data.json`、工作区状态、Token 或源码依赖。
@@ -40,7 +41,9 @@ Obsidian `layoutReady` 后，`VaultBootstrapService` 读取 `blueprint.json`，�
 - 后续修复：仍然只补缺失项，不覆盖、不移动、不删除；
 - 初始化状态：只保存在当前 Vault 的插件 `data.json`。
 
-模板业务结构由 FDE Skills 统一提供：录音处理、老板说明书、产品库、客户需求库、素材案例库、方法论库、内容生产。蓝图 v4 包含完整的 35 个项目 Skills、FDE 版本与能力清单。`7-系统` 是本插件增加的运行目录，只放 AI 运行记录和输出，不计入六类业务资产。
+模板业务结构由 FDE Skills 统一提供：通用待处理材料、个人说明书、产品库、客户需求库、素材案例库、方法论库、内容生产。蓝图 v6 包含完整的 35 个项目 Skills、FDE 版本与能力清单。`7-系统` 是本插件增加的运行目录，只放 AI 运行记录和输出，不计入六类业务资产。
+
+术语升级会在蓝图补缺前执行一次定向迁移：仅重命名插件维护的第一类资产目录与模板文件，并更新 `.fde/config.yaml`、根规则、使用说明及项目 Skills。若旧、新目录同时存在则停止合并并提示用户；普通笔记不会被扫描或改写。初始化和模板修复仍保持 create-only。
 
 运行时由 `FDEWorkspaceService` 重新读取 `.fde/config.yaml`，解析六类资产路径；路径配置不是只在构建期烘焙进 UI。正式资产统计明确排除 `.agents`、`.fde`、`7-系统` 和目录说明文件。
 
@@ -61,6 +64,10 @@ node scripts/build-blueprint.mjs
 
 Token 只保存在当前 Vault 的 `.obsidian/plugins/fde365-knowledge-os/data.json`。该文件必须保持 Git 忽略。隔离配置只声明 `env_key = "FDE365_TOKEN"`，Token 仅在启动 Agent 子进程时临时传入，不写入隔离 `config.toml`，也不会进入 `~/.codex/config.toml`。
 
+待处理页的 AI 语音快速记录使用 `MediaRecorder` 在 Obsidian 内录制，并向固定的 `https://api.fde365.ai/v1/audio/transcriptions` 发送 multipart 请求，内部模型固定为 `whisper-1`。转写前必须已配置当前 Vault Token；原始录音和可编辑转写稿一起 create-only 保存到待处理，不自动运行 Skill。
+
+Agent 支持两种执行模式：默认的“需要批准”使用 `on-request + read-only`，命令和写入通过插件确认；“YOLO”使用 `never + workspace-write`，仅在当前 Vault 内允许无需逐次批准的自动执行。两种模式都禁止网络和 Vault 外访问，不会改动用户主目录中的 Codex 配置。
+
 ## 5. UI 结构
 
 主视图包含总览、待处理、六类资产、资产网络、内容生产、FDE Skills 和知识体检。侧栏、Logo、卡片和 AI 面板统一使用FDE365蓝白色系；核心视觉识别是六类资产卡片和贯穿页面的六阶段内容流。
@@ -71,6 +78,7 @@ Token 只保存在当前 Vault 的 `.obsidian/plugins/fde365-knowledge-os/data.j
 
 - 总览读取六库真实文件、来源覆盖、未知项和内容阶段；
 - 待处理保留原文，并把整理动作交给 `/fde-ingest`；
+- 待处理拖入区将原文件 create-only 写入 `原始文件/`，再建立 Markdown 待处理记录；拖入本身不启动 Skill，只有用户点击后才运行 `/fde-ingest`；
 - 六类资产只使用 `.fde/config.yaml` 定义的正式分类；
 - 资产网络使用 Obsidian 已解析的真实链接，不生成演示节点；
 - 内容生产按选题、草稿、待审核、待发布、已发布、数据复盘推进，推进前必须确认；
@@ -89,6 +97,21 @@ npm run build
 npm test
 npm run check
 ```
+
+项目使用构建时通道，不向普通用户暴露运行时切换开关：
+
+| 通道 | Agent 配置 | Token | 模型 | 自动更新 |
+| --- | --- | --- | --- | --- |
+| `user` | 当前 Vault 内独立 `CODEX_HOME` | 读取当前 Vault `data.json` | FDE365 四模型白名单 | 启用 |
+| `dev` | 继承本机 Codex CLI 登录和配置 | 不要求、不注入 | 不传 `model`，使用本机默认值 | 固定关闭 |
+
+生成可直接解压进 Vault 的开发包：
+
+```bash
+npm run package:dev
+```
+
+产物位于 `dev-release/FDE365-Knowledge-OS-Plugin-v<version>-dev.zip`。开发包与用户包保持同一插件 ID，因此不能在同一 Vault 同时启用；解压开发包会替换该 Vault 的用户构建。
 
 完整发布前执行：
 

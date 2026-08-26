@@ -3,7 +3,7 @@ root: .
 update_source: https://fdekb.garylau.ai/plugin/latest.json
 
 libraries:
-  owner: 1-老板说明书
+  owner: 1-个人说明书
   product: 2-产品库
   customer: 3-客户需求库
   case: 4-素材案例库
@@ -11,8 +11,8 @@ libraries:
   content: 6-内容生产
 
 inbox:
-  recordings: 0-录音处理/待处理录音
-  processed: 0-录音处理/已处理
+  pending: 0-待处理材料/待处理
+  processed: 0-待处理材料/已处理记录
 
 runtime:
   state: .fde/state

@@ -51,8 +51,11 @@ const main = await readFile("main.js", "utf8");
 for (const forbidden of ["tikbit.ai", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "process.env.CODEX_HOME =", "process.env.FDE365_TOKEN =", "process.env.ANTHROPIC_"]) {
   if (main.includes(forbidden)) throw new Error(`Forbidden vendor/config takeover string found: ${forbidden}`);
 }
-for (const forbidden of ["Codex CLI", "Claude CLI", "选择 AI Provider", "自定义 API（OpenAI-compatible）"]) {
+for (const forbidden of ["Claude CLI", "选择 AI Provider", "自定义 API（OpenAI-compatible）"]) {
   if (main.includes(forbidden)) throw new Error(`Removed provider path is still present in runtime: ${forbidden}`);
+}
+if (!main.includes('var FDE365_BUILD_CHANNEL = true ? "user" : "user";')) {
+  throw new Error("Stable runtime was not built for the user channel");
 }
 for (const required of ["https://api.fde365.ai/v1", "claude-fable-5", "claude-opus-4-8", "gpt-5.6-sol", "gpt-5.6-luna", "Token", "FDE365知识库", "fde365-six-assets"]) {
   if (!main.includes(required)) throw new Error(`Built runtime is missing: ${required}`);

@@ -18,6 +18,9 @@ const FDEWorkspace = require("./fde-workspace.js");
 const GitHubUpdater = require("./github-updater.js");
 const { FdeCodexAgentRuntime } = require("./fde-agent-runtime.js");
 
+const FDE365_BUILD_CHANNEL = typeof __FDE365_BUILD_CHANNEL__ === "string" ? __FDE365_BUILD_CHANNEL__ : "user";
+const IS_DEVELOPER_BUILD = FDE365_BUILD_CHANNEL === "dev";
+
 const VIEW_TYPE = "ai-knowledge-os-dashboard";
 const INBOX_VIEW_TYPE = "ai-knowledge-os-inbox";
 const KNOWLEDGE_VIEW_TYPE = "ai-knowledge-os-knowledge";
@@ -27,9 +30,16 @@ const AGENT_VIEW_TYPE = "ai-knowledge-os-agents";
 const ANALYTICS_VIEW_TYPE = "ai-knowledge-os-analytics";
 const DEFAULT_ROOT = "FDE365知识库";
 const LEGACY_ROOT = String.fromCodePoint(0x661f, 0x9645, 0x7559, 0x767d, 0x77e5, 0x8bc6, 0x5e93);
+const TERMINOLOGY_VERSION = 2;
+const INBOX_LAYOUT_VERSION = 1;
+const LEGACY_OWNER_LABEL = String.fromCodePoint(0x8001, 0x677f);
+const LEGACY_OWNER_DIRECTORY = `1-${LEGACY_OWNER_LABEL}说明书`;
+const OWNER_DIRECTORY = "1-个人说明书";
 let ROOT = DEFAULT_ROOT;
 let INBOX_ROOT;
 let INBOX_ARCHIVE_ROOT;
+let LEGACY_INBOX_ROOT;
+let LEGACY_INBOX_ARCHIVE_ROOT;
 let KNOWLEDGE_ROOT;
 let PROJECT_ROOT;
 let AGENT_ROOT;
@@ -39,8 +49,10 @@ let AI_OUTPUT_ROOT;
 
 function configureKnowledgeRoot(root = DEFAULT_ROOT) {
   ROOT = String(root || DEFAULT_ROOT);
-  INBOX_ROOT = `${ROOT}/0-录音处理/待处理录音`;
-  INBOX_ARCHIVE_ROOT = `${ROOT}/0-录音处理/已处理`;
+  INBOX_ROOT = `${ROOT}/0-待处理材料/待处理`;
+  INBOX_ARCHIVE_ROOT = `${ROOT}/0-待处理材料/已处理记录`;
+  LEGACY_INBOX_ROOT = `${ROOT}/0-录音处理/待处理录音`;
+  LEGACY_INBOX_ARCHIVE_ROOT = `${ROOT}/0-录音处理/已处理`;
   KNOWLEDGE_ROOT = `${ROOT}/4-素材案例库`;
   PROJECT_ROOT = `${ROOT}/6-内容生产`;
   AGENT_ROOT = `${ROOT}/7-系统/AI协作`;
@@ -52,6 +64,23 @@ function configureKnowledgeRoot(root = DEFAULT_ROOT) {
 
 configureKnowledgeRoot();
 
+function isInboxPendingPath(path) {
+  return [INBOX_ROOT, LEGACY_INBOX_ROOT].some((root) => path === root || path.startsWith(`${root}/`));
+}
+
+function isInboxArchivePath(path) {
+  return [INBOX_ARCHIVE_ROOT, LEGACY_INBOX_ARCHIVE_ROOT].some((root) => path === root || path.startsWith(`${root}/`));
+}
+
+function isInboxManagedPath(path) {
+  return isInboxPendingPath(path) || isInboxArchivePath(path);
+}
+
+function isInboxHelperPath(path) {
+  return [INBOX_ROOT, INBOX_ARCHIVE_ROOT, LEGACY_INBOX_ROOT, LEGACY_INBOX_ARCHIVE_ROOT].some((root) => path === `${root}/README.md`)
+    || isInboxManagedPath(path) && /\/(?:附件|原始文件)\//.test(path);
+}
+
 async function resolveKnowledgeRoot(app) {
   const exists = async (path) => Boolean(
     app.vault.getAbstractFileByPath(path)
@@ -61,8 +90,40 @@ async function resolveKnowledgeRoot(app) {
   if (await exists(LEGACY_ROOT)) return LEGACY_ROOT;
   return DEFAULT_ROOT;
 }
+
+function neutralizeManagedTerminology(value) {
+  const text = String(value || "");
+  const replacements = [
+    [`${LEGACY_OWNER_LABEL}个人资料`, "个人资料"],
+    [`${LEGACY_OWNER_LABEL}能懂`, "易于理解"],
+    [`当前${LEGACY_OWNER_LABEL}`, "当前个人定位"],
+    [`${LEGACY_OWNER_LABEL}说明书`, "个人说明书"],
+    [`${LEGACY_OWNER_LABEL}原话`, "本人原话"],
+    [`${LEGACY_OWNER_LABEL}表达`, "个人表达"],
+    [`${LEGACY_OWNER_LABEL}判断`, "个人判断"],
+    [`${LEGACY_OWNER_LABEL}观点`, "个人观点"],
+    [`${LEGACY_OWNER_LABEL}个人`, "个人"],
+    [LEGACY_OWNER_LABEL, "个人"],
+  ];
+  return replacements.reduce((result, [from, to]) => result.split(from).join(to), text);
+}
+
+async function listAdapterFiles(adapter, root) {
+  if (!adapter || typeof adapter.list !== "function") return [];
+  const files = [];
+  const pending = [normalizePath(root)];
+  while (pending.length) {
+    const directory = pending.shift();
+    const result = await adapter.list(directory);
+    files.push(...(result?.files || []).map((path) => normalizePath(path)));
+    pending.push(...(result?.folders || []).map((path) => normalizePath(path)));
+  }
+  return [...new Set(files)];
+}
 const FDE365_BASE_URL = "https://api.fde365.ai/v1";
 const FDE365_CHAT_ENDPOINT = `${FDE365_BASE_URL}/chat/completions`;
+const FDE365_TRANSCRIPTION_ENDPOINT = `${FDE365_BASE_URL}/audio/transcriptions`;
+const FDE365_TRANSCRIPTION_MODEL = "whisper-1";
 const FDE365_PURCHASE_URL = "https://api.fde365.ai/";
 const FDE365_MODELS = Object.freeze([
   "claude-fable-5",
@@ -85,7 +146,7 @@ const ONBOARDING_STEPS = Object.freeze([
     description: "Knowledge OS 会在当前 Vault 中建立一套本地知识工作台。你可以先收集，再分类、连接和生产内容。",
     highlights: [
       { icon: "inbox", title: "统一收集", text: "灵感、网页、文件和语音先进待处理。" },
-      { icon: "library", title: "六类资产", text: "按老板、产品、客户、案例、方法论与内容管理。" },
+      { icon: "library", title: "六类资产", text: "按个人、产品、客户、案例、方法论与内容管理。" },
       { icon: "shield-check", title: "本地优先", text: "初始化只补缺失文件，不覆盖你已有的内容。" },
     ],
   },
@@ -106,7 +167,7 @@ const ONBOARDING_STEPS = Object.freeze([
     title: "六类资产，是整个系统的骨架",
     description: "整理时保留“事实、推断、未知”的边界，再用真实链接建立资产网络。",
     highlights: [
-      { icon: "user-round", title: "经营与产品", text: "老板说明书与产品库保留你的核心判断。" },
+      { icon: "user-round", title: "经营与产品", text: "个人说明书与产品库保留你的核心判断。" },
       { icon: "target", title: "客户与案例", text: "把真实需求、反馈和有证据的案例连起来。" },
       { icon: "workflow", title: "方法与内容", text: "用经过验证的方法，推动六阶段内容流程。" },
     ],
@@ -115,19 +176,29 @@ const ONBOARDING_STEPS = Object.freeze([
     icon: "bot",
     eyebrow: "第三步 · 协作",
     title: "让 AI 在你选定的范围内工作",
-    description: "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。Token 只保存在当前 Vault。",
+    description: IS_DEVELOPER_BUILD
+      ? "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容，并使用本机 Codex CLI 的登录和配置。"
+      : "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。Token 只保存在当前 Vault。",
     highlights: [
       { icon: "bot", title: "FDE365 Agent", text: "可读取 Vault、运行 Skills，需要写入时向你确认。" },
       { icon: "wand-sparkles", title: "35 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
-      { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" },
+      IS_DEVELOPER_BUILD
+        ? { icon: "shield-check", title: "不覆盖本机配置", text: "开发版不注入 Token，不改写 CODEX_HOME 或 Shell 环境变量。" }
+        : { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" },
     ],
   },
   {
     icon: "key-round",
     eyebrow: "第四步 · 配置模型",
-    title: "两步连接FDE365 AI",
-    description: "先购买 Token，再回到插件设置填写 Token 并选择模型。服务地址已经内置，无需手动配置。",
-    highlights: [
+    title: IS_DEVELOPER_BUILD ? "使用本机 Codex CLI" : "两步连接FDE365 AI",
+    description: IS_DEVELOPER_BUILD
+      ? "开发版使用本机 Codex CLI 已有的登录、Provider 和默认模型，不需在 Obsidian 内填写 Token。"
+      : "先购买 Token，再回到插件设置填写 Token 并选择模型。服务地址已经内置，无需手动配置。",
+    highlights: IS_DEVELOPER_BUILD ? [
+      { icon: "terminal", title: "1. 本机登录", text: "先在终端确认 Codex CLI 已经可用并完成登录。" },
+      { icon: "settings", title: "2. 原样继承", text: "插件不传入模型或 Provider，使用本机 Codex 默认配置。" },
+      { icon: "refresh-cw-off", title: "3. 开发通道", text: "自动更新已关闭，需要新版时重新构建 DEV ZIP。" },
+    ] : [
       { icon: "shopping-bag", title: "1. 购买 Token", text: "前往 api.fde365.ai 购买或创建你的 Token。", action: "purchase-token" },
       { icon: "settings", title: "2. 填写 Token", text: "打开 Obsidian 设置 → FDE365 Knowledge OS → AI 服务，在 Token 一栏填写。", action: "open-token-settings" },
       { icon: "cpu", title: "3. 选择模型", text: "从四个可用模型中选择一个，然后点击“测试连接”。" },
@@ -175,6 +246,8 @@ const AGENT_STATUS_TRANSITIONS = Object.freeze({
 
 const DEFAULT_SETTINGS = {
   schemaVersion: 4,
+  terminologyVersion: 0,
+  inboxLayoutVersion: 0,
   userName: "Gary",
   openOnStartup: true,
   immersiveMode: true,
@@ -198,6 +271,8 @@ const DEFAULT_SETTINGS = {
       contextScope: "active-note",
       autoSaveOutput: false,
       maxContextChars: 20000,
+      executionMode: "approval",
+      panelWidth: 336,
     },
     fde365: {
       token: "",
@@ -220,6 +295,8 @@ function mergeSettings(raw = {}) {
     ...DEFAULT_SETTINGS,
     ...raw,
     schemaVersion: 4,
+    terminologyVersion: Math.max(0, Number(raw.terminologyVersion) || 0),
+    inboxLayoutVersion: Math.max(0, Number(raw.inboxLayoutVersion) || 0),
     blueprint: {
       ...DEFAULT_SETTINGS.blueprint,
       ...(raw.blueprint || {}),
@@ -235,6 +312,8 @@ function mergeSettings(raw = {}) {
       assistant: {
         ...DEFAULT_SETTINGS.ai.assistant,
         ...(raw.ai?.assistant || {}),
+        executionMode: raw.ai?.assistant?.executionMode === "yolo" ? "yolo" : "approval",
+        panelWidth: Math.max(280, Math.min(560, Number(raw.ai?.assistant?.panelWidth) || DEFAULT_SETTINGS.ai.assistant.panelWidth)),
       },
       fde365: {
         token,
@@ -909,6 +988,30 @@ function mapHttpProviderError(status, payload) {
   return new AIProviderError("NETWORK_ERROR", remoteMessage || `API 返回 HTTP ${status}`);
 }
 
+function buildTranscriptionMultipart(audio, { fileName = "recording.webm", mimeType = "audio/webm", language = "zh" } = {}) {
+  const boundary = `fde365-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const bytes = Buffer.from(audio instanceof ArrayBuffer ? new Uint8Array(audio) : audio || []);
+  const fields = [
+    ["model", FDE365_TRANSCRIPTION_MODEL],
+    ["language", language],
+    ["response_format", "json"],
+  ];
+  const parts = fields.map(([name, value]) => Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`,
+    "utf8",
+  ));
+  parts.push(Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${String(fileName).replace(/["\r\n]/g, "_")}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
+    "utf8",
+  ));
+  parts.push(bytes, Buffer.from(`\r\n--${boundary}--\r\n`, "utf8"));
+  const buffer = Buffer.concat(parts);
+  return {
+    contentType: `multipart/form-data; boundary=${boundary}`,
+    body: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+  };
+}
+
 class Fde365Provider {
   constructor(plugin) {
     this.plugin = plugin;
@@ -1282,23 +1385,28 @@ function inferInboxTags(text = "", source = "") {
   const add = (...values) => values.forEach((value) => {
     if (!tags.includes(value)) tags.push(value);
   });
-  if (/(agent|claude|codex|智能体)/i.test(haystack)) add("AI技术", "Agent");
-  if (/(rag|知识库|检索|向量|embedding)/i.test(haystack)) add("知识库", "AI技术");
-  if (/(客户|企业|交流|需求|方案)/i.test(haystack)) add("客户交流", "企业案例");
-  if (/(产品|需求文档|prd|竞品)/i.test(haystack)) add("产品研究");
-  if (/(视频|youtube|公众号|文章|内容)/i.test(haystack)) add("内容素材");
-  if (/(学习|课程|论文|资料)/i.test(haystack)) add("学习资料");
+  // Material format and business destination are deliberately separate. A
+  // recording can contain product facts, customer needs and reusable cases at
+  // the same time; "录音" must never become a seventh asset library.
+  if (/(录音|语音|音频|转写|audio|mp3|m4a|wav|webm)/i.test(haystack)) add("录音转写");
+  if (/(会议|会议纪要|参会|议程)/i.test(haystack)) add("会议纪要");
+  if (/(聊天|微信|沟通记录|对话记录)/i.test(haystack)) add("聊天记录");
+  if (/(图片|截图|照片|image|png|jpe?g|webp)/i.test(haystack)) add("图片材料");
+  if (/(文档|附件|pdf|docx?|pptx?|xlsx?)/i.test(haystack)) add("文档材料");
+
+  if (/(个人定位|身份|价值观|我的判断|表达习惯|不能公开|个人边界)/i.test(haystack)) add("个人说明书");
+  if (/(产品|功能|价格|报价|承诺|交付|售后|异议|prd|竞品)/i.test(haystack)) add("产品库");
+  if (/(客户原话|客户需求|客户|痛点|预算|决策人|成交|未成交)/i.test(haystack)) add("客户需求库");
+  if (/(案例|事件|经历|反馈|结果|故事|数据证据)/i.test(haystack)) add("素材案例库");
+  if (/(方法|步骤|流程|原则|经验|复盘|策略|前置条件|失败信号)/i.test(haystack)) add("方法论库");
+  if (/(选题|标题|文章|脚本|发布|公众号|短视频|成稿|写稿)/i.test(haystack)) add("内容生产");
   if (!tags.length) add("待分类");
-  return tags.slice(0, 4);
+  return tags.slice(0, 6);
 }
 
 function inferInboxCategory(tags) {
-  if (tags.includes("客户交流") || tags.includes("企业案例")) return "企业案例";
-  if (tags.includes("AI技术") || tags.includes("Agent") || tags.includes("知识库")) return "AI技术";
-  if (tags.includes("产品研究")) return "产品研究";
-  if (tags.includes("内容素材")) return "内容素材";
-  if (tags.includes("学习资料")) return "学习资料";
-  return "其他";
+  const destinations = ["个人说明书", "产品库", "客户需求库", "素材案例库", "方法论库", "内容生产"];
+  return destinations.find((destination) => tags.includes(destination)) || "待分类";
 }
 
 async function ensureVaultFolder(app, path) {
@@ -1471,10 +1579,9 @@ class InboxView extends ItemView {
 
   async getItems() {
     const candidates = this.app.vault.getMarkdownFiles().filter((file) => {
-      if (file.path === `${INBOX_ROOT}/README.md`) return false;
-      if (file.path.startsWith(`${INBOX_ROOT}/附件/`)) return false;
+      if (isInboxHelperPath(file.path)) return false;
       const cache = this.app.metadataCache.getFileCache(file);
-      return file.path.startsWith(`${INBOX_ROOT}/`) || file.path.startsWith(`${INBOX_ARCHIVE_ROOT}/`) || cache?.frontmatter?.type === "inbox";
+      return isInboxManagedPath(file.path) || cache?.frontmatter?.type === "inbox";
     });
     const items = [];
     for (const file of candidates) {
@@ -1484,7 +1591,7 @@ class InboxView extends ItemView {
       const clean = cleanMarkdown(content)
         .replace(/\[![^\]]+\]\s*/g, "")
         .replace(/^示例收集项\s*/i, "");
-      const isArchived = file.path.startsWith(`${INBOX_ARCHIVE_ROOT}/`);
+      const isArchived = isInboxArchivePath(file.path);
       const source = String(frontmatter.source || (isArchived ? "已归档" : "快速记录"));
       const suggested = Array.isArray(frontmatter.ai_suggested_tags)
         ? frontmatter.ai_suggested_tags.map(String)
@@ -1551,7 +1658,7 @@ class InboxView extends ItemView {
     const nav = sidebar.createEl("nav", { cls: "akos-nav" });
     const navItems = [
       ["总览", "知识驾驶舱", "layout-dashboard", () => this.plugin.router.navigate("dashboard"), false],
-      ["待处理", "录音与灵感", "inbox", () => {}, true, stats.pending],
+      ["待处理", "多类型原始材料", "inbox", () => {}, true, stats.pending],
       ["六类资产", "知识资产库", "book-open", () => this.plugin.router.navigate("knowledge")],
       ["资产网络", "关联与路径", "share-2", () => this.plugin.router.navigate("graph")],
       ["内容项目", "生产与协作", "folder-kanban", () => this.plugin.router.navigate("projects")],
@@ -1879,16 +1986,16 @@ class InboxView extends ItemView {
     if (/微信|沟通/.test(source)) return ["message-circle", "green"];
     if (/网页|公众号|youtube/.test(source)) return ["panels-top-left", "blue"];
     if (/上传|文件|pdf/.test(source)) return ["file-text", "red"];
-    if (/语音/.test(source)) return ["audio-lines", "purple"];
+    if (/录音|语音|音频|转写|audio/.test(source)) return ["audio-lines", "purple"];
     return ["notebook-text", "indigo"];
   }
 
   categoryDistribution(items) {
     const counts = new Map();
     items.forEach((item) => counts.set(item.category, (counts.get(item.category) || 0) + 1));
-    const defaults = ["AI技术", "企业案例", "内容素材", "学习资料", "其他"];
+    const defaults = ["个人说明书", "产品库", "客户需求库", "素材案例库", "方法论库", "内容生产", "待分类"];
     defaults.forEach((label) => { if (!counts.has(label)) counts.set(label, 0); });
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
   }
 
   donutGradient(distribution) {
@@ -2025,7 +2132,7 @@ class InboxView extends ItemView {
     const name = safeName(title);
     const tags = inferInboxTags(`${title} ${description} ${page?.markdown?.slice(0, 5000) || ""}`, "网页");
     const existing = this.app.vault.getMarkdownFiles().find((file) => {
-      if (!file.path.startsWith(`${INBOX_ROOT}/`) && !file.path.startsWith(`${INBOX_ARCHIVE_ROOT}/`)) return false;
+      if (!isInboxManagedPath(file.path)) return false;
       return String(this.app.metadataCache.getFileCache(file)?.frontmatter?.source_url || "") === canonicalUrl;
     });
     const existingContent = existing ? await this.app.vault.cachedRead(existing) : "";
@@ -2375,6 +2482,10 @@ class KnowledgeDashboardView extends ItemView {
   }
 
   providerStatusText() {
+    if (this.plugin.isDeveloperBuild) {
+      const runtime = this.plugin.agentRuntime?.describe?.();
+      return runtime?.available ? "DEV · 本地 Codex CLI" : "DEV · 未找到 Codex CLI";
+    }
     const status = this.plugin.providerManager.describeSelected();
     if (!status.configured || !status.compatible) return `${status.label} · 未就绪`;
     return [status.label, status.model].filter(Boolean).join(" · ");
@@ -2449,7 +2560,7 @@ class KnowledgeDashboardView extends ItemView {
       dots.createEl("i");
       dots.createEl("i");
       dots.createEl("i");
-      progress.createSpan({ text: "正在生成回答" });
+      progress.createSpan({ text: "Agent 处理中…" });
       const stop = createButton(bubble, "停止生成", "square", "akos-assistant-stop");
       stop.addEventListener("click", () => {
         if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
@@ -2574,11 +2685,10 @@ class KnowledgeDashboardView extends ItemView {
     const folders = [...folderCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
     const categories = [...categoryCounts.entries()];
     const inbox = files.filter((file) => {
-      if (file.path === `${INBOX_ROOT}/README.md`) return false;
-      if (file.path.startsWith(`${INBOX_ROOT}/附件/`)) return false;
+      if (isInboxHelperPath(file.path)) return false;
       const cache = this.app.metadataCache.getFileCache(file);
-      if (!file.path.startsWith(`${INBOX_ROOT}/`) && !file.path.startsWith(`${INBOX_ARCHIVE_ROOT}/`) && cache?.frontmatter?.type !== "inbox") return false;
-      const status = file.path.startsWith(`${INBOX_ARCHIVE_ROOT}/`) ? "archived" : String(cache?.frontmatter?.status || "pending");
+      if (!isInboxManagedPath(file.path) && cache?.frontmatter?.type !== "inbox") return false;
+      const status = isInboxArchivePath(file.path) ? "archived" : String(cache?.frontmatter?.status || "pending");
       return status === "pending";
     }).length;
     const density = files.length > 1 ? links / (files.length * (files.length - 1)) : 0;
@@ -2612,7 +2722,7 @@ class KnowledgeDashboardView extends ItemView {
     mainLabel.setAttr("aria-label", "主导航");
     const items = [
       ["总览", "知识驾驶舱", "layout-dashboard", () => this.plugin.router.navigate("dashboard"), true],
-      ["待处理", "录音与灵感", "inbox", () => this.plugin.router.navigate("inbox"), false, stats.inbox],
+      ["待处理", "多类型原始材料", "inbox", () => this.plugin.router.navigate("inbox"), false, stats.inbox],
       ["六类资产", "知识资产库", "book-open", () => this.plugin.router.navigate("knowledge")],
       ["资产网络", "关联与路径", "share-2", () => this.plugin.router.navigate("graph")],
       ["内容项目", "生产与协作", "folder-kanban", () => this.plugin.router.navigate("projects")],
@@ -2721,7 +2831,7 @@ class KnowledgeDashboardView extends ItemView {
       ["资产总量", stats.files.length, "library-big", "violet", "六类知识资产"],
       ["有效连接", stats.links, "link-2", "blue", `网络密度 ${(stats.density * 100).toFixed(2)}%`],
       ["内容任务", stats.tasks, "list-checks", "cyan", "来自全部笔记"],
-      ["待处理", stats.inbox, "inbox", "orange", "录音与灵感"],
+      ["待处理", stats.inbox, "inbox", "orange", "多类型原始材料"],
     ];
     cards.forEach(([label, value, icon, color, foot]) => {
       const card = grid.createDiv({ cls: "akos-stat-card" });
@@ -4340,6 +4450,10 @@ class Fde365UpdateService {
   }
 
   async check({ manual = false, forceInstall = false } = {}) {
+    if (IS_DEVELOPER_BUILD) {
+      if (manual) new Notice("开发版已关闭自动更新，请重新构建开发包");
+      return { status: "disabled", channel: FDE365_BUILD_CHANNEL };
+    }
     if (this.inFlight) return this.inFlight;
     this.inFlight = this.checkNow({ manual, forceInstall }).finally(() => { this.inFlight = null; });
     return this.inFlight;
@@ -4551,6 +4665,8 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
         .onClick(async () => {
           button.setDisabled(true).setButtonText("检查中…");
           try {
+            await this.plugin.migrateNeutralTerminology();
+            await this.plugin.migrateLegacyInboxLayout();
             await this.plugin.bootstrapService.ensure({ notify: true });
           } finally {
             this.display();
@@ -4568,19 +4684,23 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           : `当前版本 v${this.plugin.manifest.version} · 尚未检查更新。`;
     new Setting(containerEl)
       .setName("自动安装更新")
-      .setDesc("从 FDE365 国内更新服务获取并校验更新；不会读取或覆盖 Token、笔记和其他 Vault 数据。")
+      .setDesc(IS_DEVELOPER_BUILD
+        ? "开发版固定关闭自动更新，避免被用户版覆盖。"
+        : "从 FDE365 国内更新服务获取并校验更新；不会读取或覆盖 Token、笔记和其他 Vault 数据。")
       .addToggle((toggle) => toggle
-        .setValue(updates.autoInstall)
+        .setValue(IS_DEVELOPER_BUILD ? false : updates.autoInstall)
+        .setDisabled(IS_DEVELOPER_BUILD)
         .onChange(async (value) => {
+          if (IS_DEVELOPER_BUILD) return;
           updates.autoInstall = value;
           await this.plugin.saveSettings();
         }));
     new Setting(containerEl)
       .setName("更新状态")
-      .setDesc(updateStatus)
+      .setDesc(IS_DEVELOPER_BUILD ? `DEV · v${this.plugin.manifest.version} · 本地构建通道` : updateStatus)
       .addButton((button) => button
-        .setButtonText(updates.pendingVersion ? "等待重启" : "检查并安装")
-        .setDisabled(Boolean(updates.pendingVersion))
+        .setButtonText(IS_DEVELOPER_BUILD ? "开发版不更新" : updates.pendingVersion ? "等待重启" : "检查并安装")
+        .setDisabled(IS_DEVELOPER_BUILD || Boolean(updates.pendingVersion))
         .onClick(async () => {
           button.setDisabled(true).setButtonText("检查中…");
           await this.plugin.updateService.check({ manual: true, forceInstall: true });
@@ -4588,6 +4708,14 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
         }));
 
     containerEl.createEl("h3", { text: "AI 服务", attr: { id: "akos-settings-ai" } });
+    if (IS_DEVELOPER_BUILD) {
+      const localRuntime = this.plugin.agentRuntime?.describe?.() || { available: false, ready: false, error: "本地 Codex CLI 尚未初始化" };
+      new Setting(containerEl)
+        .setName("DEV · 本地 Codex CLI")
+        .setDesc(localRuntime.available
+          ? `使用本机 Codex CLI 的登录、Provider、默认模型和 CODEX_HOME${localRuntime.ready ? " · 运行中" : ""}。插件不会写入或覆盖任何环境变量。`
+          : localRuntime.error);
+    } else {
     new Setting(containerEl)
       .setName("FDE365 AI")
       .setDesc("服务地址已经内置，无需填写或切换。Token 仅保存在当前 Vault 的插件 data.json。")
@@ -4659,6 +4787,26 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           this.plugin.refreshDashboard();
         });
       });
+    }
+    const assistant = this.plugin.settings.ai.assistant;
+    new Setting(containerEl)
+      .setName("Agent 执行模式")
+      .setDesc(assistant.executionMode === "yolo"
+        ? "YOLO 已开启：Agent 可在当前 Vault 内直接读写和运行本地命令，不再逐次请求批准；Vault 外访问和网络仍被阻止。"
+        : "需要批准：Agent 读取知识库后，命令执行和文件写入会等待你确认。")
+      .addDropdown((dropdown) => dropdown
+        .addOption("approval", "需要批准（推荐）")
+        .addOption("yolo", "YOLO（当前 Vault 内）")
+        .setValue(assistant.executionMode)
+        .onChange(async (value) => {
+          assistant.executionMode = value === "yolo" ? "yolo" : "approval";
+          await this.plugin.saveSettings();
+          new Notice(assistant.executionMode === "yolo"
+            ? "YOLO 已开启：下一个 Agent 任务将在当前 Vault 内自动执行"
+            : "已切换为需要批准模式");
+          this.plugin.refreshDashboard();
+          this.display();
+        }));
     containerEl.createEl("h3", { text: "资产网络", attr: { id: "akos-settings-graph" } });
     new Setting(containerEl)
       .setName("默认连接深度")
@@ -5789,6 +5937,8 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     FDEWorkspace.configureKnowledgeRoot(this.knowledgeRoot);
     this.isUnloading = false;
     this.runtimeInitialized = false;
+    this.buildChannel = FDE365_BUILD_CHANNEL;
+    this.isDeveloperBuild = IS_DEVELOPER_BUILD;
     this.startupTimer = null;
     this.updateStartupTimer = null;
     this.router = new KnowledgeOSRouter(this);
@@ -5796,7 +5946,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
-    this.agentRuntime = new FdeCodexAgentRuntime(this);
+    this.agentRuntime = new FdeCodexAgentRuntime(this, { mode: IS_DEVELOPER_BUILD ? "local-cli" : "isolated-fde365" });
     this.updateService = new Fde365UpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
     await this.migrateProviderSettings();
@@ -5822,7 +5972,11 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.addCommand({
       id: "repair-knowledge-blueprint",
       name: "检查并修复知识库模板",
-      callback: () => this.bootstrapService.ensure({ notify: true }),
+      callback: async () => {
+        await this.migrateNeutralTerminology();
+        await this.migrateLegacyInboxLayout();
+        await this.bootstrapService.ensure({ notify: true });
+      },
     });
     this.addCommand({
       id: "check-for-updates",
@@ -5835,6 +5989,14 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       callback: async () => {
         await this.activateInbox();
         this.getInbox()?.createQuickNote();
+      },
+    });
+    this.addCommand({
+      id: "new-ai-voice-note",
+      name: "AI 语音转文字并保存到待处理",
+      callback: async () => {
+        await this.activateInbox();
+        this.getInbox()?.startVoiceCapture();
       },
     });
     this.addCommand({
@@ -5876,9 +6038,11 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       this.updateStartupTimer = null;
     });
 
-    this.registerInterval(window.setInterval(() => {
-      if (!this.isUnloading) void this.updateService.check();
-    }, UPDATE_CHECK_INTERVAL_MS));
+    if (!IS_DEVELOPER_BUILD) {
+      this.registerInterval(window.setInterval(() => {
+        if (!this.isUnloading) void this.updateService.check();
+      }, UPDATE_CHECK_INTERVAL_MS));
+    }
 
     this.app.workspace.onLayoutReady(() => {
       if (!this.isUnloading) void this.initializeRuntime();
@@ -5901,6 +6065,8 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
 
     try {
       const shouldNotify = Number(this.settings.blueprint?.version || 0) < KNOWLEDGE_BLUEPRINT.version;
+      await this.migrateNeutralTerminology();
+      await this.migrateLegacyInboxLayout();
       await this.bootstrapService.ensure({ notify: shouldNotify });
       await this.fdeWorkspace.reloadConfig();
     } catch (error) {
@@ -5926,10 +6092,12 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       }, 250);
     }
 
-    this.updateStartupTimer = window.setTimeout(() => {
-      this.updateStartupTimer = null;
-      if (!this.isUnloading) void this.updateService.check();
-    }, 10000);
+    if (!IS_DEVELOPER_BUILD) {
+      this.updateStartupTimer = window.setTimeout(() => {
+        this.updateStartupTimer = null;
+        if (!this.isUnloading) void this.updateService.check();
+      }, 10000);
+    }
   }
 
   onunload() {
@@ -5966,6 +6134,234 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  async migrateNeutralTerminology() {
+    if (Number(this.settings.terminologyVersion || 0) >= TERMINOLOGY_VERSION) {
+      return { changed: 0, conflicts: [] };
+    }
+
+    const root = this.knowledgeRoot;
+    const oldDirectoryPath = normalizePath(`${root}/${LEGACY_OWNER_DIRECTORY}`);
+    const newDirectoryPath = normalizePath(`${root}/${OWNER_DIRECTORY}`);
+    const oldDirectory = this.app.vault.getAbstractFileByPath(oldDirectoryPath);
+    const newDirectory = this.app.vault.getAbstractFileByPath(newDirectoryPath);
+    const conflicts = [];
+    let changed = 0;
+
+    if (oldDirectory && newDirectory) {
+      conflicts.push(`${oldDirectoryPath} 与 ${newDirectoryPath} 同时存在`);
+    } else if (oldDirectory) {
+      await this.app.fileManager.renameFile(oldDirectory, newDirectoryPath);
+      changed += 1;
+    }
+
+    if (conflicts.length) {
+      new Notice("旧版与新版个人说明书目录同时存在，未自动合并；请先确认内容后再修复模板", 10000);
+      return { changed, conflicts };
+    }
+
+    const oldFilePath = normalizePath(`${newDirectoryPath}/${LEGACY_OWNER_LABEL}说明书.md`);
+    const newFilePath = normalizePath(`${newDirectoryPath}/个人说明书.md`);
+    const oldFile = this.app.vault.getAbstractFileByPath(oldFilePath);
+    const newFile = this.app.vault.getAbstractFileByPath(newFilePath);
+    if (oldFile && newFile) {
+      conflicts.push(`${oldFilePath} 与 ${newFilePath} 同时存在`);
+    } else if (oldFile) {
+      await this.app.fileManager.renameFile(oldFile, newFilePath);
+      changed += 1;
+    }
+
+    if (conflicts.length) {
+      new Notice("旧版与新版个人说明书文件同时存在，未自动合并；请先确认内容后再修复模板", 10000);
+      return { changed, conflicts };
+    }
+
+    const managedPaths = new Set([
+      normalizePath(`${root}/.fde/config.yaml`),
+      normalizePath(`${root}/AGENTS.md`),
+      normalizePath(`${root}/0-使用说明.md`),
+      newFilePath,
+    ]);
+    const skillRoot = normalizePath(`${root}/.agents/skills`);
+    const skillPrefix = `${skillRoot}/`;
+    const updatedPaths = new Set();
+    for (const file of this.app.vault.getFiles()) {
+      if (!managedPaths.has(file.path) && !file.path.startsWith(skillPrefix)) continue;
+      updatedPaths.add(file.path);
+      const current = await this.app.vault.cachedRead(file);
+      const next = neutralizeManagedTerminology(current);
+      if (next === current) continue;
+      await this.app.vault.modify(file, next);
+      changed += 1;
+    }
+
+    const adapter = this.app.vault.adapter;
+    const rewriteAdapterFile = async (path) => {
+      const normalized = normalizePath(path);
+      if (updatedPaths.has(normalized) || typeof adapter?.read !== "function" || typeof adapter?.write !== "function") return;
+      if (typeof adapter.exists === "function" && !await adapter.exists(normalized)) return;
+      const current = await adapter.read(normalized);
+      const next = neutralizeManagedTerminology(current);
+      if (next === current) return;
+      await adapter.write(normalized, next);
+      changed += 1;
+    };
+    await rewriteAdapterFile(`${root}/.fde/config.yaml`);
+    for (const path of await listAdapterFiles(adapter, skillRoot)) await rewriteAdapterFile(path);
+
+    this.settings.terminologyVersion = TERMINOLOGY_VERSION;
+    await this.saveSettings();
+    return { changed, conflicts };
+  }
+
+  async migrateLegacyInboxLayout() {
+    if (Number(this.settings.inboxLayoutVersion || 0) >= INBOX_LAYOUT_VERSION) {
+      return { moved: 0, conflicts: [] };
+    }
+
+    const root = this.knowledgeRoot;
+    const legacyBase = normalizePath(`${root}/0-录音处理`);
+    const mappings = [
+      {
+        label: "pending",
+        source: normalizePath(`${legacyBase}/待处理录音`),
+        destination: normalizePath(`${root}/0-待处理材料/待处理`),
+      },
+      {
+        label: "processed",
+        source: normalizePath(`${legacyBase}/已处理`),
+        destination: normalizePath(`${root}/0-待处理材料/已处理记录`),
+      },
+    ];
+    const conflicts = [];
+    let moved = 0;
+
+    for (const mapping of mappings) {
+      const files = this.app.vault.getFiles()
+        .filter((file) => file.path.startsWith(`${mapping.source}/`))
+        .sort((left, right) => left.path.localeCompare(right.path));
+      for (const file of files) {
+        const relative = file.path.slice(mapping.source.length + 1);
+        let target = normalizePath(`${mapping.destination}/${relative}`);
+        try {
+          const isLegacyReadme = relative.toLowerCase() === "readme.md";
+          if (isLegacyReadme) {
+            const quarantine = normalizePath(`${root}/.fde/quarantine`);
+            await ensureVaultFolder(this.app, quarantine);
+            target = await uniqueVaultPath(
+              this.app,
+              normalizePath(`${quarantine}/legacy-recording-${mapping.label}-README.md`),
+            );
+          } else {
+            const parent = target.includes("/") ? target.slice(0, target.lastIndexOf("/")) : "";
+            if (parent) await ensureVaultFolder(this.app, parent);
+            target = await uniqueVaultPath(this.app, target);
+          }
+          await this.app.fileManager.renameFile(file, target);
+          moved += 1;
+        } catch (error) {
+          conflicts.push(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
+
+    const mappedSources = mappings.map((mapping) => `${mapping.source}/`);
+    const looseFiles = this.app.vault.getFiles()
+      .filter((file) => file.path.startsWith(`${legacyBase}/`)
+        && !mappedSources.some((source) => file.path.startsWith(source)))
+      .sort((left, right) => left.path.localeCompare(right.path));
+    for (const file of looseFiles) {
+      const relative = file.path.slice(legacyBase.length + 1);
+      try {
+        let target;
+        if (relative.toLowerCase().endsWith("readme.md")) {
+          const quarantine = normalizePath(`${root}/.fde/quarantine`);
+          await ensureVaultFolder(this.app, quarantine);
+          target = await uniqueVaultPath(
+            this.app,
+            normalizePath(`${quarantine}/legacy-recording-root-${relative.replaceAll("/", "--")}`),
+          );
+        } else {
+          target = normalizePath(`${root}/0-待处理材料/待处理/${relative}`);
+          const parent = target.slice(0, target.lastIndexOf("/"));
+          await ensureVaultFolder(this.app, parent);
+          target = await uniqueVaultPath(this.app, target);
+        }
+        await this.app.fileManager.renameFile(file, target);
+        moved += 1;
+      } catch (error) {
+        conflicts.push(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    const remaining = this.app.vault.getFiles().filter((file) => file.path.startsWith(`${legacyBase}/`));
+    if (!conflicts.length && !remaining.length) {
+      const legacyFolder = this.app.vault.getAbstractFileByPath(legacyBase);
+      if (legacyFolder && !(legacyFolder instanceof TFile)) {
+        try {
+          await this.app.vault.delete(legacyFolder, true);
+        } catch (error) {
+          conflicts.push(`${legacyBase}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
+
+    if (conflicts.length) {
+      new Notice(`旧录音目录迁移未完成，已保留原内容；请再次检查并修复（${conflicts.length} 项）`, 10000);
+      return { moved, conflicts };
+    }
+
+    this.settings.inboxLayoutVersion = INBOX_LAYOUT_VERSION;
+    await this.saveSettings();
+    if (moved) new Notice(`已将 ${moved} 个旧录音文件归并到“待处理材料”`, 6000);
+    return { moved, conflicts };
+  }
+
+  async transcribeAudio({ audio, fileName = "recording.webm", mimeType = "audio/webm", language = "zh" }) {
+    const token = String(this.settings.ai.fde365.token || "").trim();
+    if (!token) throw new AIProviderError("PROVIDER_NOT_CONFIGURED", "请先在插件设置中填写 Token，再使用 AI 语音转文字");
+    const bytes = audio instanceof ArrayBuffer ? audio : audio?.buffer;
+    if (!(bytes instanceof ArrayBuffer) || !bytes.byteLength) throw new AIProviderError("EMPTY_AUDIO", "没有录到可转写的语音");
+    const multipart = buildTranscriptionMultipart(bytes, { fileName, mimeType, language });
+    const timeoutMs = Math.max(30000, Number(this.settings.ai.fde365.timeoutMs) || 120000);
+    let timer = null;
+    let response;
+    try {
+      response = await Promise.race([
+        requestUrl({
+          url: FDE365_TRANSCRIPTION_ENDPOINT,
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": multipart.contentType,
+          },
+          body: multipart.body,
+          throw: false,
+        }),
+        new Promise((_, reject) => {
+          timer = window.setTimeout(() => reject(new AIProviderError("TIMEOUT", `语音转写超过 ${Math.round(timeoutMs / 1000)} 秒`)), timeoutMs);
+        }),
+      ]);
+    } catch (error) {
+      if (error instanceof AIProviderError) throw error;
+      throw new AIProviderError("NETWORK_ERROR", error instanceof Error ? error.message : String(error));
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+    }
+    const payload = response?.json || (() => {
+      try { return JSON.parse(response?.text || "{}"); } catch { return {}; }
+    })();
+    if (!response || response.status < 200 || response.status >= 300) {
+      const remoteMessage = String(payload?.error?.message || payload?.message || "");
+      if (response?.status === 404 || [400, 403].includes(response?.status) && /whisper|model|模型/i.test(remoteMessage)) {
+        throw new AIProviderError("TRANSCRIPTION_UNAVAILABLE", "当前 Token 尚未开通 FDE365 语音转写模型");
+      }
+      throw mapHttpProviderError(response?.status || 0, payload);
+    }
+    const text = String(payload?.text || payload?.data?.text || "").trim();
+    if (!text) throw new AIProviderError("EMPTY_RESPONSE", "AI 没有识别出可保存的文字");
+    return { text, model: FDE365_TRANSCRIPTION_MODEL };
   }
 
   async markOnboardingSeen() {
@@ -6249,11 +6645,11 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       ...history.filter((message) => !message.error && ["user", "assistant"].includes(message.role) && message.content).slice(-6).map((message) => ({ role: message.role, content: message.content })),
       { role: "user", content: prompt },
     ];
-    await this.providerManager.preflight();
+    if (!IS_DEVELOPER_BUILD) await this.providerManager.preflight();
     return this.agentRuntime.complete({ requestId, mode: "chat", messages, context, sessionId, onEvent });
   }
 
-  async saveAssistantOutput(message, viewName = "AI 助手") {
+  async saveAssistantOutput(message, viewName = "AI 助手", options = {}) {
     await ensureVaultFolder(this.app, AI_OUTPUT_ROOT);
     const date = new Date();
     const stamp = date.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
@@ -6265,7 +6661,10 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       index += 1;
     }
     const result = message.result || {};
-    const content = `---\ntype: ai-assistant-output\nprovider: ${yamlQuote(result.provider || "unknown")}\nprovider_version: ${yamlQuote(result.providerVersion || "")}\nmodel: ${yamlQuote(result.model || "")}\ncreated_at: ${date.toISOString()}\nsource_view: ${yamlQuote(viewName)}\ntags:\n  - ai/assistant-output\n---\n\n# ${viewName} · AI 回答\n\n${message.content}\n`;
+    const conversationId = options.conversationId || result.conversationId || "";
+    const sourceFiles = Array.isArray(options.sourceFiles) ? options.sourceFiles.map(String).filter(Boolean) : [];
+    const prompt = String(options.prompt || "").trim();
+    const content = `---\ntype: ai-assistant-output\nprovider: ${yamlQuote(result.provider || "unknown")}\nprovider_version: ${yamlQuote(result.providerVersion || "")}\nmodel: ${yamlQuote(result.model || "")}\nconversation_id: ${yamlQuote(conversationId)}\nsource_files: ${JSON.stringify(sourceFiles)}\nuser_prompt: ${yamlQuote(prompt)}\ncreated_at: ${date.toISOString()}\nsource_view: ${yamlQuote(viewName)}\ntags:\n  - ai/assistant-output\n---\n\n# ${viewName} · AI 对话\n\n${prompt ? `## 你\n\n${prompt}\n\n` : ""}## FDE365\n\n${message.content}\n`;
     return this.app.vault.create(path, content);
   }
 
@@ -6280,13 +6679,14 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     return this.executeAgent(agent, prompt, active ? [active] : []);
   }
 
-  async executeAgent(agent, prompt, sources = []) {
-    let provider;
+  async executeAgent(agent, prompt, sources = [], options = {}) {
     let capability;
     try {
-      ({ provider, capability } = await this.providerManager.preflight());
       const runtime = this.agentRuntime.describe();
       if (!runtime.available) throw new AIProviderError("AGENT_RUNTIME_MISSING", runtime.error || "未找到 Codex Agent 运行组件");
+      capability = IS_DEVELOPER_BUILD
+        ? { model: "本机 Codex 默认模型" }
+        : (await this.providerManager.preflight()).capability;
     } catch (error) {
       new Notice(`无法启动 Agent：${error instanceof Error ? error.message : String(error)}`);
       if (["PROVIDER_NOT_CONFIGURED", "PROVIDER_UNAVAILABLE", "INCOMPATIBLE_VERSION", "AUTH_FAILED", "MODEL_NOT_FOUND"].includes(error?.code)) this.openSettings("ai");
@@ -6296,9 +6696,9 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       provider: "fde365-agent",
       providerVersion: "codex-app-server-responses",
       model: capability.model || "",
-      label: "FDE365 Codex Agent",
+      label: IS_DEVELOPER_BUILD ? "DEV · 本地 Codex CLI" : "FDE365 Codex Agent",
     });
-    new Notice(`${agent.name} 已进入执行队列 · FDE365 Codex Agent`);
+    new Notice(`${agent.name} 已进入执行队列 · ${IS_DEVELOPER_BUILD ? "本地 Codex CLI" : "FDE365 Codex Agent"}`);
     await this.agentTaskStore.transition(task, AGENT_RUN_STATUSES.RUNNING, {
       provider_version: "codex-app-server-responses",
       model: capability.model || "",
@@ -6316,6 +6716,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
           { role: "user", content: prompt },
         ],
         context,
+        sessionId: options.sessionId || "",
       });
       if (!result.content?.trim()) throw new AIProviderError("EMPTY_RESPONSE", "AI Provider 返回了空内容");
       const outputFile = await this.agentTaskStore.saveOutput(task, result);
@@ -6327,7 +6728,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
         error: "",
       });
       this.lastAgentResult = { task, result, outputFile };
-      new Notice(`${agent.name} 已完成，等待人工验收；请在 FDE365 右侧栏“历史”查看输出`);
+      new Notice(`${agent.name} 已完成，结果已生成并等待人工验收`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const nextStatus = ["PROVIDER_NOT_CONFIGURED", "PROVIDER_UNAVAILABLE", "INCOMPATIBLE_VERSION", "AUTH_FAILED", "MODEL_NOT_FOUND"].includes(error?.code)
@@ -6356,6 +6757,8 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
 };
 
 module.exports.__testables = Object.freeze({
+  FDE365_BUILD_CHANNEL,
+  IS_DEVELOPER_BUILD,
   AIProviderError,
   AIProviderManager,
   Fde365Provider,
@@ -6365,9 +6768,19 @@ module.exports.__testables = Object.freeze({
   buildOpenAIMessages,
   FDE365_BASE_URL,
   FDE365_CHAT_ENDPOINT,
+  FDE365_TRANSCRIPTION_ENDPOINT,
+  FDE365_TRANSCRIPTION_MODEL,
+  buildTranscriptionMultipart,
   FDE365_MODELS,
   DEFAULT_ROOT,
   LEGACY_ROOT,
+  TERMINOLOGY_VERSION,
+  INBOX_LAYOUT_VERSION,
+  LEGACY_OWNER_DIRECTORY,
+  OWNER_DIRECTORY,
+  neutralizeManagedTerminology,
+  inferInboxTags,
+  inferInboxCategory,
   configureKnowledgeRoot,
   resolveKnowledgeRoot,
   ONBOARDING_STEPS,

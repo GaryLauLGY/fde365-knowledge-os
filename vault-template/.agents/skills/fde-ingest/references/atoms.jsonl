@@ -8,3 +8,6 @@
 {"id": "FDE-INGEST-008", "rule": "资料不足时完成证据允许的部分。", "source": "fde-skills-workflow-v1"}
 {"id": "FDE-INGEST-009", "rule": "不能确认的分类进入待确认区。", "source": "fde-skills-workflow-v1"}
 {"id": "FDE-INGEST-010", "rule": "交付后说明写入位置和未完成项。", "source": "fde-skills-workflow-v1"}
+{"id": "FDE-INGEST-011", "rule": "录音聊天会议图片和文档是材料形式，不是六类资产归属。", "source": "fde-skills-workflow-v1"}
+{"id": "FDE-INGEST-012", "rule": "同一证据单元可建议多个资产去向，但必须分别给出证据。", "source": "fde-skills-workflow-v1"}
+{"id": "FDE-INGEST-013", "rule": "录音转写中不确定的人名数字日期和时间戳不得猜测。", "source": "fde-skills-workflow-v1"}

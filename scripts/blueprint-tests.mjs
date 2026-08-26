@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 
 const blueprint = JSON.parse(await readFile("blueprint.json", "utf8"));
 const requiredFolders = [
-  "0-录音处理/待处理录音",
-  "1-老板说明书",
+  "0-待处理材料/待处理",
+  "0-待处理材料/已处理记录",
+  "1-个人说明书",
   "2-产品库",
   "3-客户需求库",
   "4-素材案例库",
@@ -22,9 +23,11 @@ const requiredFolders = [
 
 assert.equal(blueprint.id, "fde365-six-assets");
 assert.equal(blueprint.root, "FDE365知识库");
-assert.equal(blueprint.version, 4);
+assert.equal(blueprint.version, 6);
 for (const path of requiredFolders) assert.ok(blueprint.folders.includes(path), `missing blueprint folder: ${path}`);
-for (const path of ["0-使用说明.md", "VERSION", "fde-manifest.json", ".fde/config.yaml", "AGENTS.md", "1-老板说明书/老板说明书.md", ".agents/skills/fde-start/SKILL.md", ".agents/skills/fde-ingest/SKILL.md", ".agents/skills/fde-health/SKILL.md"]) {
+assert.ok(!blueprint.folders.some((path) => path === "0-录音处理" || path.startsWith("0-录音处理/")), "recordings must live under the generic pending-material inbox");
+assert.ok(!Object.keys(blueprint.files).some((path) => path === "0-录音处理" || path.startsWith("0-录音处理/")), "blueprint files must not recreate the legacy recording tree");
+for (const path of ["0-使用说明.md", "VERSION", "fde-manifest.json", ".fde/config.yaml", "AGENTS.md", "1-个人说明书/个人说明书.md", ".agents/skills/fde-start/SKILL.md", ".agents/skills/fde-ingest/SKILL.md", ".agents/skills/fde-health/SKILL.md"]) {
   assert.equal(typeof blueprint.files[path], "string", `missing blueprint file: ${path}`);
   assert.ok(blueprint.files[path].trim(), `empty blueprint file: ${path}`);
 }
@@ -40,5 +43,7 @@ for (const path of skillPaths) {
 assert.ok(!Object.keys(blueprint.files).some((path) => /(?:^|\/)kb(?:-|\/|\.)/i.test(path)), "blueprint paths must not contain the legacy kb namespace");
 assert.ok(!Object.values(blueprint.files).some((content) => /(?:\/|\$|name:\s*)kb-/i.test(content)), "blueprint must not contain legacy /kb-* commands");
 assert.ok(!Object.values(blueprint.files).some((content) => /\.kb(?:\/|\b)/i.test(content)), "blueprint must not contain the legacy .kb runtime path");
+const retiredAudienceTerm = String.fromCodePoint(0x8001, 0x677f);
+assert.ok(!JSON.stringify(blueprint).includes(retiredAudienceTerm), "blueprint must use neutral audience terminology");
 
 console.log(`PASS blueprint contains ${blueprint.folders.length} folders and ${Object.keys(blueprint.files).length} files`);

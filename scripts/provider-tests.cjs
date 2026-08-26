@@ -39,15 +39,27 @@ const {
   buildOpenAIMessages,
   FDE365_BASE_URL,
   FDE365_CHAT_ENDPOINT,
+  FDE365_TRANSCRIPTION_ENDPOINT,
+  FDE365_TRANSCRIPTION_MODEL,
+  buildTranscriptionMultipart,
   FDE365_MODELS,
   DEFAULT_ROOT,
   LEGACY_ROOT,
+  TERMINOLOGY_VERSION,
+  INBOX_LAYOUT_VERSION,
+  LEGACY_OWNER_DIRECTORY,
+  OWNER_DIRECTORY,
+  neutralizeManagedTerminology,
+  inferInboxTags,
+  inferInboxCategory,
   resolveKnowledgeRoot,
   ONBOARDING_STEPS,
   ONBOARDING_VERSION,
   FDE365_RELEASE_REPOSITORY,
   FDE365_RELEASE_API,
   FDE365_UPDATE_ORIGIN,
+  FDE365_BUILD_CHANNEL,
+  IS_DEVELOPER_BUILD,
 } = PluginClass.__testables;
 const GitHubUpdater = require("../github-updater.js");
 
@@ -81,16 +93,35 @@ function apiPlugin(overrides = {}) {
 }
 
 (async () => {
+  await test("stable artifact uses the user build channel", async () => {
+    assert.equal(FDE365_BUILD_CHANNEL, "user");
+    assert.equal(IS_DEVELOPER_BUILD, false);
+  });
+
   await test("settings enforce the single fixed provider", async () => {
     const settings = mergeSettings({ ai: { provider: "codex-cli" } });
     assert.equal(settings.schemaVersion, 4);
     assert.equal(settings.ai.provider, "fde365");
     assert.equal(settings.ai.fde365.model, "gpt-5.6-luna");
     assert.equal(settings.ai.assistant.contextScope, "active-note");
+    assert.equal(settings.ai.assistant.executionMode, "approval");
+    assert.equal(settings.ai.assistant.panelWidth, 336);
     assert.equal(settings.onboardingVersion, 0);
+    assert.equal(settings.inboxLayoutVersion, 0);
     assert.equal(settings.ai.codexCli, undefined);
     assert.equal(settings.ai.claudeCli, undefined);
     assert.equal(settings.ai.openaiCompatible, undefined);
+  });
+
+  await test("Agent execution mode only accepts approval or yolo", async () => {
+    assert.equal(mergeSettings({ ai: { assistant: { executionMode: "yolo" } } }).ai.assistant.executionMode, "yolo");
+    assert.equal(mergeSettings({ ai: { assistant: { executionMode: "danger-full-access" } } }).ai.assistant.executionMode, "approval");
+  });
+
+  await test("Agent panel width persists within safe workspace bounds", async () => {
+    assert.equal(mergeSettings({ ai: { assistant: { panelWidth: 448 } } }).ai.assistant.panelWidth, 448);
+    assert.equal(mergeSettings({ ai: { assistant: { panelWidth: 100 } } }).ai.assistant.panelWidth, 280);
+    assert.equal(mergeSettings({ ai: { assistant: { panelWidth: 900 } } }).ai.assistant.panelWidth, 560);
   });
 
   await test("legacy API credentials migrate to Token without retaining editable URL", async () => {
@@ -135,6 +166,157 @@ function apiPlugin(overrides = {}) {
     assert.equal(await resolveKnowledgeRoot(app), DEFAULT_ROOT);
   });
 
+  await test("legacy audience terminology migrates to neutral wording without a source literal", async () => {
+    const retiredAudienceTerm = String.fromCodePoint(0x8001, 0x677f);
+    assert.equal(TERMINOLOGY_VERSION, 2);
+    assert.equal(LEGACY_OWNER_DIRECTORY, `1-${retiredAudienceTerm}说明书`);
+    assert.equal(OWNER_DIRECTORY, "1-个人说明书");
+    assert.equal(
+      neutralizeManagedTerminology(`${retiredAudienceTerm}说明书；${retiredAudienceTerm}原话；${retiredAudienceTerm}判断`),
+      "个人说明书；本人原话；个人判断",
+    );
+  });
+
+  await test("inbox inference separates material format from six-library destinations", async () => {
+    const tags = inferInboxTags("客户录音转写：客户讲了预算和产品报价，后续需要复盘成交流程", "audio/m4a");
+    assert.equal(INBOX_LAYOUT_VERSION, 1);
+    assert.ok(tags.includes("录音转写"));
+    assert.ok(tags.includes("产品库"));
+    assert.ok(tags.includes("客户需求库"));
+    assert.ok(tags.includes("方法论库"));
+    assert.equal(inferInboxCategory(tags), "产品库");
+    assert.equal(inferInboxCategory(inferInboxTags("一段没有明确业务归属的录音", "audio/wav")), "待分类");
+  });
+
+  await test("terminology migration renames the managed owner path and leaves ordinary notes unchanged", async () => {
+    const retiredAudienceTerm = String.fromCodePoint(0x8001, 0x677f);
+    const oldDirectoryPath = `${DEFAULT_ROOT}/${LEGACY_OWNER_DIRECTORY}`;
+    const newDirectoryPath = `${DEFAULT_ROOT}/${OWNER_DIRECTORY}`;
+    const files = new Map();
+    const addFile = (path, content) => {
+      const file = { path, content };
+      files.set(path, file);
+      return file;
+    };
+    addFile(`${oldDirectoryPath}/${retiredAudienceTerm}说明书.md`, `# ${retiredAudienceTerm}说明书\n\n${retiredAudienceTerm}判断`);
+    addFile(`${DEFAULT_ROOT}/.fde/config.yaml`, `owner: 1-${retiredAudienceTerm}说明书`);
+    addFile(`${DEFAULT_ROOT}/.agents/skills/fde-write/SKILL.md`, `对照${retiredAudienceTerm}表达`);
+    const ordinary = addFile(`${DEFAULT_ROOT}/4-素材案例库/客户称呼.md`, `客户原文保留${retiredAudienceTerm}称呼`);
+    const folders = new Map([[oldDirectoryPath, { path: oldDirectoryPath, kind: "folder" }]]);
+    const vault = {
+      adapter: {
+        exists: async (path) => files.has(path) || folders.has(path),
+        read: async (path) => files.get(path)?.content || "",
+        write: async (path, content) => { files.get(path).content = content; },
+        list: async (path) => path === `${DEFAULT_ROOT}/.agents/skills`
+          ? { files: [`${DEFAULT_ROOT}/.agents/skills/fde-write/SKILL.md`], folders: [] }
+          : { files: [], folders: [] },
+      },
+      getAbstractFileByPath: (path) => files.get(path) || folders.get(path) || null,
+      getFiles: () => [...files.values()].filter((file) => !file.path.includes("/.fde/") && !file.path.includes("/.agents/")),
+      cachedRead: async (file) => file.content,
+      modify: async (file, content) => { file.content = content; },
+    };
+    const fileManager = {
+      renameFile: async (entry, target) => {
+        const source = entry.path;
+        if (entry.kind === "folder") {
+          folders.delete(source);
+          entry.path = target;
+          folders.set(target, entry);
+          for (const [path, file] of [...files]) {
+            if (!path.startsWith(`${source}/`)) continue;
+            files.delete(path);
+            file.path = `${target}${path.slice(source.length)}`;
+            files.set(file.path, file);
+          }
+          return;
+        }
+        files.delete(source);
+        entry.path = target;
+        files.set(target, entry);
+      },
+    };
+    const plugin = {
+      app: { vault, fileManager },
+      knowledgeRoot: DEFAULT_ROOT,
+      settings: mergeSettings({}),
+      saveSettings: async () => {},
+    };
+
+    const result = await PluginClass.prototype.migrateNeutralTerminology.call(plugin);
+    assert.equal(result.conflicts.length, 0);
+    assert.equal(plugin.settings.terminologyVersion, TERMINOLOGY_VERSION);
+    assert.ok(folders.has(newDirectoryPath));
+    assert.ok(files.has(`${newDirectoryPath}/个人说明书.md`));
+    assert.equal(files.get(`${DEFAULT_ROOT}/.fde/config.yaml`).content, "owner: 1-个人说明书");
+    assert.equal(files.get(`${DEFAULT_ROOT}/.agents/skills/fde-write/SKILL.md`).content, "对照个人表达");
+    assert.equal(ordinary.content, `客户原文保留${retiredAudienceTerm}称呼`);
+  });
+
+  await test("legacy recording folders migrate into the generic pending-material inbox", async () => {
+    const legacyBase = `${DEFAULT_ROOT}/0-录音处理`;
+    const pendingSource = `${legacyBase}/待处理录音`;
+    const processedSource = `${legacyBase}/已处理`;
+    const pendingTarget = `${DEFAULT_ROOT}/0-待处理材料/待处理`;
+    const processedTarget = `${DEFAULT_ROOT}/0-待处理材料/已处理记录`;
+    const files = new Map();
+    const folders = new Map();
+    const addFolder = (path) => {
+      const folder = { path, kind: "folder" };
+      folders.set(path, folder);
+      return folder;
+    };
+    const addFile = (path, content = "") => {
+      const file = new obsidianMock.TFile();
+      file.path = path;
+      file.content = content;
+      files.set(path, file);
+      return file;
+    };
+    [legacyBase, pendingSource, processedSource, `${DEFAULT_ROOT}/0-待处理材料`, pendingTarget, processedTarget]
+      .forEach(addFolder);
+    addFile(`${pendingSource}/客户访谈.m4a`);
+    addFile(`${processedSource}/2026-08-访谈.md`);
+    addFile(`${pendingSource}/README.md`, "旧录音说明");
+    addFile(`${legacyBase}/README.md`, "旧录音根目录说明");
+    addFile(`${pendingTarget}/README.md`, "通用待处理说明");
+    const vault = {
+      adapter: { stat: async (path) => folders.has(path) ? { type: "folder" } : null },
+      getAbstractFileByPath: (path) => files.get(path) || folders.get(path) || null,
+      getFiles: () => [...files.values()],
+      createFolder: async (path) => { addFolder(path); },
+      delete: async (folder) => {
+        const prefix = `${folder.path}/`;
+        for (const path of [...folders.keys()]) if (path === folder.path || path.startsWith(prefix)) folders.delete(path);
+      },
+    };
+    const fileManager = {
+      renameFile: async (file, target) => {
+        files.delete(file.path);
+        file.path = target;
+        files.set(target, file);
+      },
+    };
+    const plugin = {
+      app: { vault, fileManager },
+      knowledgeRoot: DEFAULT_ROOT,
+      settings: mergeSettings({}),
+      saveSettings: async () => {},
+    };
+
+    const result = await PluginClass.prototype.migrateLegacyInboxLayout.call(plugin);
+    assert.equal(result.conflicts.length, 0);
+    assert.equal(result.moved, 4);
+    assert.equal(plugin.settings.inboxLayoutVersion, INBOX_LAYOUT_VERSION);
+    assert.ok(files.has(`${pendingTarget}/客户访谈.m4a`));
+    assert.ok(files.has(`${processedTarget}/2026-08-访谈.md`));
+    assert.equal(files.get(`${pendingTarget}/README.md`).content, "通用待处理说明");
+    assert.ok([...files.keys()].some((path) => path.startsWith(`${DEFAULT_ROOT}/.fde/quarantine/legacy-recording-pending-README`)));
+    assert.ok([...files.keys()].some((path) => path.startsWith(`${DEFAULT_ROOT}/.fde/quarantine/legacy-recording-root-README`)));
+    assert.equal(folders.has(legacyBase), false);
+  });
+
   await test("OpenAI messages place context before final user message", async () => {
     const messages = buildOpenAIMessages({
       messages: [{ role: "system", content: "规则" }, { role: "user", content: "问题" }],
@@ -177,6 +359,36 @@ function apiPlugin(overrides = {}) {
     assert.equal(result.content, "测试回答");
     assert.equal(result.provider, "fde365");
     assert.equal(result.model, "gpt-5.6-luna");
+  });
+
+  await test("AI voice transcription uses the fixed FDE365 multipart endpoint", async () => {
+    const multipart = buildTranscriptionMultipart(Buffer.from([1, 2, 3]).buffer, { fileName: "recording.webm", mimeType: "audio/webm" });
+    const multipartText = Buffer.from(multipart.body).toString("utf8");
+    assert.match(multipart.contentType, /^multipart\/form-data; boundary=fde365-/);
+    assert.match(multipartText, /name="model"[\s\S]*whisper-1/);
+    assert.match(multipartText, /name="file"; filename="recording\.webm"/);
+    global.__akosRequestHandler = async (request) => {
+      assert.equal(request.url, FDE365_TRANSCRIPTION_ENDPOINT);
+      assert.equal(request.headers.Authorization, "Bearer test-token");
+      assert.match(request.headers["Content-Type"], /^multipart\/form-data; boundary=fde365-/);
+      assert.match(Buffer.from(request.body).toString("utf8"), /name="response_format"[\s\S]*json/);
+      return { status: 200, json: { text: "这是 AI 语音转写结果" } };
+    };
+    const plugin = Object.create(PluginClass.prototype);
+    plugin.settings = apiPlugin().settings;
+    const result = await plugin.transcribeAudio({
+      audio: new Uint8Array([1, 2, 3]).buffer,
+      fileName: "recording.webm",
+      mimeType: "audio/webm",
+      language: "zh",
+    });
+    assert.equal(result.text, "这是 AI 语音转写结果");
+    assert.equal(result.model, FDE365_TRANSCRIPTION_MODEL);
+    global.__akosRequestHandler = async () => ({ status: 403, json: { error: { message: "model whisper-1 is not allowed" } } });
+    await assert.rejects(
+      () => plugin.transcribeAudio({ audio: new Uint8Array([1]).buffer, fileName: "recording.webm", mimeType: "audio/webm", language: "zh" }),
+      (error) => error.code === "TRANSCRIPTION_UNAVAILABLE" && /当前 Token/.test(error.message),
+    );
   });
 
   for (const [status, code] of [[401, "AUTH_FAILED"], [404, "MODEL_NOT_FOUND"], [429, "RATE_LIMITED"]]) {
