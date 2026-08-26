@@ -6079,7 +6079,7 @@
   font-size: var(--akos-type-meta);
 }
 
-/* Agent Center */
+/* Legacy AI collaboration layout */
 .akos-agent-header p,
 .akos-agent-featured-copy > p {
   font-size: var(--akos-type-body);
@@ -10505,8 +10505,12 @@
   --wis-text: #16233b;
   --wis-text-soft: #53647f;
   --wis-line: #dfe7f4;
+  --wis-line-strong: #cbd8ec;
   --wis-surface: #ffffff;
   --wis-brand: #5b5ce2;
+  --wis-brand-deep: #233b91;
+  --wis-brand-soft: #ececff;
+  --wis-indigo: #5b5ce2;
   --wis-blue: #2d7ff9;
   color: var(--wis-text);
 }
@@ -10541,7 +10545,7 @@ textarea.wis-modal-input {
   margin-top: 14px;
 }
 
-.wis-asset-modal .wis-modal-actions .wis-button {
+.wis-modal .wis-modal-actions .wis-button {
   display: inline-flex !important;
   width: auto !important;
   min-width: max-content;
@@ -10549,7 +10553,7 @@ textarea.wis-modal-input {
   visibility: visible !important;
 }
 
-.wis-asset-modal .wis-modal-actions .wis-button-label {
+.wis-modal .wis-modal-actions .wis-button-label {
   display: inline-block !important;
   color: currentColor !important;
   font-size: 12px !important;
@@ -10558,6 +10562,20 @@ textarea.wis-modal-input {
   text-indent: 0 !important;
   opacity: 1 !important;
   visibility: visible !important;
+}
+
+.wis-modal .wis-modal-actions .wis-button.is-primary {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #6555e7 0%, #536be8 52%, #3f85eb 100%) !important;
+  border-color: rgba(71, 84, 202, 0.34) !important;
+  box-shadow: 0 9px 22px rgba(75, 83, 205, 0.2) !important;
+}
+
+.wis-skill-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 1180px) {

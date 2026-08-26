@@ -421,6 +421,79 @@ class FDEWorkspaceService {
     return this.path(`.agents/skills/${skillId}/SKILL.md`);
   }
 
+  resolvedConfigContext() {
+    return {
+      path: this.path(".fde/config.yaml"),
+      title: "FDE365 已解析配置",
+      excerpt: [
+        "以下内容由插件在本地读取并解析，不需要模型自行访问 Vault 文件系统。",
+        "",
+        "六类资产库：",
+        ...LIBRARIES.map((library) => `- ${library.name}: ${this.libraryPath(library)}`),
+        "",
+        `待处理录音: ${this.inboxPath("recordings")}`,
+        `已处理录音: ${this.inboxPath("processed")}`,
+        `运行状态: ${this.path(this.config.runtime.state)}`,
+        "",
+        "安全策略：",
+        `- 保留原始文件: ${this.config.policy.preserve_raw_files !== false ? "是" : "否"}`,
+        `- 写入需要来源: ${this.config.policy.require_source_on_write !== false ? "是" : "否"}`,
+        `- 允许跨项目读取: ${this.config.policy.allow_cross_project_read === true ? "是" : "否"}`,
+        `- 删除前确认: ${this.config.policy.confirm_before_delete !== false ? "是" : "否"}`,
+      ].join("\n"),
+    };
+  }
+
+  skillCatalogContext() {
+    return {
+      path: this.path(".agents/skills"),
+      title: "FDE Skills 能力目录",
+      excerpt: SKILLS.map((skill) => `- /${skill.id} · ${skill.name}: ${skill.description} 交付：${skill.output}`).join("\n"),
+    };
+  }
+
+  matchingSkillIds(prompt) {
+    const text = String(prompt || "");
+    const lower = text.toLowerCase();
+    const matches = SKILLS.filter((skill) => lower.includes(skill.id)).map((skill) => skill.id);
+    if (/(?:一键.*(?:出内容|成稿|写稿)|(?:出内容|成稿|写稿|写内容).*(?:skill|技能|工作流)|根据知识库写)/i.test(text)) matches.push("fde-write");
+    return [...new Set(matches)];
+  }
+
+  async readSkillContract(skillId) {
+    const path = this.skillPath(skillId);
+    if (!await this.app.vault.adapter.exists(path)) return null;
+    const raw = await this.app.vault.adapter.read(path);
+    return {
+      path,
+      title: `/${skillId} 本地 Skill 合同`,
+      excerpt: String(raw || "").slice(0, 16000),
+    };
+  }
+
+  async assistantRuntimeContext(prompt) {
+    const text = String(prompt || "");
+    const needsSkills = /(?:skill|技能|工作流|一键|出内容|成稿|写稿|写内容|\/fde-|fde-)/i.test(text);
+    if (!needsSkills) return [];
+    await this.reloadConfig();
+    const context = [this.resolvedConfigContext()];
+    for (const skillId of this.matchingSkillIds(text)) {
+      const contract = await this.readSkillContract(skillId);
+      if (contract) context.push(contract);
+    }
+    context.push(this.skillCatalogContext());
+    return context;
+  }
+
+  async skillRuntimeContext(skill) {
+    await this.reloadConfig();
+    const context = [this.resolvedConfigContext()];
+    const contract = await this.readSkillContract(skill.id);
+    if (contract) context.push(contract);
+    context.push(this.skillCatalogContext());
+    return context;
+  }
+
   isIgnoredAsset(file) {
     return !file.path.startsWith(`${ROOT}/`)
       || file.path.startsWith(`${ROOT}/.agents/`)
@@ -648,7 +721,7 @@ class FDEWorkspaceService {
   }
 
   skillSystemPrompt(skill) {
-    return `你正在执行项目本地 Skill /${skill.id}（${skill.name}）。\n\n${BASE_SKILL_RULES}\n\n本 Skill 的职责：${skill.description}\n要求交付：${skill.output}。\n优先读取当前知识库根目录下 .agents/skills/${skill.id}/SKILL.md 的完整合同并严格执行；如果该文件不可读，按以上合同执行。`;
+    return `你正在执行项目本地 Skill /${skill.id}（${skill.name}）。\n\n${BASE_SKILL_RULES}\n\n本 Skill 的职责：${skill.description}\n要求交付：${skill.output}。\n插件已在请求前读取并附加解析后的 .fde/config.yaml、FDE Skills 能力目录和 /${skill.id} 的本地 SKILL.md 合同。直接使用这些“本地运行上下文”，不要声称自己无法访问或尚未读取这些文件。`;
   }
 
   async runSkill(skillId, prompt, sourceFiles = []) {
@@ -657,12 +730,14 @@ class FDEWorkspaceService {
     const active = this.app.workspace.getActiveFile();
     const sources = [...sourceFiles];
     if (active instanceof TFile && !sources.some((item) => item.path === active.path)) sources.push(active);
+    const localContext = await this.skillRuntimeContext(skill);
     return this.plugin.executeAgent({
       id: skill.id,
       name: `/${skill.id}`,
       description: skill.description,
       output: skill.output,
       systemPrompt: this.skillSystemPrompt(skill),
+      localContext,
     }, prompt || skill.description, sources);
   }
 }
@@ -1006,8 +1081,9 @@ class FDEBaseView extends ItemView {
           requestId,
           prompt,
           history: this.assistantMessages.slice(0, -1),
-          systemPrompt: `你是FDE365 AI 工作区。当前页面：${this.pageKey}。\n${BASE_SKILL_RULES}\n先直接回答，再列使用的来源路径和仍待确认的内容。`,
+          systemPrompt: `你是FDE365 AI 工作区。当前页面：${this.pageKey}。\n${BASE_SKILL_RULES}\n插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容，不要要求用户再提供同一文件。先直接回答，再列使用的来源路径和仍待确认的内容。`,
           sourceFiles: this.assistantContextFiles(),
+          localContext: await this.service.assistantRuntimeContext(prompt),
         });
         const message = {
           role: "assistant",
@@ -1050,7 +1126,7 @@ class FDEBaseView extends ItemView {
     const head = panel.createDiv({ cls: "wis-assistant-head" });
     const title = head.createDiv();
     title.createSpan({ text: "FDE365 AI", cls: "wis-eyebrow" });
-    title.createEl("strong", { text: "对话 · FDE · Skills" });
+    title.createEl("strong", { text: "对话 · FDE · Skills · 历史" });
     const capability = this.plugin.providerManager.describeSelected();
     const headActions = head.createDiv({ cls: "wis-assistant-head-actions" });
     const provider = headActions.createEl("button", {
@@ -1490,7 +1566,8 @@ class FDESkillsView extends FDEBaseView {
       row.createSpan({ text: item });
     });
     detail.createDiv({ text: `交付：${skill.output}`, cls: "wis-skill-output" });
-    makeButton(detail, `运行 /${skill.id}`, "play", "is-primary", () => new TextPromptModal(this.app, {
+    const detailActions = detail.createDiv({ cls: "wis-skill-detail-actions" });
+    makeButton(detailActions, `运行 /${skill.id}`, "play", "is-primary", () => new TextPromptModal(this.app, {
       title: `运行 /${skill.id}`,
       description: `${skill.description} 结果会保存在本地 AI 协作运行记录，等待人工验收。`,
       placeholder: "描述本次任务、目标和限制…",
@@ -1498,6 +1575,10 @@ class FDESkillsView extends FDEBaseView {
       submitLabel: "开始运行",
       onSubmit: async (value) => this.service.runSkill(skill.id, value),
     }).open());
+    makeButton(detailActions, "查看运行记录", "history", "is-secondary", async () => {
+      this.assistantMode = "history";
+      await this.render();
+    });
   }
 }
 

@@ -859,7 +859,7 @@ class AgentTaskStore {
 
   async saveOutput(task, result) {
     const path = `${AGENT_ROOT}/输出/${task.taskId}-${safeName(task.agent.name)}.md`;
-    const content = `---\ntype: agent-output\ntask_id: ${task.taskId}\nagent_id: ${task.agent.id}\nprovider: ${yamlQuote(result.provider || "unknown")}\nprovider_version: ${yamlQuote(result.providerVersion || "unknown")}\nmodel: ${yamlQuote(result.model || "")}\nconversation_id: ${yamlQuote(result.conversationId || "")}\ncreated_at: ${new Date().toISOString()}\nreviewed: false\ntags:\n  - agent/output\n  - agent/${task.agent.id}\n---\n\n# ${task.agent.name} · 输出\n\n## 任务\n\n${task.prompt}\n\n## 来源\n\n${task.sources.length ? task.sources.map((source) => `- [[${source.replace(/\.md$/, "")}]]`).join("\n") : "- 无显式来源"}\n\n## AI 输出\n\n${result.content}\n\n## 人工验收\n\n- [ ] 核对事实与引用\n- [ ] 确认结论可以使用\n- [ ] 在 Agent Center 标记验收通过\n`;
+    const content = `---\ntype: agent-output\ntask_id: ${task.taskId}\nagent_id: ${task.agent.id}\nprovider: ${yamlQuote(result.provider || "unknown")}\nprovider_version: ${yamlQuote(result.providerVersion || "unknown")}\nmodel: ${yamlQuote(result.model || "")}\nconversation_id: ${yamlQuote(result.conversationId || "")}\ncreated_at: ${new Date().toISOString()}\nreviewed: false\ntags:\n  - agent/output\n  - agent/${task.agent.id}\n---\n\n# ${task.agent.name} · 输出\n\n## 任务\n\n${task.prompt}\n\n## 来源\n\n${task.sources.length ? task.sources.map((source) => `- [[${source.replace(/\.md$/, "")}]]`).join("\n") : "- 无显式来源"}\n\n## AI 输出\n\n${result.content}\n\n## 人工验收\n\n- [ ] 核对事实与引用\n- [ ] 确认结论可以使用\n- [ ] 返回 FDE365 右侧栏“历史”核对运行记录\n`;
     return this.app.vault.create(path, content);
   }
 
@@ -6092,11 +6092,24 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     return this.providerManager.get(providerId)?.label || providerId || "AI Provider";
   }
 
-  async buildAssistantContext(prompt, sourceFiles = []) {
+  async buildAssistantContext(prompt, sourceFiles = [], localContext = []) {
     const settings = this.settings.ai.assistant;
     const scope = settings.contextScope;
-    if (scope === "none") return [];
     const maxChars = Math.max(2000, Math.min(100000, Number(settings.maxContextChars) || 20000));
+    const context = [];
+    let remaining = maxChars;
+    for (const item of Array.isArray(localContext) ? localContext : []) {
+      if (remaining <= 0 || !item || typeof item !== "object") break;
+      const excerpt = String(item.excerpt || "").slice(0, remaining).trim();
+      if (!excerpt) continue;
+      context.push({
+        path: String(item.path || "FDE365 本地运行上下文"),
+        title: String(item.title || item.path || "FDE365 本地运行上下文"),
+        excerpt,
+      });
+      remaining -= excerpt.length;
+    }
+    if (scope === "none" || remaining <= 0) return context;
     const candidates = [];
     const addFile = (value) => {
       const file = value instanceof TFile ? value : typeof value === "string" ? this.app.vault.getAbstractFileByPath(value) : null;
@@ -6126,8 +6139,6 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
       scored.slice(0, 4).forEach((item) => addFile(item.file));
     }
 
-    const context = [];
-    let remaining = maxChars;
     for (const file of candidates.slice(0, 6)) {
       if (remaining <= 0) break;
       const raw = await this.app.vault.cachedRead(file);
@@ -6139,8 +6150,8 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     return context;
   }
 
-  async askAssistant({ requestId, prompt, history = [], systemPrompt, sourceFiles = [] }) {
-    const context = await this.buildAssistantContext(prompt, sourceFiles);
+  async askAssistant({ requestId, prompt, history = [], systemPrompt, sourceFiles = [], localContext = [] }) {
+    const context = await this.buildAssistantContext(prompt, sourceFiles, localContext);
     const messages = [
       { role: "system", content: systemPrompt || "你是FDE365知识助手。" },
       ...history.filter((message) => !message.error && ["user", "assistant"].includes(message.role) && message.content).slice(-6).map((message) => ({ role: message.role, content: message.content })),
@@ -6201,7 +6212,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     });
     this.refreshDashboard();
     try {
-      const context = await this.buildAssistantContext(prompt, sources);
+      const context = await this.buildAssistantContext(prompt, sources, agent.localContext || []);
       const result = await provider.complete({
         requestId: task.taskId,
         mode: "agent",
@@ -6221,7 +6232,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
         error: "",
       });
       this.lastAgentResult = { task, result, outputFile };
-      new Notice(`${agent.name} 已完成，等待人工验收；可在 Agent Center 查看输出`);
+      new Notice(`${agent.name} 已完成，等待人工验收；请在 FDE365 右侧栏“历史”查看输出`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const nextStatus = ["PROVIDER_NOT_CONFIGURED", "PROVIDER_UNAVAILABLE", "INCOMPATIBLE_VERSION", "AUTH_FAILED", "MODEL_NOT_FOUND"].includes(error?.code)

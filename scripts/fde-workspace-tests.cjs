@@ -23,6 +23,7 @@ const {
   LIBRARIES,
   CONTENT_STAGES,
   SKILLS,
+  FDEWorkspaceService,
   parseConfigYaml,
   sourceFromContent,
   unknownFromContent,
@@ -36,6 +37,9 @@ assert.ok(SKILLS.every((skill) => skill.id.startsWith("fde-")), "all runtime Ski
 for (const required of ["fde-start", "fde-interview", "fde-ingest", "fde-library", "fde-write", "fde-review", "fde-health"]) {
   assert.ok(SKILLS.some((skill) => skill.id === required), `missing skill: ${required}`);
 }
+const workspaceService = new FDEWorkspaceService({ app: {} });
+assert.deepEqual(workspaceService.matchingSkillIds("fde里有一键出内容的skill么"), ["fde-write"]);
+assert.deepEqual(workspaceService.matchingSkillIds("运行 /fde-start"), ["fde-start"]);
 
 const config = parseConfigYaml(`
 libraries:
@@ -82,7 +86,12 @@ assert.match(styles, /\.wis-today-signal\s*>\s*\.wis-button\s*\{[\s\S]*?grid-col
 assert.match(styles, /@container wis-view \(max-width:\s*1120px\)[\s\S]*?\.wis-assistant\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*30;[\s\S]*?display:\s*grid;[\s\S]*?width:\s*min\(318px,\s*calc\(100%\s*-\s*48px\)\)/, "assistant must remain visible above content in a narrow leaf");
 assert.doesNotMatch(styles, /@container wis-view \(max-width:\s*1120px\)[\s\S]*?\.wis-assistant\s*\{[^}]*display:\s*none/, "assistant must never disappear at the narrow-leaf breakpoint");
 assert.match(workspaceSource, /cls:\s*"wis-button-label"/, "interactive buttons must render a dedicated text label");
-assert.match(styles, /\.wis-asset-modal \.wis-modal-actions \.wis-button-label\s*\{[\s\S]*?display:\s*inline-block\s*!important;[\s\S]*?visibility:\s*visible\s*!important/, "new-asset actions must keep their labels visible");
+assert.match(styles, /\.wis-modal \.wis-modal-actions \.wis-button-label\s*\{[\s\S]*?display:\s*inline-block\s*!important;[\s\S]*?visibility:\s*visible\s*!important/, "all modal actions must keep their labels visible");
+assert.match(styles, /\.wis-modal \.wis-modal-actions \.wis-button\.is-primary\s*\{[\s\S]*?color:\s*#ffffff\s*!important;[\s\S]*?background:[\s\S]*?!important/, "modal primary actions must keep an explicit readable foreground and background");
+assert.match(workspaceSource, /localContext:\s*await this\.service\.assistantRuntimeContext\(prompt\)/, "assistant must attach locally resolved Skill context before calling the provider");
+assert.match(workspaceSource, /const localContext = await this\.skillRuntimeContext\(skill\)/, "Skill runs must load their local config and contract before calling the provider");
+assert.match(workspaceSource, /查看运行记录/, "Skills page must expose the real local run history");
+assert.doesNotMatch(`${source}\n${workspaceSource}`, /Agent Center/, "runtime must not direct users to the removed Agent Center");
 assert.match(styles, /button\.wis-library-card\s*\{[\s\S]*?justify-content:\s*stretch;[\s\S]*?justify-items:\s*stretch;[\s\S]*?width:\s*100%/, "full-width library cards must stretch their content instead of centering a narrow column");
 assert.match(styles, /button\.wis-asset-card\s*\{[\s\S]*?align-items:\s*stretch;[\s\S]*?justify-content:\s*flex-start;[\s\S]*?width:\s*100%/, "full-width asset cards must use the available horizontal space");
 assert.doesNotMatch(workspaceSource, /const copy = brand\.createDiv\(\)/, "sidebar logo must not retain a duplicate text block that can overflow");
