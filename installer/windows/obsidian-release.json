@@ -2,7 +2,7 @@
   "version": "1.13.7",
   "windowsUrl": "https://fdekb.garylau.ai/vendor/obsidian/1.13.7/windows",
   "publisher": "Dynalist Inc",
-  "codexVersion": "0.149.1",
-  "codexWindowsUrl": "https://fdekb.garylau.ai/vendor/codex/0.149.1/windows-x86_64.zip",
-  "codexWindowsSha256": "c19dd84738dee791c4d39a96bd080d94f098af074ae9d2ef5e27d3d85a122665"
+  "codexVersion": "0.151.0",
+  "codexWindowsUrl": "https://fdekb.garylau.ai/vendor/codex/0.151.0/windows-x86_64.zip",
+  "codexWindowsSha256": "7c3bb1585c7148642e7d5df9208b52abd5ce732ec36d04d66949d5d821eb062c"
 }

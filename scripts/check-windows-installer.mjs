@@ -34,7 +34,7 @@ if (!tokenHelper.includes("Write-Output") || tokenHelper.includes("[Console]::Ou
 if (release.version !== "1.13.7" || release.windowsUrl !== "https://fdekb.garylau.ai/vendor/obsidian/1.13.7/windows") {
   throw new Error("Windows Obsidian release must use the FDE365 update mirror");
 }
-if (release.codexWindowsUrl !== "https://fdekb.garylau.ai/vendor/codex/0.149.1/windows-x86_64.zip" || !/^[a-f0-9]{64}$/.test(release.codexWindowsSha256)) {
+if (release.codexWindowsUrl !== "https://fdekb.garylau.ai/vendor/codex/0.151.0/windows-x86_64.zip" || !/^[a-f0-9]{64}$/.test(release.codexWindowsSha256)) {
   throw new Error("Windows Codex fallback must use the FDE365 update mirror with SHA-256");
 }
 const allText = await Promise.all(requiredFiles.map((name) => readFile(`${root}/${name}`, "utf8")));

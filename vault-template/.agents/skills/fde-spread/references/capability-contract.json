@@ -3,7 +3,7 @@
   "implementation": "fde-skills-owned",
   "runtime_uses_historical_skill": false,
   "must_support": [
-    "没有发布数据时做内容机制假设",
+    "没有发布数据时只列出所需指标，不下传播效果结论",
     "有数据时用评论和指标验证",
     "分析受众情绪、有效立场和传播动作",
     "给出可继续讨论的方向",

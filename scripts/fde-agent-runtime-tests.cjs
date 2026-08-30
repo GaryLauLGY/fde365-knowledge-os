@@ -18,6 +18,16 @@ const {
 } = require("../fde-agent-runtime.js");
 
 async function main() {
+  const runtimeSource = fs.readFileSync(path.join(__dirname, "..", "fde-agent-runtime.js"), "utf8");
+  const pluginSource = fs.readFileSync(path.join(__dirname, "..", "source.js"), "utf8");
+  const pluginStyles = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
+  assert.doesNotMatch(runtimeSource, /Codex Agent 运行超过|Promise\.race\(\[done\.promise/, "Agent turns must not be interrupted by a fixed wall-clock deadline");
+  assert.match(runtimeSource, /const completed = await done\.promise;/, "long Agent turns must wait for the app-server completion event");
+  assert.match(runtimeSource, /turn\/start[\s\S]*?APP_SERVER_REQUEST_TIMEOUT_MS/, "turn startup must retain a bounded app-server acknowledgement timeout");
+  assert.match(pluginSource, /function agentApprovalItemDisplay\(value, limit = 280\)/, "long approval details must use a bounded preview helper");
+  assert.match(pluginSource, /fde-agent-approval-details[\s\S]*?查看完整内容[\s\S]*?display\.full/, "approval details must remain available behind an explicit disclosure");
+  assert.match(pluginStyles, /\.fde-agent-approval-details pre\s*\{[\s\S]*?max-height:\s*220px;[\s\S]*?overflow:\s*auto;/, "expanded approval commands must scroll inside a bounded region");
+
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "fde365-agent-test-"));
   try {
     const codexHome = isolatedCodexHome(home);

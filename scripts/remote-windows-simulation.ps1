@@ -1,12 +1,13 @@
 ﻿param(
-    [Parameter(Mandatory = $true)][string]$QaRoot
+    [Parameter(Mandatory = $true)][string]$QaRoot,
+    [string]$Version = "1.1.2"
 )
 $ErrorActionPreference = "Stop"
-$zip = Join-Path $QaRoot "FDE365-Knowledge-OS-Windows-v1.1.0.zip"
+$zip = Join-Path $QaRoot "FDE365-Knowledge-OS-Windows-v$Version.zip"
 $extract = Join-Path $QaRoot "extracted"
 if (Test-Path -LiteralPath $extract) { throw "隔离测试目录已经存在，请使用新的 QaRoot。" }
 Expand-Archive -LiteralPath $zip -DestinationPath $extract
-$bundle = Join-Path $extract "FDE365-Knowledge-OS-Windows-v1.1.0"
+$bundle = Join-Path $extract "FDE365-Knowledge-OS-Windows-v$Version"
 $install = Join-Path $bundle "开始安装 FDE365.ps1"
 if (-not (Test-Path -LiteralPath $install)) {
     $names = @(Get-ChildItem -LiteralPath $bundle | Select-Object -ExpandProperty Name)

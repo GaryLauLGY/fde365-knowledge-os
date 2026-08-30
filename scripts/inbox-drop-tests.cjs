@@ -32,6 +32,7 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
 (async () => {
   const folders = new Set();
   const files = new Map();
+  const trashed = [];
   let agentRuns = 0;
   let refreshes = 0;
   let executeAgentImpl = async () => null;
@@ -42,6 +43,7 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
     adapter: { exists: async (path) => folders.has(path) || files.has(path) },
     getAbstractFileByPath: (path) => files.get(path) || (folders.has(path) ? { path, children: [] } : null),
     getMarkdownFiles: () => [...files.values()].filter((file) => file.extension === "md"),
+    cachedRead: async (file) => file.content || "",
     createFolder: async (path) => { folders.add(path); return { path, children: [] }; },
     createBinary: async (path, buffer) => {
       const file = new MockTFile(path, buffer.byteLength);
@@ -59,11 +61,24 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
       file.content = callback(file.content || "");
       return file.content;
     },
+    trash: async (file) => {
+      trashed.push(file.path);
+      files.delete(file.path);
+    },
   };
   const metadataCache = {
     getFileCache: (file) => {
       const status = String(file.content || "").match(/^status:\s*(.+)$/mi)?.[1]?.trim();
-      return { frontmatter: status ? { status } : {} };
+      const originalFile = String(file.content || "")
+        .match(/^original_file:\s*(.*?)\s*$/mi)?.[1]
+        ?.trim()
+        .replace(/^["']|["']$/g, "");
+      return {
+        frontmatter: {
+          ...(status ? { status } : {}),
+          ...(originalFile ? { original_file: originalFile } : {}),
+        },
+      };
     },
   };
   const fileManager = {
@@ -73,6 +88,10 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
       file.name = targetPath.split("/").at(-1);
       file.basename = file.name.replace(/\.[^.]+$/, "");
       files.set(targetPath, file);
+    },
+    trashFile: async (file) => {
+      trashed.push(file.path);
+      files.delete(file.path);
     },
   };
   const plugin = {
@@ -131,10 +150,10 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
   };
   finishAgent(successTask);
   const success = await processing;
-  assert.equal(success.status, "success");
+  assert.equal(success.status, "awaiting-confirmation");
   assert.equal(success.outputPath, plugin.lastAgentResult.outputFile.path);
-  assert.equal(service.inboxProcessingState(first[0].note).status, "success");
-  assert.match(service.inboxProcessingState(first[0].note).message, /右侧对话继续/);
+  assert.equal(service.inboxProcessingState(first[0].note).status, "awaiting-confirmation");
+  assert.equal(service.inboxProcessingState(first[0].note).message, "等待确认");
   assert.equal(service.inboxProcessingState(first[0].note).outputPath, plugin.lastAgentResult.outputFile.path);
   assert.match(service.inboxProcessingState(first[0].note).preview, /客户需求/);
   assert.match(service.inboxProcessingState(first[0].note).resultContent, /产品事实/);
@@ -146,6 +165,14 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
     service.inboxProcessingState(second[0].note).messages,
     "all materials in one batch must share the same visible conversation history",
   );
+  assert.equal(first[0].note.path, "FDE365知识库/0-待处理材料/待处理/客户访谈.md", "preview generation must keep the original record in place");
+  assert.match(first[0].note.content, /^status: pending$/mi);
+  assert.doesNotMatch(first[0].note.content, /^processed_at:/mi);
+  assert.equal(service.pendingFiles().length, 2, "previewed originals must remain pending until the confirmation turn finishes all writes");
+  assert.equal(service.processedFiles().length, 0, "a routing preview alone must not create a processed material state");
+
+  const derivedPreview = await vault.create("FDE365知识库/0-待处理材料/待处理/客户访谈-分流预览.md", "# 分流预览");
+  assert.ok(!service.materialFiles().includes(derivedPreview), "a derived routing preview must never become another original-material row");
 
   executeAgentImpl = async () => {
     const continuedTask = { taskId: "fde-ingest-continued", status: "waiting-review" };
@@ -162,7 +189,7 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
     return continuedTask;
   };
   const continued = await service.processInboxFiles([first[0].note]);
-  assert.equal(continued.status, "success");
+  assert.equal(continued.status, "awaiting-confirmation");
   assert.equal(lastAgentOptions.sessionId, "conversation-ingest-test", "reprocessing the same material must resume its existing Agent conversation");
   assert.equal(service.inboxProcessingState(first[0].note).messages.length, 4, "reprocessing must append a turn instead of replacing the visible conversation");
   assert.match(service.inboxProcessingState(first[0].note).messages.at(-1).content, /更新分流预览/);
@@ -174,11 +201,43 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
   assert.match(service.inboxProcessingState(first[0].note).message, /模型请求失败/);
 
   const pendingPath = first[0].note.path;
-  const moved = await service.completeInboxFiles([first[0].note]);
-  assert.equal(moved.get(pendingPath), "FDE365知识库/0-待处理材料/已处理记录/客户访谈.md");
-  assert.equal(first[0].note.path, "FDE365知识库/0-待处理材料/已处理记录/客户访谈.md");
+  const completed = await service.completeInboxFiles([first[0].note]);
+  assert.equal(completed.get(pendingPath), pendingPath);
+  assert.equal(first[0].note.path, pendingPath, "marking processed must never move or rename the original material record");
   assert.match(first[0].note.content, /^status: processed$/mi);
   assert.match(first[0].note.content, /^processed_at:/mi);
+  assert.ok(files.has(first[0].attachment.path), "marking a material processed must retain its original uploaded file");
+
+  const deleted = await service.deleteInboxMaterials([first[0].note, second[0].note]);
+  assert.deepEqual(new Set(deleted.records), new Set([first[0].note.path, second[0].note.path]));
+  assert.deepEqual(new Set(deleted.originals), new Set([first[0].attachment.path, second[0].attachment.path]));
+  assert.deepEqual(new Set(deleted.deleted), new Set([
+    first[0].note.path,
+    second[0].note.path,
+    first[0].attachment.path,
+    second[0].attachment.path,
+  ]));
+  assert.ok(!files.has(first[0].note.path), "confirmed deletion must remove the inbox record");
+  assert.ok(!files.has(first[0].attachment.path), "confirmed deletion must remove the uploaded original file");
+  assert.ok(!files.has(second[0].note.path), "batch deletion must remove every selected inbox record");
+  assert.ok(!files.has(second[0].attachment.path), "batch deletion must remove every selected uploaded original");
+  assert.ok(files.has(derivedPreview.path), "deleting an original material must not cascade into derived records");
+  assert.deepEqual(new Set(trashed), new Set([
+    first[0].note.path,
+    second[0].note.path,
+    first[0].attachment.path,
+    second[0].attachment.path,
+  ]), "all batch targets must use the recoverable Obsidian trash API");
+
+  const formalAsset = await vault.create("FDE365知识库/3-客户需求库/正式客户资产.md", "# 正式客户资产");
+  const unsafeReference = await vault.create(
+    "FDE365知识库/0-待处理材料/待处理/错误来源路径.md",
+    `---\nstatus: processed\noriginal_file: "${formalAsset.path}"\n---\n`,
+  );
+  const safeDelete = await service.deleteInboxMaterial(unsafeReference);
+  assert.deepEqual(safeDelete.originals, [], "formal assets outside the inbox attachment folders must never be deletion targets");
+  assert.ok(files.has(formalAsset.path), "deleting an inbox record must never cascade into a formal six-library asset");
+  assert.ok(!files.has(unsafeReference.path));
 
   const legacyPending = new MockTFile("FDE365知识库/0-录音处理/待处理录音/旧材料.md");
   const genericPending = new MockTFile("FDE365知识库/0-待处理材料/待处理/新材料.md");
@@ -198,7 +257,7 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
   assert.equal(legacyConfigService.inboxPath("processed"), "FDE365知识库/0-待处理材料/已处理记录");
   assert.deepEqual(legacyConfigService.pendingFiles().map((file) => file.path), [legacyPending.path, genericPending.path], "legacy recording materials must remain visible without moving or deleting them");
 
-  console.log("PASS generic inbox handles every file type, keeps legacy recording materials visible and exposes explicit batch processing states.");
+  console.log("PASS generic inbox handles every file type, exposes explicit processing states and safely trashes only confirmed inbox records with their originals.");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

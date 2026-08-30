@@ -46,12 +46,12 @@ test("plugin, Obsidian and Codex paths map only to pinned official upstreams", a
   assert.equal((await handleRequest(request("/plugin/releases/1.0.2/main.js"), fetcher)).status, 200);
   assert.equal((await handleRequest(request("/vendor/obsidian/1.13.7/mac"), fetcher)).status, 200);
   assert.equal((await handleRequest(request("/vendor/obsidian/1.13.7/windows"), fetcher)).status, 200);
-  assert.equal((await handleRequest(request("/vendor/codex/0.149.1/windows-x86_64.zip"), fetcher)).status, 200);
+  assert.equal((await handleRequest(request("/vendor/codex/0.151.0/windows-x86_64.zip"), fetcher)).status, 200);
   assert.deepEqual(seen, [
     "https://github.com/GaryLauLGY/fde365-knowledge-os/releases/download/1.0.2/main.js",
     "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/Obsidian-1.13.7.dmg",
     "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/Obsidian-1.13.7.exe",
-    "https://github.com/openai/codex/releases/download/rust-v0.149.1/codex-x86_64-pc-windows-msvc.exe.zip",
+    "https://github.com/openai/codex/releases/download/rust-v0.151.0/codex-x86_64-pc-windows-msvc.exe.zip",
   ]);
 });
 

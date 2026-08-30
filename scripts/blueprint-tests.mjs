@@ -15,7 +15,7 @@ const requiredFolders = [
   "6-内容生产/待审核",
   "6-内容生产/待发布",
   "6-内容生产/已发布",
-  "6-内容生产/数据复盘",
+  "6-内容生产/发布数据",
   ".fde/reports",
   ".fde/quarantine",
   "7-系统/AI协作/运行记录",
@@ -32,6 +32,8 @@ for (const path of ["0-使用说明.md", "VERSION", "fde-manifest.json", ".fde/c
   assert.ok(blueprint.files[path].trim(), `empty blueprint file: ${path}`);
 }
 assert.ok(!Object.keys(blueprint.files).some((path) => path.endsWith(".gitkeep")));
+assert.ok(!blueprint.folders.includes("6-内容生产/数据复盘"), "published content must be the terminal workflow stage");
+assert.match(blueprint.files["6-内容生产/README.md"], /已发布.*流程终点/s, "content README must explain the terminal published stage");
 assert.equal(new Set(blueprint.folders).size, blueprint.folders.length);
 const skillPaths = Object.keys(blueprint.files).filter((path) => /^\.agents\/skills\/[^/]+\/SKILL\.md$/.test(path));
 assert.equal(skillPaths.length, 35);
@@ -42,7 +44,13 @@ for (const path of skillPaths) {
 }
 assert.ok(!Object.keys(blueprint.files).some((path) => /(?:^|\/)kb(?:-|\/|\.)/i.test(path)), "blueprint paths must not contain the legacy kb namespace");
 assert.ok(!Object.values(blueprint.files).some((content) => /(?:\/|\$|name:\s*)kb-/i.test(content)), "blueprint must not contain legacy /kb-* commands");
-assert.ok(!Object.values(blueprint.files).some((content) => /\.kb(?:\/|\b)/i.test(content)), "blueprint must not contain the legacy .kb runtime path");
+const legacyRuntimeMentions = Object.entries(blueprint.files)
+  .filter(([, content]) => /\.kb(?:\/|\b)/i.test(content))
+  .map(([path]) => path)
+  .sort();
+assert.deepEqual(legacyRuntimeMentions, [".agents/skills/fde-health/SKILL.md", "AGENTS.md"], "only the root rules and health contract may mention the legacy .kb namespace");
+assert.match(blueprint.files["AGENTS.md"], /旧 `\.kb\/` 只作历史追溯，不是运行配置或状态真源/, "root rules must make .fde the sole active truth source");
+assert.match(blueprint.files[".agents/skills/fde-health/SKILL.md"], /不要读取其中配置来决定路径/, "health checks must ignore legacy .kb paths during active-state diagnosis");
 const retiredAudienceTerm = String.fromCodePoint(0x8001, 0x677f);
 assert.ok(!JSON.stringify(blueprint).includes(retiredAudienceTerm), "blueprint must use neutral audience terminology");
 

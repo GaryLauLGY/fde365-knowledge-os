@@ -39,17 +39,16 @@ const {
   buildOpenAIMessages,
   FDE365_BASE_URL,
   FDE365_CHAT_ENDPOINT,
-  FDE365_TRANSCRIPTION_ENDPOINT,
-  FDE365_TRANSCRIPTION_MODEL,
-  buildTranscriptionMultipart,
   FDE365_MODELS,
   DEFAULT_ROOT,
   LEGACY_ROOT,
   TERMINOLOGY_VERSION,
   INBOX_LAYOUT_VERSION,
+  KNOWLEDGE_CONTRACT_VERSION,
   LEGACY_OWNER_DIRECTORY,
   OWNER_DIRECTORY,
   neutralizeManagedTerminology,
+  migrateManagedKnowledgeContract,
   inferInboxTags,
   inferInboxCategory,
   resolveKnowledgeRoot,
@@ -108,6 +107,7 @@ function apiPlugin(overrides = {}) {
     assert.equal(settings.ai.assistant.panelWidth, 336);
     assert.equal(settings.onboardingVersion, 0);
     assert.equal(settings.inboxLayoutVersion, 0);
+    assert.equal(settings.knowledgeContractVersion, 0);
     assert.equal(settings.ai.codexCli, undefined);
     assert.equal(settings.ai.claudeCli, undefined);
     assert.equal(settings.ai.openaiCompatible, undefined);
@@ -254,6 +254,70 @@ function apiPlugin(overrides = {}) {
     assert.equal(ordinary.content, `客户原文保留${retiredAudienceTerm}称呼`);
   });
 
+  await test("legacy rule sources migrate to .fde without touching historical .kb state", async () => {
+    assert.equal(KNOWLEDGE_CONTRACT_VERSION, 2);
+    const agentsPath = `${DEFAULT_ROOT}/AGENTS.md`;
+    const fdeConfigPath = `${DEFAULT_ROOT}/.fde/config.yaml`;
+    const healthSkillPath = `${DEFAULT_ROOT}/.agents/skills/fde-health/SKILL.md`;
+    const kbConfigPath = `${DEFAULT_ROOT}/.kb/config.yaml`;
+    const files = new Map([
+      [agentsPath, [
+        "- `.kb/config.yaml` 是六类资产、收件箱和运行目录的路径真源。",
+        "- 原始录音、聊天、会议纪要和旧资料保留在 `0-录音处理/待处理录音`，不得用摘要覆盖。",
+        "- 状态、索引、日志和版本只写入 `.kb`，AI 运行记录写入 `7-系统/AI协作`。",
+      ].join("\n")],
+      [fdeConfigPath, [
+        "update_source: https://github.com/GaryLauLGY/fde365-knowledge-os",
+        "inbox:",
+        "  recordings: 0-录音处理/待处理录音",
+        "  processed: 0-录音处理/已处理",
+        "runtime:",
+        "  state: .kb/state",
+      ].join("\n")],
+      [healthSkillPath, [
+        "## 读取",
+        "- AGENTS.md、CLAUDE.md 和已安装 fde-* 清单",
+        "5. 把问题分为阻塞、要处理和提醒，只给出有证据的问题。",
+        "## 写回",
+        "- 默认不写；确认后只创建缺失空目录或修正明确的路径",
+      ].join("\n")],
+      [kbConfigPath, "legacy: keep-verbatim"],
+    ]);
+    const writes = [];
+    const plugin = {
+      app: {
+        vault: {
+          adapter: {
+            exists: async (path) => files.has(path),
+            read: async (path) => files.get(path),
+            write: async (path, content) => { files.set(path, content); writes.push(path); },
+          },
+        },
+      },
+      knowledgeRoot: DEFAULT_ROOT,
+      settings: mergeSettings({}),
+      saveSettings: async () => {},
+    };
+
+    const result = await PluginClass.prototype.migrateKnowledgeContract.call(plugin);
+    assert.equal(result.changed, 3);
+    assert.deepEqual(writes.sort(), [agentsPath, fdeConfigPath, healthSkillPath].sort());
+    assert.equal(plugin.settings.knowledgeContractVersion, KNOWLEDGE_CONTRACT_VERSION);
+    assert.match(files.get(agentsPath), /\.fde\/config\.yaml.*唯一路径真源/);
+    assert.match(files.get(agentsPath), /旧 `\.kb\/` 只作历史追溯/);
+    assert.match(files.get(agentsPath), /0-待处理材料\/待处理/);
+    assert.match(files.get(agentsPath), /明确确认删除.*收件记录和对应原始文件.*移入回收站/);
+    assert.doesNotMatch(files.get(agentsPath), /只写入 `\.kb`/);
+    assert.match(files.get(fdeConfigPath), /pending: 0-待处理材料\/待处理/);
+    assert.match(files.get(fdeConfigPath), /processed: 0-待处理材料\/已处理记录/);
+    assert.match(files.get(fdeConfigPath), /state: \.fde\/state/);
+    assert.match(files.get(healthSkillPath), /### 待处理口径/);
+    assert.match(files.get(healthSkillPath), /目录中的非隐藏文件总数不是待处理数量/);
+    assert.match(files.get(healthSkillPath), /不删除 `\.kb\/`/);
+    assert.equal(files.get(kbConfigPath), "legacy: keep-verbatim");
+    assert.equal(migrateManagedKnowledgeContract("custom: unchanged", "config"), "custom: unchanged");
+  });
+
   await test("legacy recording folders migrate into the generic pending-material inbox", async () => {
     const legacyBase = `${DEFAULT_ROOT}/0-录音处理`;
     const pendingSource = `${legacyBase}/待处理录音`;
@@ -359,36 +423,6 @@ function apiPlugin(overrides = {}) {
     assert.equal(result.content, "测试回答");
     assert.equal(result.provider, "fde365");
     assert.equal(result.model, "gpt-5.6-luna");
-  });
-
-  await test("AI voice transcription uses the fixed FDE365 multipart endpoint", async () => {
-    const multipart = buildTranscriptionMultipart(Buffer.from([1, 2, 3]).buffer, { fileName: "recording.webm", mimeType: "audio/webm" });
-    const multipartText = Buffer.from(multipart.body).toString("utf8");
-    assert.match(multipart.contentType, /^multipart\/form-data; boundary=fde365-/);
-    assert.match(multipartText, /name="model"[\s\S]*whisper-1/);
-    assert.match(multipartText, /name="file"; filename="recording\.webm"/);
-    global.__akosRequestHandler = async (request) => {
-      assert.equal(request.url, FDE365_TRANSCRIPTION_ENDPOINT);
-      assert.equal(request.headers.Authorization, "Bearer test-token");
-      assert.match(request.headers["Content-Type"], /^multipart\/form-data; boundary=fde365-/);
-      assert.match(Buffer.from(request.body).toString("utf8"), /name="response_format"[\s\S]*json/);
-      return { status: 200, json: { text: "这是 AI 语音转写结果" } };
-    };
-    const plugin = Object.create(PluginClass.prototype);
-    plugin.settings = apiPlugin().settings;
-    const result = await plugin.transcribeAudio({
-      audio: new Uint8Array([1, 2, 3]).buffer,
-      fileName: "recording.webm",
-      mimeType: "audio/webm",
-      language: "zh",
-    });
-    assert.equal(result.text, "这是 AI 语音转写结果");
-    assert.equal(result.model, FDE365_TRANSCRIPTION_MODEL);
-    global.__akosRequestHandler = async () => ({ status: 403, json: { error: { message: "model whisper-1 is not allowed" } } });
-    await assert.rejects(
-      () => plugin.transcribeAudio({ audio: new Uint8Array([1]).buffer, fileName: "recording.webm", mimeType: "audio/webm", language: "zh" }),
-      (error) => error.code === "TRANSCRIPTION_UNAVAILABLE" && /当前 Token/.test(error.message),
-    );
   });
 
   for (const [status, code] of [[401, "AUTH_FAILED"], [404, "MODEL_NOT_FOUND"], [429, "RATE_LIMITED"]]) {

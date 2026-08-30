@@ -1,5 +1,4 @@
 const {
-  ItemView,
   Modal,
   Notice,
   TFile,
@@ -30,7 +29,7 @@ const LIBRARIES = Object.freeze([
   { id: "customer", order: "03", key: "customer", name: "客户需求库", short: "客户", path: "3-客户需求库", icon: "messages-square", color: "cyan", description: "客户原话、问题、成交与未成交记录", emptyAction: "导入一次真实客户沟通" },
   { id: "case", order: "04", key: "case", name: "素材案例库", short: "案例", path: "4-素材案例库", icon: "archive", color: "orange", description: "事件、案例、数据、对话、动作和结果", emptyAction: "把一段经历整理成可追溯案例" },
   { id: "method", order: "05", key: "method", name: "方法论库", short: "方法", path: "5-方法论库", icon: "route", color: "violet", description: "使用过的方法、前置条件、步骤与失败信号", emptyAction: "沉淀一个已经实际使用的方法" },
-  { id: "content", order: "06", key: "content", name: "内容生产", short: "内容", path: "6-内容生产", icon: "pen-tool", color: "pink", description: "从选题到发布复盘的内容生产流水线", emptyAction: "从六库材料生成第一个可追溯选题" },
+  { id: "content", order: "06", key: "content", name: "内容生产", short: "内容", path: "6-内容生产", icon: "pen-tool", color: "pink", description: "从选题到已发布的内容生产闭环", emptyAction: "从六库材料生成第一个可追溯选题" },
 ]);
 
 const CONTENT_STAGES = Object.freeze([
@@ -38,9 +37,47 @@ const CONTENT_STAGES = Object.freeze([
   { id: "草稿", icon: "file-pen-line", color: "blue", description: "正在写，尚未审核" },
   { id: "待审核", icon: "scan-search", color: "orange", description: "核对事实、表达和平台" },
   { id: "待发布", icon: "calendar-clock", color: "violet", description: "审核通过，等待发布" },
-  { id: "已发布", icon: "send", color: "green", description: "记录平台、链接和日期" },
-  { id: "数据复盘", icon: "chart-no-axes-column-increasing", color: "cyan", description: "记录数据、评论和下一次实验" },
+  { id: "已发布", icon: "send", color: "green", description: "流程终点：记录平台、链接和日期" },
 ]);
+
+const CONTENT_STAGE_GATES = Object.freeze({
+  选题: Object.freeze({
+    next: "草稿",
+    title: "草稿内容已经补全了吗？",
+    description: "进入“草稿”前，请确认目标读者、目标平台、核心问题、来源和正文草稿已经补全。",
+    requirements: ["目标读者与发布平台明确", "核心问题和来源已补全", "已经形成可继续修改的正文草稿"],
+    skill: "fde-write",
+    prompt: "请根据当前选题补全目标读者、平台、核心问题、来源与正文草稿。完成后先留在当前阶段，等我确认再推进。",
+    incompleteLabel: "还没有，去对话补全",
+  }),
+  草稿: Object.freeze({
+    next: "待审核",
+    title: "草稿已经完成了吗？",
+    description: "进入“待审核”前，请确认正文结构完整，必要素材已经写入，未核实项保持明确。",
+    requirements: ["正文内容完整", "来源和引用已经补充", "未核实内容已经单独标记"],
+    skill: "fde-write",
+    prompt: "请继续补全当前草稿，检查正文完整度、来源和未核实项。完成后不要自动推进，等我确认再进入待审核。",
+    incompleteLabel: "还没有，继续写作",
+  }),
+  待审核: Object.freeze({
+    next: "待发布",
+    title: "内容审核已经完成了吗？",
+    description: "进入“待发布”前，请确认事实、表达和平台适配已经审核，并且阻塞发布的问题已经处理。",
+    requirements: ["事实与来源已经核对", "表达和平台适配已经检查", "没有未处理的发布阻塞项"],
+    skill: "fde-review",
+    prompt: "请审核当前稿件的事实、来源、表达和平台适配，列出必须修改项。先给诊断，不要自动推进阶段。",
+    incompleteLabel: "还没有，去对话审核",
+  }),
+  待发布: Object.freeze({
+    next: "已发布",
+    title: "内容已经真实发布了吗？",
+    description: "“已发布”是内容流程终点。只有内容已经真实发布，并补充平台、链接和发布日期后才能进入。",
+    requirements: ["内容已经在目标平台发布", "发布平台和链接已记录", "发布日期已经回填"],
+    skill: "",
+    prompt: "",
+    incompleteLabel: "尚未发布，打开内容",
+  }),
+});
 
 const SKILL_GROUPS = Object.freeze([
   { id: "entry", name: "开始与入库", description: "选择入口、采访、导入和体检" },
@@ -76,7 +113,7 @@ const SKILLS = Object.freeze([
   { id: "fde-spread", group: "content", name: "传播复盘", description: "根据真实发布数据、评论和转发语境分析传播结果。", output: "传播复盘", icon: "radio-tower" },
   { id: "fde-benchmark", group: "content", name: "研究对标", description: "围绕业务目标比较可观察做法并安排小实验，不复制人设。", output: "对标观察与实验", icon: "telescope" },
   { id: "fde-library", group: "library", name: "查库与维护", description: "查找、收录、纠错和维护六类资产，每个结论返回来源。", output: "答案、来源与版本", icon: "library" },
-  { id: "fde-organize", group: "library", name: "整理资产", description: "检查重复、错库、无来源和命名，先出迁移预览。", output: "资产清单与迁移预览", icon: "list-tree" },
+  { id: "fde-organize", group: "library", name: "整理资产", description: "检查重复、错库、来源和跨库关系，并用真实 Obsidian 双链连接已确认的资产。", output: "资产清单、关联预览与双链写入记录", icon: "list-tree" },
   { id: "fde-connect", group: "library", name: "连接 Skill", description: "把 Skill 真源连接到指定 Agent 技能目录并检查状态。", output: "连接状态", icon: "link" },
   { id: "fde-setup", group: "library", name: "整理 Agent 项目", description: "整理规则真源和 Skill 真源，让多个本地 Agent 识别项目。", output: "项目设置预览", icon: "wrench" },
   { id: "fde-safety", group: "library", name: "Skill 安全检查", description: "只读检查外部命令、网络、敏感读取、隐藏指令和删除行为。", output: "安全报告", icon: "shield-check" },
@@ -108,6 +145,13 @@ function commandCompletionState(value, caret = String(value || "").length, limit
   };
 }
 
+function appendAssistantSkillCommand(draft, skillId) {
+  const command = `/${String(skillId || "").replace(/^\/+/, "")}`;
+  if (command === "/") return String(draft || "");
+  const current = String(draft || "").replace(/\s+$/, "");
+  return `${current}${current ? " " : ""}${command} `;
+}
+
 const BASE_SKILL_RULES = [
   "从当前目录向上找到 .fde/config.yaml，并按配置解析六类资产库。",
   "只读取本任务需要的文件，不跨知识库搜索。",
@@ -123,8 +167,41 @@ function executionModeRule(plugin) {
     : "当前为需要批准模式：移动、覆盖、删除、批量写入或运行命令前，先给预览并等待用户批准。";
 }
 
-function isInboxClosurePrompt(prompt) {
-  return /(?:结案|完成处理|归档处理|移入已处理)/.test(String(prompt || ""));
+const INBOX_COMPLETION_MARKER = "<!-- FDE365_INBOX_COMPLETE -->";
+
+function isInboxConfirmationPrompt(prompt) {
+  const value = String(prompt || "").trim();
+  return /(?:^|[，,。；;\s])(?:确认(?:并)?执行|确认|同意|批准|执行|开始执行|继续执行|执行入库|正式入库|可以写入|确认写入|完成处理|结案)(?:$|[，,。；;\s])/.test(value)
+    || /(?:按|照).*(?:方案|预览).*(?:执行|入库|写入)/.test(value);
+}
+
+function hasInboxCompletionMarker(content) {
+  return String(content || "").includes(INBOX_COMPLETION_MARKER);
+}
+
+function stripInboxCompletionMarker(content) {
+  return String(content || "").replaceAll(INBOX_COMPLETION_MARKER, "").trim();
+}
+
+function hasInboxWriteEvidence(result) {
+  return (Array.isArray(result?.toolEvents) ? result.toolEvents : []).some((event) => {
+    if (event?.type === "file-change") return true;
+    if (event?.type !== "command") return false;
+    return /(?:\bapply_patch\b|\bsed\s+-i\b|\bperl\s+-pi\b|\btee\b|\b(?:cp|mv|touch|mkdir)\b|(?:^|[^>])>{1,2}(?![=>]))/.test(String(event.command || ""));
+  });
+}
+
+function shouldCompleteInboxTurn(prompt, result) {
+  return isInboxConfirmationPrompt(prompt)
+    && hasInboxCompletionMarker(result?.content)
+    && hasInboxWriteEvidence(result);
+}
+
+function assistantScrollTarget(state, scrollHeight, clientHeight) {
+  if (!state) return null;
+  const max = Math.max(0, Number(scrollHeight || 0) - Number(clientHeight || 0));
+  if (state.stickToBottom) return max;
+  return Math.max(0, Math.min(Number(state.top || 0), max));
 }
 
 const NAV_ITEMS = Object.freeze([
@@ -132,7 +209,7 @@ const NAV_ITEMS = Object.freeze([
   { key: "inbox", label: "待处理", note: "原始材料", icon: "inbox" },
   { key: "libraries", label: "六类资产", note: "真源与版本", icon: "library" },
   { key: "network", label: "资产网络", note: "跨库关系", icon: "network" },
-  { key: "content", label: "内容生产", note: "六阶段流水线", icon: "panels-top-left" },
+  { key: "content", label: "内容生产", note: "五阶段发布闭环", icon: "panels-top-left" },
   { key: "skills", label: "FDE Skills", note: "35 项工作流", icon: "blocks" },
   { key: "health", label: "知识体检", note: "来源与冲突", icon: "activity" },
 ]);
@@ -140,6 +217,7 @@ const NAV_ITEMS = Object.freeze([
 function makeIcon(parent, name, cls = "") {
   const el = parent.createSpan({ cls: `wis-icon ${cls}`.trim() });
   setIcon(el, name);
+  if (!el.querySelector("svg")) setIcon(el, "circle-help");
   return el;
 }
 
@@ -274,6 +352,20 @@ function frontmatterPaths(value) {
   }
 }
 
+function materialPathValues(value) {
+  if (Array.isArray(value)) return value.flatMap((item) => materialPathValues(item));
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.flatMap((item) => materialPathValues(item));
+  } catch (_) {
+    // YAML scalar values are handled below.
+  }
+  const path = raw.replace(/^['"]|['"]$/g, "").trim();
+  return path ? [normalizePath(path)] : [];
+}
+
 function linkedPaths(content) {
   return [...String(content || "").matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)]
     .map((match) => `${match[1].replace(/\.md$/, "")}.md`);
@@ -339,265 +431,6 @@ class TextPromptModal extends Modal {
   }
 }
 
-function recordingExtension(mimeType) {
-  const type = String(mimeType || "").toLowerCase();
-  if (type.includes("mp4") || type.includes("m4a")) return "m4a";
-  if (type.includes("ogg")) return "ogg";
-  if (type.includes("wav")) return "wav";
-  return "webm";
-}
-
-class VoiceCaptureModal extends Modal {
-  constructor(app, { plugin, service, onSaved }) {
-    super(app);
-    this.plugin = plugin;
-    this.service = service;
-    this.onSaved = onSaved;
-    this.state = "idle";
-    this.error = "";
-    this.transcript = "";
-    this.audio = null;
-    this.mimeType = "audio/webm";
-    this.durationMs = 0;
-    this.activeStartedAt = 0;
-    this.chunks = [];
-    this.recorder = null;
-    this.stream = null;
-    this.timer = null;
-    this.closed = false;
-  }
-
-  onOpen() {
-    this.contentEl.addClass("wis-modal");
-    this.contentEl.addClass("wis-voice-modal");
-    this.render();
-  }
-
-  elapsedMs() {
-    return this.durationMs + (this.state === "recording" && this.activeStartedAt ? Date.now() - this.activeStartedAt : 0);
-  }
-
-  timeLabel() {
-    const seconds = Math.floor(this.elapsedMs() / 1000);
-    return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-  }
-
-  render() {
-    const root = this.contentEl;
-    root.empty();
-    root.createSpan({ text: "FDE365 · AI 语音记录", cls: "wis-eyebrow" });
-    root.createEl("h2", { text: "语音转成待处理文字" });
-    root.createEl("p", {
-      text: "原始录音会和 AI 转写稿一起保存在当前 Vault；不会自动运行 /fde-ingest。",
-      cls: "wis-modal-note",
-    });
-    const stage = root.createDiv({ cls: `wis-voice-stage is-${this.state}`, attr: { role: "status", "aria-live": "polite" } });
-    const visual = stage.createDiv({ cls: "wis-voice-visual", attr: { "aria-hidden": "true" } });
-    makeIcon(visual, this.state === "ready" ? "circle-check" : this.state === "error" ? "circle-alert" : "audio-lines");
-    const wave = visual.createDiv({ cls: "wis-voice-wave" });
-    for (let index = 0; index < 12; index += 1) wave.createSpan({ attr: { style: `--wave-index:${index}` } });
-    const copy = stage.createDiv({ cls: "wis-voice-status-copy" });
-    const statusText = {
-      idle: ["准备录音", "点击开始后请对着麦克风说话"],
-      recording: ["正在录音", "可暂停，结束后会自动转写"],
-      paused: ["已暂停", "继续录音，或直接结束并转写"],
-      transcribing: ["AI 正在转写", "录音已完成，请稍候"],
-      ready: ["转写完成", "可以先修改文字，再保存到待处理"],
-      error: ["转写未完成", this.error || "请重试"],
-    }[this.state] || ["准备录音", ""];
-    copy.createEl("strong", { text: statusText[0] });
-    copy.createSpan({ text: statusText[1] });
-    const timer = stage.createSpan({ text: this.timeLabel(), cls: "wis-voice-timer" });
-    this.timerEl = timer;
-
-    let transcriptInput = null;
-    if (this.state === "ready") {
-      root.createEl("label", { text: "转写文字（保存前可编辑）", cls: "wis-voice-label" });
-      transcriptInput = root.createEl("textarea", {
-        cls: "wis-modal-input wis-voice-transcript",
-        attr: { rows: "8", "aria-label": "AI 语音转写结果" },
-      });
-      transcriptInput.value = this.transcript;
-      transcriptInput.addEventListener("input", () => { this.transcript = transcriptInput.value; });
-    }
-    if (this.state === "error") root.createDiv({ text: this.error, cls: "wis-voice-error" });
-
-    const actions = root.createDiv({ cls: "wis-modal-actions wis-voice-actions" });
-    makeButton(actions, "取消", "x", "is-secondary", () => this.close());
-    if (this.state === "idle" || this.state === "error") {
-      makeButton(actions, this.state === "error" ? "重新录音" : "开始录音", "mic", "is-primary", () => void this.start());
-    } else if (this.state === "recording") {
-      makeButton(actions, "暂停", "pause", "is-secondary", () => this.pause());
-      makeButton(actions, "结束并转写", "square", "is-primary", () => this.stop());
-    } else if (this.state === "paused") {
-      makeButton(actions, "继续", "play", "is-secondary", () => this.resume());
-      makeButton(actions, "结束并转写", "sparkles", "is-primary", () => this.stop());
-    } else if (this.state === "transcribing") {
-      const working = makeButton(actions, "AI 转写中…", "loader-circle", "is-primary");
-      working.disabled = true;
-    } else if (this.state === "ready") {
-      makeButton(actions, "重新录音", "rotate-ccw", "is-secondary", () => void this.start());
-      makeButton(actions, "保存到待处理", "inbox", "is-primary", () => void this.save());
-      window.setTimeout(() => transcriptInput?.focus(), 30);
-    }
-  }
-
-  chooseMimeType() {
-    const recorder = window.MediaRecorder;
-    const candidates = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"];
-    return candidates.find((type) => typeof recorder?.isTypeSupported !== "function" || recorder.isTypeSupported(type)) || "";
-  }
-
-  startTimer() {
-    this.stopTimer();
-    this.timer = window.setInterval(() => {
-      if (this.timerEl) this.timerEl.setText(this.timeLabel());
-    }, 250);
-  }
-
-  stopTimer() {
-    if (this.timer !== null) window.clearInterval(this.timer);
-    this.timer = null;
-  }
-
-  stopStream() {
-    for (const track of this.stream?.getTracks?.() || []) track.stop();
-    this.stream = null;
-  }
-
-  async start() {
-    if (!String(this.plugin.settings?.ai?.fde365?.token || "").trim()) {
-      new Notice("请先在插件设置中填写 Token");
-      this.plugin.openSettings?.("ai");
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      this.state = "error";
-      this.error = "当前 Obsidian 环境不支持麦克风录音";
-      this.render();
-      return;
-    }
-    this.stopTimer();
-    this.stopStream();
-    this.chunks = [];
-    this.audio = null;
-    this.transcript = "";
-    this.error = "";
-    this.durationMs = 0;
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      const preferred = this.chooseMimeType();
-      this.recorder = new window.MediaRecorder(this.stream, preferred ? { mimeType: preferred } : undefined);
-      this.mimeType = this.recorder.mimeType || preferred || "audio/webm";
-      this.recorder.addEventListener("dataavailable", (event) => {
-        if (event.data?.size) this.chunks.push(event.data);
-      });
-      this.recorder.addEventListener("stop", () => void this.finishTranscription(), { once: true });
-      this.recorder.start(1000);
-      this.state = "recording";
-      this.activeStartedAt = Date.now();
-      this.render();
-      this.startTimer();
-    } catch (error) {
-      this.stopStream();
-      this.state = "error";
-      this.error = /denied|notallowed|permission/i.test(String(error?.name || error?.message || error))
-        ? "麦克风权限被拒绝，请在系统设置中允许 Obsidian 使用麦克风"
-        : `无法开始录音：${error instanceof Error ? error.message : String(error)}`;
-      this.render();
-    }
-  }
-
-  pause() {
-    if (this.recorder?.state !== "recording") return;
-    this.recorder.pause();
-    this.durationMs += Date.now() - this.activeStartedAt;
-    this.activeStartedAt = 0;
-    this.state = "paused";
-    this.stopTimer();
-    this.render();
-  }
-
-  resume() {
-    if (this.recorder?.state !== "paused") return;
-    this.recorder.resume();
-    this.state = "recording";
-    this.activeStartedAt = Date.now();
-    this.render();
-    this.startTimer();
-  }
-
-  stop() {
-    if (!this.recorder || !["recording", "paused"].includes(this.recorder.state)) return;
-    if (this.state === "recording" && this.activeStartedAt) this.durationMs += Date.now() - this.activeStartedAt;
-    this.activeStartedAt = 0;
-    this.state = "transcribing";
-    this.stopTimer();
-    this.render();
-    this.recorder.stop();
-    this.stopStream();
-  }
-
-  async finishTranscription() {
-    if (this.closed) return;
-    try {
-      const blob = new Blob(this.chunks, { type: this.mimeType });
-      const audio = await blob.arrayBuffer();
-      if (!audio.byteLength) throw new Error("没有录到声音");
-      const extension = recordingExtension(this.mimeType);
-      const result = await this.plugin.transcribeAudio({
-        audio,
-        fileName: `recording.${extension}`,
-        mimeType: this.mimeType,
-        language: "zh",
-      });
-      if (this.closed) return;
-      this.audio = audio;
-      this.transcript = result.text;
-      this.model = result.model;
-      this.state = "ready";
-      this.render();
-    } catch (error) {
-      if (this.closed) return;
-      this.state = "error";
-      this.error = error instanceof Error ? error.message : String(error);
-      this.render();
-    }
-  }
-
-  async save() {
-    const transcript = String(this.transcript || "").trim();
-    if (!transcript || !this.audio) {
-      new Notice("转写内容为空，请重新录音");
-      return;
-    }
-    try {
-      await this.service.createVoiceNote({
-        transcript,
-        audio: this.audio,
-        mimeType: this.mimeType,
-        durationSeconds: Math.max(1, Math.round(this.durationMs / 1000)),
-        model: this.model,
-      });
-      this.close();
-      new Notice("原始录音和 AI 转写已保存到待处理");
-      await this.onSaved?.();
-    } catch (error) {
-      new Notice(`保存失败：${error instanceof Error ? error.message : String(error)}`, 8000);
-    }
-  }
-
-  onClose() {
-    this.closed = true;
-    this.stopTimer();
-    if (this.recorder && ["recording", "paused"].includes(this.recorder.state)) {
-      try { this.recorder.stop(); } catch { /* already stopped */ }
-    }
-    this.stopStream();
-    this.contentEl.empty();
-  }
-}
-
 class AssetModal extends Modal {
   constructor(app, defaultLibrary, onSubmit) {
     super(app);
@@ -628,9 +461,9 @@ class AssetModal extends Modal {
 }
 
 class ConfirmActionModal extends Modal {
-  constructor(app, title, description, actionLabel, onConfirm) {
+  constructor(app, title, description, actionLabel, onConfirm, options = {}) {
     super(app);
-    Object.assign(this, { title, description, actionLabel, onConfirm });
+    Object.assign(this, { title, description, actionLabel, onConfirm, options });
   }
 
   onOpen() {
@@ -639,9 +472,40 @@ class ConfirmActionModal extends Modal {
     this.contentEl.createEl("p", { text: this.description, cls: "wis-modal-note" });
     const actions = this.contentEl.createDiv({ cls: "wis-modal-actions" });
     makeButton(actions, "取消", "x", "is-secondary", () => this.close());
-    makeButton(actions, this.actionLabel, "arrow-right", "is-primary", async () => {
+    makeButton(actions, this.actionLabel, this.options.icon || "arrow-right", this.options.danger ? "is-danger" : "is-primary", async () => {
       this.close();
       await this.onConfirm();
+    });
+  }
+}
+
+class ContentStageGateModal extends Modal {
+  constructor(app, options) {
+    super(app);
+    this.options = options;
+  }
+
+  onOpen() {
+    const root = this.contentEl;
+    root.addClass("wis-modal");
+    root.addClass("wis-stage-gate-modal");
+    root.createEl("h2", { text: this.options.title });
+    root.createEl("p", { text: this.options.description, cls: "wis-modal-note" });
+    const checklist = root.createEl("ul", { cls: "wis-stage-gate-checklist" });
+    (this.options.requirements || []).forEach((requirement) => {
+      const item = checklist.createEl("li");
+      makeIcon(item, "circle-help");
+      item.createSpan({ text: requirement });
+    });
+    const actions = root.createDiv({ cls: "wis-modal-actions wis-stage-gate-actions" });
+    makeButton(actions, "暂不推进", "x", "is-secondary", () => this.close());
+    makeButton(actions, this.options.incompleteLabel, this.options.skill ? "messages-square" : "file-pen-line", "is-secondary", async () => {
+      this.close();
+      await this.options.onIncomplete();
+    });
+    makeButton(actions, `已完成，进入${this.options.next}`, "arrow-right", "is-primary", async () => {
+      this.close();
+      await this.options.onConfirm();
     });
   }
 }
@@ -656,107 +520,67 @@ function selectableAssistantFiles(app) {
 }
 
 class AssistantNotePickerModal extends Modal {
-  constructor(app, selectedPath, onSelect) {
+  constructor(app, selectedPaths, onConfirm) {
     super(app);
-    this.selectedPath = selectedPath || "";
-    this.onSelect = onSelect;
+    this.selectedPaths = new Set((Array.isArray(selectedPaths) ? selectedPaths : [selectedPaths]).filter(Boolean));
+    this.onConfirm = onConfirm;
   }
 
   onOpen() {
     const root = this.contentEl;
     root.addClass("wis-modal");
     root.addClass("wis-context-modal");
-    root.createEl("h2", { text: "选择一篇笔记" });
-    root.createEl("p", { text: "选择本次任务的主要笔记。FDE365 Agent 会优先使用这篇笔记的内容。", cls: "wis-modal-note" });
+    root.createEl("h2", { text: "选择笔记" });
+    root.createEl("p", { text: "可选择多篇笔记作为本次任务的上下文，FDE365 Agent 会一起读取。", cls: "wis-modal-note" });
     const search = root.createEl("input", {
       cls: "wis-modal-input",
-      attr: { type: "search", placeholder: "按标题或路径搜索…", "aria-label": "搜索主要笔记" },
+      attr: { type: "search", placeholder: "按标题或路径搜索…", "aria-label": "搜索笔记" },
     });
     const list = root.createDiv({ cls: "wis-context-file-list" });
     const files = selectableAssistantFiles(this.app);
-    const render = () => {
-      list.empty();
-      const query = search.value.trim().toLowerCase();
-      const matches = files.filter((file) => !query || `${file.basename} ${file.path}`.toLowerCase().includes(query)).slice(0, 80);
-      if (!matches.length) list.createDiv({ text: "没有匹配的知识库笔记", cls: "wis-empty" });
-      matches.forEach((file) => {
-        const selected = file.path === this.selectedPath;
-        const row = list.createEl("button", { cls: `wis-context-file${selected ? " is-selected" : ""}` });
-        makeIcon(row, selected ? "check-circle-2" : "file-text");
-        const copy = row.createDiv();
-        copy.createEl("strong", { text: file.basename });
-        copy.createSpan({ text: file.path });
-        row.addEventListener("click", async () => {
-          this.close();
-          await this.onSelect(file.path);
-        });
-      });
+    let selectionSummary = null;
+    let completeButton = null;
+    const updateSelectionState = () => {
+      if (selectionSummary) selectionSummary.setText(`已选 ${this.selectedPaths.size} 篇`);
+      const label = completeButton?.querySelector(".wis-button-label");
+      if (label) label.textContent = `完成选择 (${this.selectedPaths.size})`;
     };
-    search.addEventListener("input", render);
-    render();
-    const actions = root.createDiv({ cls: "wis-modal-actions" });
-    if (this.selectedPath) makeButton(actions, "清除选择", "x", "is-secondary", async () => {
-      this.close();
-      await this.onSelect("");
-    });
-    makeButton(actions, "取消", "x", "is-secondary", () => this.close());
-    window.setTimeout(() => search.focus(), 50);
-  }
-}
-
-class AssistantContextModal extends Modal {
-  constructor(app, selectedPaths, onSubmit) {
-    super(app);
-    this.selected = new Set(selectedPaths || []);
-    this.onSubmit = onSubmit;
-  }
-
-  contextFiles() {
-    return selectableAssistantFiles(this.app);
-  }
-
-  onOpen() {
-    const root = this.contentEl;
-    root.addClass("wis-modal");
-    root.addClass("wis-context-modal");
-    root.createEl("h2", { text: "添加知识库上下文" });
-    root.createEl("p", { text: "只会把你选中的 Markdown 笔记片段交给当前 Provider。", cls: "wis-modal-note" });
-    const search = root.createEl("input", {
-      cls: "wis-modal-input",
-      attr: { type: "search", placeholder: "搜索六类资产…", "aria-label": "搜索上下文文件" },
-    });
-    const list = root.createDiv({ cls: "wis-context-file-list" });
-    const files = this.contextFiles();
     const render = () => {
       list.empty();
       const query = search.value.trim().toLowerCase();
       const matches = files.filter((file) => !query || `${file.basename} ${file.path}`.toLowerCase().includes(query)).slice(0, 80);
       if (!matches.length) list.createDiv({ text: "没有匹配的知识库笔记", cls: "wis-empty" });
       matches.forEach((file) => {
-        const selected = this.selected.has(file.path);
-        const row = list.createEl("button", { cls: `wis-context-file${selected ? " is-selected" : ""}` });
+        const selected = this.selectedPaths.has(file.path);
+        const row = list.createEl("button", {
+          cls: `wis-context-file${selected ? " is-selected" : ""}`,
+          attr: { type: "button", "aria-pressed": String(selected) },
+        });
         makeIcon(row, selected ? "check-circle-2" : "file-text");
         const copy = row.createDiv();
         copy.createEl("strong", { text: file.basename });
         copy.createSpan({ text: file.path });
         row.addEventListener("click", () => {
-          if (selected) this.selected.delete(file.path);
-          else this.selected.add(file.path);
+          if (this.selectedPaths.has(file.path)) this.selectedPaths.delete(file.path);
+          else this.selectedPaths.add(file.path);
           render();
         });
       });
+      updateSelectionState();
     };
     search.addEventListener("input", render);
-    render();
     const actions = root.createDiv({ cls: "wis-modal-actions" });
-    makeButton(actions, "清空", "x", "is-secondary", () => {
-      this.selected.clear();
+    selectionSummary = actions.createSpan({ cls: "wis-context-selection-count" });
+    makeButton(actions, "清除选择", "x", "is-secondary", () => {
+      this.selectedPaths.clear();
       render();
     });
-    makeButton(actions, "添加所选", "paperclip", "is-primary", async () => {
+    makeButton(actions, "取消", "x", "is-secondary", () => this.close());
+    completeButton = makeButton(actions, "完成选择", "check", "is-primary", async () => {
       this.close();
-      await this.onSubmit([...this.selected]);
+      await this.onConfirm([...this.selectedPaths]);
     });
+    render();
     window.setTimeout(() => search.focus(), 50);
   }
 }
@@ -931,40 +755,106 @@ class FDEWorkspaceService {
     return CONTENT_STAGES.find((stage) => file.path.startsWith(`${root}/${stage.id}/`)) || null;
   }
 
+  contentAnalyticsFiles() {
+    const roots = [`${this.contentPath()}/发布数据/`, `${this.contentPath()}/数据复盘/`];
+    return this.app.vault.getFiles()
+      .filter((file) => roots.some((root) => file.path.startsWith(root)) && file.basename !== "README")
+      .sort((a, b) => b.stat.mtime - a.stat.mtime);
+  }
+
   assetFiles() {
     return this.app.vault.getMarkdownFiles().filter((file) => !this.isIgnoredAsset(file) && Boolean(this.libraryForFile(file)));
   }
 
+  isInboxMaterialFile(file) {
+    if (!(file instanceof TFile) || file.basename === "README" || file.path.includes("/原始文件/") || file.path.includes("/附件/")) return false;
+    const type = String(frontmatterOf(this.app, file).type || "").trim().toLowerCase();
+    if (type && type !== "inbox") return false;
+    return !/(?:^|[-_—\s（(])(?:分流预览|分流记录|处理记录)(?:$|[-_—\s）)])/i.test(file.basename);
+  }
+
   isCompletedInboxFile(file) {
     const status = String(frontmatterOf(this.app, file).status || "").trim().toLowerCase();
-    return ["processed", "completed", "closed", "done", "已完成", "已处理", "结案"].includes(status);
+    return this.inboxRoots("processed").some((root) => file.path.startsWith(`${root}/`))
+      || ["processed", "completed", "closed", "done", "已完成", "已处理", "结案"].includes(status);
   }
 
   pendingFiles({ includeCompleted = false } = {}) {
     const roots = this.inboxRoots("pending");
     return this.app.vault.getMarkdownFiles().filter((file) => roots.some((root) => file.path.startsWith(`${root}/`))
-      && file.basename !== "README"
-      && !file.path.includes("/原始文件/")
-      && !file.path.includes("/附件/")
-      && (includeCompleted || !this.isCompletedInboxFile(file)));
+      && this.isInboxMaterialFile(file)
+      && (includeCompleted || !this.isCompletedInboxFile(file)))
+      .sort((a, b) => b.stat.mtime - a.stat.mtime);
   }
 
   processedFiles() {
-    const roots = this.inboxRoots("processed");
-    return this.app.vault.getMarkdownFiles().filter((file) => roots.some((root) => file.path.startsWith(`${root}/`)) && file.basename !== "README");
+    return this.materialFiles().filter((file) => this.isCompletedInboxFile(file));
+  }
+
+  materialFiles() {
+    const roots = [...new Set([...this.inboxRoots("pending"), ...this.inboxRoots("processed")])];
+    return [...new Map(this.app.vault.getMarkdownFiles()
+      .filter((file) => roots.some((root) => file.path.startsWith(`${root}/`)) && this.isInboxMaterialFile(file))
+      .map((file) => [file.path, file])).values()]
+      .sort((a, b) => {
+        const completionOrder = Number(this.isCompletedInboxFile(a)) - Number(this.isCompletedInboxFile(b));
+        return completionOrder || b.stat.mtime - a.stat.mtime;
+      });
+  }
+
+  async inboxOriginalFiles(file) {
+    if (!(file instanceof TFile) || !this.isInboxMaterialFile(file)) return [];
+    const content = await this.app.vault.cachedRead(file);
+    const frontmatter = frontmatterOf(this.app, file);
+    const yamlOriginals = [...String(content || "").matchAll(/^original_files?:\s*(.*?)\s*$/gmi)]
+      .flatMap((match) => materialPathValues(match[1]));
+    const candidates = [
+      ...materialPathValues(frontmatter.original_file),
+      ...materialPathValues(frontmatter.original_files),
+      ...yamlOriginals,
+    ];
+    const roots = [...new Set([...this.inboxRoots("pending"), ...this.inboxRoots("processed")])];
+    return [...new Map(candidates.map((path) => [normalizePath(path), normalizePath(path)])).values()]
+      .filter((path) => roots.some((root) => path.startsWith(`${root}/`)) && /\/(?:原始文件|附件)\//.test(path))
+      .map((path) => this.app.vault.getAbstractFileByPath(path))
+      .filter((target) => target instanceof TFile);
+  }
+
+  async deleteInboxMaterials(files) {
+    const records = [...new Map((files || [])
+      .filter((file) => file instanceof TFile && this.isInboxMaterialFile(file))
+      .map((file) => [file.path, file])).values()];
+    if (!records.length) throw new Error("请选择要删除的原始材料");
+    const originalGroups = await Promise.all(records.map((file) => this.inboxOriginalFiles(file)));
+    const originals = [...new Map(originalGroups.flat().map((target) => [target.path, target])).values()];
+    const targets = [...new Map([...records, ...originals].map((target) => [target.path, target])).values()];
+    for (const target of targets) {
+      if (typeof this.app.fileManager?.trashFile === "function") await this.app.fileManager.trashFile(target);
+      else await this.app.vault.trash(target, true);
+    }
+    records.forEach((file) => this.inboxProcessing.delete(file.path));
+    this.plugin.refreshDashboard?.();
+    new Notice(`已将 ${records.length} 份材料记录和 ${originals.length} 个原始文件移入回收站`);
+    return {
+      records: records.map((file) => file.path),
+      originals: originals.map((target) => target.path),
+      deleted: targets.map((target) => target.path),
+    };
+  }
+
+  async deleteInboxMaterial(file) {
+    const result = await this.deleteInboxMaterials([file]);
+    return { ...result, record: result.records[0] };
   }
 
   async completeInboxFiles(files, { markProcessed = true } = {}) {
-    const pendingRoots = this.inboxRoots("pending");
+    const materialRoots = [...new Set([...this.inboxRoots("pending"), ...this.inboxRoots("processed")])];
     const candidates = [...new Map((files || [])
-      .filter((file) => file instanceof TFile && pendingRoots.some((root) => file.path.startsWith(`${root}/`)))
+      .filter((file) => file instanceof TFile && materialRoots.some((root) => file.path.startsWith(`${root}/`)) && this.isInboxMaterialFile(file))
       .map((file) => [file.path, file])).values()];
-    const movedPaths = new Map();
-    if (!candidates.length) return movedPaths;
-    const targetRoot = this.inboxPath("processed");
-    await ensureFolder(this.app, targetRoot);
+    const completedPaths = new Map();
+    if (!candidates.length) return completedPaths;
     for (const file of candidates) {
-      const oldPath = file.path;
       if (markProcessed) {
         const processedAt = new Date().toISOString();
         await this.app.vault.process(file, (content) => {
@@ -974,19 +864,23 @@ class FDEWorkspaceService {
           else updated = `---\nstatus: processed\nprocessed_at: ${processedAt}\n---\n\n${updated}`;
           if (/^processed_at:\s*.*$/mi.test(updated)) updated = updated.replace(/^processed_at:\s*.*$/mi, `processed_at: ${processedAt}`);
           else if (/^---\s*\n/.test(updated)) updated = updated.replace(/^---\s*\n/, `---\nprocessed_at: ${processedAt}\n`);
+          updated = updated.replace(/^-\s*尚未运行 \/fde-ingest\s*$/mi, "- /fde-ingest 已处理完成");
+          updated = updated.replace(/^-\s*是否处理[：:]\s*.*$/mi, "- 是否处理：已处理完成");
           return updated;
         });
       }
-      const targetPath = await uniquePath(this.app, `${targetRoot}/${file.name}`);
-      const state = this.inboxProcessing.get(oldPath);
-      await this.app.fileManager.renameFile(file, targetPath);
-      movedPaths.set(oldPath, targetPath);
-      if (state) {
-        this.inboxProcessing.delete(oldPath);
-        this.inboxProcessing.set(targetPath, state);
-      }
+      const previous = this.inboxProcessing.get(file.path) || {};
+      this.inboxProcessing.set(file.path, {
+        ...previous,
+        status: "processed",
+        message: "已处理完成",
+        processedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      completedPaths.set(file.path, file.path);
     }
-    return movedPaths;
+    this.plugin.refreshDashboard?.();
+    return completedPaths;
   }
 
   async reconcileCompletedInboxFiles() {
@@ -1021,7 +915,6 @@ class FDEWorkspaceService {
 
   async snapshot() {
     await this.reloadConfig();
-    await this.reconcileCompletedInboxFiles();
     const files = this.assetFiles();
     const notes = await Promise.all(files.map((file) => this.noteInfo(file)));
     const libraries = LIBRARIES.map((library) => {
@@ -1047,8 +940,11 @@ class FDEWorkspaceService {
     });
     const contentItems = notes.filter((note) => note.library?.id === "content");
     const stages = CONTENT_STAGES.map((stage) => ({ ...stage, items: contentItems.filter((item) => item.stage?.id === stage.id) }));
+    const analyticsFiles = this.contentAnalyticsFiles();
+    const analyticsNotes = contentItems.filter((note) => analyticsFiles.some((file) => file.path === note.file.path));
     const pending = this.pendingFiles();
     const processed = this.processedFiles();
+    const materials = this.materialFiles();
     const totalSources = notes.filter((note) => note.source).length;
     const unknown = notes.reduce((sum, note) => sum + note.unknown, 0);
     const stale = notes.filter((note) => note.stale).length;
@@ -1066,8 +962,11 @@ class FDEWorkspaceService {
       notes,
       libraries,
       stages,
+      analyticsFiles,
+      analyticsNotes,
       pending,
       processed,
+      materials,
       total: notes.length,
       sourceCoverage: notes.length ? totalSources / notes.length : 0,
       unknown,
@@ -1149,23 +1048,6 @@ class FDEWorkspaceService {
     return file;
   }
 
-  async createVoiceNote({ transcript, audio, mimeType, durationSeconds, model }) {
-    const root = this.inboxPath("pending");
-    const originalRoot = `${root}/原始文件`;
-    await ensureFolder(this.app, root);
-    await ensureFolder(this.app, originalRoot);
-    const date = new Date();
-    const stamp = date.toISOString().replace(/[-:TZ]/g, "").slice(0, 12);
-    const extension = recordingExtension(mimeType);
-    const audioPath = await uniquePath(this.app, `${originalRoot}/${stamp}-voice.${extension}`);
-    const audioFile = await this.app.vault.createBinary(audioPath, audio);
-    const title = safeName(String(transcript || "").replace(/\s+/g, " ").slice(0, 28)) || "AI语音记录";
-    const notePath = await uniquePath(this.app, `${root}/${stamp}-${title}.md`);
-    const content = `---\ntype: inbox\nstatus: pending\nsource: ai-voice-transcription\noriginal_file: ${yamlValue(audioFile.path)}\nfile_type: ${yamlValue(mimeType || "audio/webm")}\nduration_seconds: ${Number(durationSeconds) || 0}\ntranscription_model: ${yamlValue(model || "whisper-1")}\ncreated_at: ${date.toISOString()}\nallowed_to_write: pending\n---\n\n# ${title}\n\n## 原始录音\n\n![[${audioFile.path}]]\n\n## AI 转写\n\n${String(transcript || "").trim()}\n\n## 处理状态\n\n- 原始录音已保留\n- AI 转写已生成\n- 尚未运行 /fde-ingest\n- 是否处理：等待用户决定\n\n## 待确认\n\n- 人名、数字和专有名词是否识别正确\n- 是否允许写入正式资产库\n`;
-    const note = await this.app.vault.create(notePath, content);
-    return { note, audio: audioFile };
-  }
-
   async importInboxFiles(fileList) {
     const files = Array.from(fileList || []).filter((file) => file && typeof file.name === "string" && typeof file.arrayBuffer === "function");
     if (!files.length) return [];
@@ -1203,17 +1085,37 @@ class FDEWorkspaceService {
     return file;
   }
 
-  async advanceContent(note) {
+  async importContentAnalytics(files, contentNote = null) {
+    const acceptedExtensions = new Set(["csv", "tsv", "json", "xlsx", "xls"]);
+    const selected = [...(files || [])].filter((file) => {
+      const extension = String(file?.name || "").split(".").pop()?.toLowerCase() || "";
+      return file && acceptedExtensions.has(extension);
+    });
+    if (!selected.length) throw new Error("请选择 CSV、TSV、JSON、XLSX 或 XLS 数据文件");
+    const owner = safeName(contentNote?.file?.basename || "未关联内容");
+    const root = `${this.contentPath()}/发布数据/${owner}`;
+    await ensureFolder(this.app, root);
+    const imported = [];
+    for (const sourceFile of selected) {
+      const targetPath = await uniquePath(this.app, `${root}/${safeName(sourceFile.name)}`);
+      const file = await this.app.vault.createBinary(targetPath, await sourceFile.arrayBuffer());
+      imported.push(file);
+    }
+    return imported;
+  }
+
+  async advanceContent(note, options = {}) {
     const current = note.stage;
-    const index = CONTENT_STAGES.findIndex((stage) => stage.id === current?.id);
-    if (index < 0 || index >= CONTENT_STAGES.length - 1) return;
-    const next = CONTENT_STAGES[index + 1];
-    new ConfirmActionModal(
-      this.app,
-      `推进到「${next.id}」？`,
-      `将移动“${note.file.basename}”，同时更新文件中的当前阶段。不会覆盖目标目录的同名文件。`,
-      `推进到 ${next.id}`,
-      async () => {
+    const gate = CONTENT_STAGE_GATES[current?.id];
+    const next = CONTENT_STAGES.find((stage) => stage.id === gate?.next);
+    if (!gate || !next) return;
+    new ContentStageGateModal(this.app, {
+      ...gate,
+      onIncomplete: async () => {
+        if (typeof options.onIncomplete === "function") await options.onIncomplete(gate, note);
+        else await this.openFile(note.file);
+      },
+      onConfirm: async () => {
         const targetRoot = `${this.contentPath()}/${next.id}`;
         await ensureFolder(this.app, targetRoot);
         const targetPath = await uniquePath(this.app, `${targetRoot}/${note.file.name}`);
@@ -1226,7 +1128,7 @@ class FDEWorkspaceService {
         new Notice(`已推进到 ${next.id}`);
         this.plugin.refreshDashboard();
       },
-    ).open();
+    }).open();
   }
 
   skillSystemPrompt(skill) {
@@ -1247,20 +1149,22 @@ class FDEWorkspaceService {
     this.plugin.refreshDashboard?.();
   }
 
-  async processInboxFiles(files) {
+  async processInboxFiles(files, options = {}) {
     const selected = [...new Map((files || []).filter((file) => file?.path).map((file) => [file.path, file])).values()]
       .filter((file) => this.inboxProcessingState(file).status !== "running");
     if (!selected.length) return { status: "empty", task: null };
 
     const previousStates = selected.map((file) => this.inboxProcessingState(file));
     const conversationIds = [...new Set(previousStates.map((state) => state.conversationId).filter(Boolean))];
-    const conversationId = conversationIds.length === 1 ? conversationIds[0] : "";
+    const conversationId = Object.hasOwn(options, "sessionId")
+      ? String(options.sessionId || "")
+      : conversationIds.length === 1 ? conversationIds[0] : "";
     const previousConversation = conversationId
       ? previousStates.find((state) => state.conversationId === conversationId && Array.isArray(state.messages))
       : null;
-    const messages = previousConversation?.messages || [];
+    const messages = Array.isArray(options.messages) ? options.messages : previousConversation?.messages || [];
     const sourcePaths = selected.map((file) => file.path);
-    const displayPrompt = `处理待处理材料：${selected.map((file) => file.basename).join("、")}`;
+    const displayPrompt = `/fde-ingest\n\n处理待处理材料：${selected.map((file) => file.basename).join("、")}`;
     const fileList = selected.map((file) => `- ${file.path}`).join("\n");
     const agentPrompt = `用户已明确选择以下 ${selected.length} 份原始材料进行处理：\n${fileList}\n\n请先生成分流预览，保留原文，不要在未经确认时写入正式资产库。先单独标记录音、聊天、图片或文档等“材料形式”，再按证据建议一个或多个六类资产去向；归属不确定的内容留在待确认。`;
     this.setInboxProcessing(selected, "running", `正在用 /fde-ingest 处理 ${selected.length} 份材料`, {
@@ -1273,7 +1177,12 @@ class FDEWorkspaceService {
         "fde-ingest",
         agentPrompt,
         selected,
-        { includeActive: false, sessionId: conversationId },
+        {
+          includeActive: false,
+          sessionId: conversationId,
+          onTaskStart: options.onTaskStart,
+          onEvent: options.onEvent,
+        },
       );
       const succeeded = task && ["waiting-review", "success", "completed"].includes(task.status);
       if (succeeded) {
@@ -1285,17 +1194,16 @@ class FDEWorkspaceService {
           ? resultContent.replace(/\s+/g, " ").slice(0, 160)
           : "";
         if (isCurrentResult) {
-          messages.push(
-            { role: "user", content: displayPrompt },
-            {
-              role: "assistant",
-              content: resultContent || "分流预览已生成。请确认下一步要写入、修改，还是暂不处理。",
-              provider: latest.result?.provider || "FDE365 Agent",
-              model: latest.result?.model || "",
-            },
-          );
+          const latestMessage = messages.at(-1);
+          if (latestMessage?.role !== "user" || latestMessage.content !== displayPrompt) messages.push({ role: "user", content: displayPrompt });
+          messages.push({
+            role: "assistant",
+            content: resultContent || "分流预览已生成。请确认下一步要写入、修改，还是暂不处理。",
+            provider: latest.result?.provider || "FDE365 Agent",
+            model: latest.result?.model || "",
+          });
         }
-        this.setInboxProcessing(selected, "success", "处理完成 · 可在右侧对话继续", {
+        this.setInboxProcessing(selected, "awaiting-confirmation", "等待确认", {
           outputPath,
           preview,
           resultContent,
@@ -1306,7 +1214,7 @@ class FDEWorkspaceService {
           sourcePaths,
           messages,
         });
-        return { status: "success", task, outputPath };
+        return { status: "awaiting-confirmation", task, outputPath };
       }
       const failure = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 Token 配置");
       this.setInboxProcessing(selected, "failed", `处理失败 · ${failure}`);
@@ -1332,1355 +1240,60 @@ class FDEWorkspaceService {
       output: skill.output,
       systemPrompt: this.skillSystemPrompt(skill),
       localContext,
-    }, prompt || skill.description, sources, { sessionId: options.sessionId || "" });
-  }
-}
-
-class FDEBaseView extends ItemView {
-  constructor(leaf, plugin, pageKey) {
-    super(leaf);
-    this.plugin = plugin;
-    this.app = plugin.app;
-    this.service = plugin.fdeWorkspace;
-    this.pageKey = pageKey;
-    this.assistantSession = plugin.fdeAssistantSession || (plugin.fdeAssistantSession = {
-      messages: [],
-      loading: false,
-      requestId: null,
-      mode: "chat",
-      draft: "",
-      primaryPath: "",
-      sourcePaths: [],
-      sessionId: "",
-      activity: [],
-    });
-    this.renderToken = 0;
-  }
-
-  get assistantMessages() { return this.assistantSession.messages; }
-  set assistantMessages(value) { this.assistantSession.messages = value; }
-  get assistantLoading() { return this.assistantSession.loading; }
-  set assistantLoading(value) { this.assistantSession.loading = value; }
-  get assistantRequestId() { return this.assistantSession.requestId; }
-  set assistantRequestId(value) { this.assistantSession.requestId = value; }
-  get assistantMode() { return this.assistantSession.mode; }
-  set assistantMode(value) { this.assistantSession.mode = value; }
-  get assistantDraft() { return this.assistantSession.draft; }
-  set assistantDraft(value) { this.assistantSession.draft = value; }
-  get assistantPrimaryPath() { return this.assistantSession.primaryPath; }
-  set assistantPrimaryPath(value) { this.assistantSession.primaryPath = value; }
-  get assistantSourcePaths() { return this.assistantSession.sourcePaths; }
-  set assistantSourcePaths(value) { this.assistantSession.sourcePaths = value; }
-  get assistantSessionId() { return this.assistantSession.sessionId || ""; }
-  set assistantSessionId(value) { this.assistantSession.sessionId = value || ""; }
-  get assistantActivity() { return this.assistantSession.activity || []; }
-  set assistantActivity(value) { this.assistantSession.activity = Array.isArray(value) ? value : []; }
-
-  async prefillAssistantCommand(skillId) {
-    const command = `/${String(skillId || "").replace(/^\//, "")}`;
-    const current = String(this.assistantDraft || "").trim();
-    const remainder = current.replace(/^\/fde-[a-z0-9-]+\s*/i, "").trim();
-    this.assistantMode = "chat";
-    this.assistantDraft = `${command}${remainder ? ` ${remainder}` : " "}`;
-    await this.render();
-    window.setTimeout(() => {
-      const input = this.contentEl.querySelector(".wis-composer textarea");
-      if (!input) return;
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-    }, 0);
-  }
-
-  getViewType() { return VIEW_TYPES[this.pageKey]; }
-  getDisplayText() { return `${NAV_ITEMS.find((item) => item.key === this.pageKey)?.label || "FDE365"} · FDE365`; }
-  getIcon() { return NAV_ITEMS.find((item) => item.key === this.pageKey)?.icon || "orbit"; }
-
-  async onOpen() {
-    this.contentEl.addClass("wis-view-content");
-    await this.render();
-  }
-
-  async onClose() {
-    this.contentEl.removeClass("wis-view-content");
-  }
-
-  async refresh() { return this.render(); }
-
-  async render() {
-    const token = ++this.renderToken;
-    const data = await this.service.snapshot();
-    if (token !== this.renderToken) return;
-    this.contentEl.empty();
-    const app = this.contentEl.createDiv({ cls: `wis-fde-app is-${this.plugin.settings.colorTheme === "dark" ? "dark" : "light"}` });
-    const assistantWidth = Math.max(280, Math.min(560, Number(this.plugin.settings.ai.assistant.panelWidth) || 336));
-    app.style.setProperty("--wis-assistant-width", `${assistantWidth}px`);
-    this.renderSidebar(app, data);
-    const workspace = app.createDiv({ cls: "wis-workspace" });
-    this.renderTopbar(workspace, data);
-    const main = workspace.createEl("main", { cls: "wis-main" });
-    await this.renderMain(main, data);
-    this.renderStatus(workspace, data);
-    this.renderAssistant(app, data);
-  }
-
-  renderSidebar(app, data) {
-    const sidebar = app.createEl("aside", { cls: "wis-sidebar" });
-    const brand = sidebar.createDiv({ cls: "wis-brand" });
-    const logo = brand.createEl("img", { attr: { src: this.plugin.logoResource(), alt: "FDE365" } });
-    logo.addClass("wis-brand-logo");
-    sidebar.createDiv({ text: "FDE365", cls: "wis-nav-label" });
-    const nav = sidebar.createEl("nav", { cls: "wis-nav", attr: { "aria-label": "主导航" } });
-    NAV_ITEMS.forEach((item) => {
-      const button = nav.createEl("button", { cls: `wis-nav-item${item.key === this.pageKey ? " is-active" : ""}` });
-      makeIcon(button, item.icon);
-      const text = button.createDiv();
-      text.createEl("strong", { text: item.label });
-      text.createSpan({ text: item.note });
-      if (item.key === "inbox" && data.pending.length) button.createSpan({ text: String(data.pending.length), cls: "wis-nav-count" });
-      button.addEventListener("click", () => this.plugin.router.navigate(item.key));
-    });
-    const pulse = sidebar.createDiv({ cls: "wis-library-pulse" });
-    const pulseHead = pulse.createDiv({ cls: "wis-pulse-head" });
-    pulseHead.createEl("strong", { text: "六库信号" });
-    pulseHead.createSpan({ text: `${data.total} 项资产` });
-    data.libraries.forEach((library) => {
-      const row = pulse.createEl("button", { cls: "wis-pulse-row" });
-      row.createSpan({ text: library.order, cls: `wis-library-code is-${library.color}` });
-      row.createSpan({ text: library.short, cls: "wis-pulse-label" });
-      const meter = row.createDiv({ cls: "wis-mini-meter" });
-      meter.createDiv({ cls: `wis-mini-meter-fill is-${library.color}`, attr: { style: `width:${library.score}%` } });
-      row.createSpan({ text: String(library.count), cls: "wis-pulse-count" });
-      row.addEventListener("click", () => this.service.openLibrary(library.id));
-    });
-    const footer = sidebar.createDiv({ cls: "wis-sidebar-footer" });
-    footer.createSpan({ text: "本地优先" });
-    footer.createSpan({ text: "·" });
-    footer.createSpan({ text: "来源优先" });
-  }
-
-  renderTopbar(workspace, data) {
-    const topbar = workspace.createDiv({ cls: "wis-topbar" });
-    const left = topbar.createDiv({ cls: "wis-topbar-title" });
-    left.createSpan({ text: "FDE365知识库", cls: "wis-eyebrow" });
-    left.createEl("strong", { text: NAV_ITEMS.find((item) => item.key === this.pageKey)?.label || "总览" });
-    const actions = topbar.createDiv({ cls: "wis-topbar-actions" });
-    const search = actions.createEl("input", { attr: { type: "search", placeholder: "搜索六类资产…", "aria-label": "搜索六类资产" }, cls: "wis-global-search" });
-    search.addEventListener("keydown", async (event) => {
-      if (event.key !== "Enter" || !search.value.trim()) return;
-      const query = search.value.trim().toLowerCase();
-      const match = data.notes.find((note) => `${note.file.basename} ${note.content}`.toLowerCase().includes(query));
-      if (match) await this.service.openFile(match.file);
-      else new Notice("六类资产中没有找到匹配内容");
-    });
-    makeButton(actions, "新建资产", "plus", "is-secondary", () => new AssetModal(this.app, "product", async (value) => this.service.createAsset(value)).open());
-    makeButton(actions, "设置", "settings", "is-secondary is-settings", () => this.plugin.openSettings());
-  }
-
-  renderStatus(workspace, data) {
-    const status = workspace.createDiv({ cls: "wis-statusbar" });
-    status.createSpan({ text: `Vault: ${this.app.vault.getName()}` });
-    status.createSpan({ text: `${data.total} 项正式资产` });
-    status.createSpan({ text: `来源覆盖 ${percent(data.sourceCoverage)}` });
-    status.createSpan({ text: `${data.installedSkills.length}/${SKILLS.length} Skills` });
-    status.createSpan({ text: "create-only · 不覆盖原始材料" });
-  }
-
-  pageSkills() {
-    return ["fde-start", "fde-library", "fde-write"];
-  }
-
-  assistantContextFiles() {
-    return [...new Set([this.assistantPrimaryPath, ...this.assistantSourcePaths].filter(Boolean))]
-      .map((path) => this.app.vault.getAbstractFileByPath(path))
-      .filter((file) => file instanceof TFile);
-  }
-
-  isAssistantContextFile(file) {
-    return file instanceof TFile
-      && file.extension === "md"
-      && file.path.startsWith(`${ROOT}/`)
-      && !file.path.startsWith(`${ROOT}/.agents/`)
-      && !file.path.startsWith(`${ROOT}/.fde/`)
-      && !file.path.startsWith(`${ROOT}/7-系统/`);
-  }
-
-  assistantHistoryFiles() {
-    const roots = [
-      `${ROOT}/7-系统/AI协作/输出/`,
-      `${ROOT}/7-系统/AI协作/运行记录/`,
-    ];
-    const files = this.app.vault.getMarkdownFiles()
-      .filter((file) => roots.some((root) => file.path.startsWith(root)))
-      .sort((a, b) => b.stat.mtime - a.stat.mtime);
-    const runTaskIds = new Set(files
-      .filter((file) => frontmatterOf(this.app, file).type === "agent-run")
-      .map((file) => String(frontmatterOf(this.app, file).task_id || ""))
-      .filter(Boolean));
-    return files
-      .filter((file) => {
-        const meta = frontmatterOf(this.app, file);
-        return meta.type !== "agent-output" || !runTaskIds.has(String(meta.task_id || ""));
-      })
-      .slice(0, 12);
-  }
-
-  async openAssistantHistory(file) {
-    const recordMeta = frontmatterOf(this.app, file);
-    let runFile = recordMeta.type === "agent-run" ? file : null;
-    if (!runFile && recordMeta.type === "agent-output" && recordMeta.task_id) {
-      runFile = this.app.vault.getMarkdownFiles().find((candidate) => {
-        const meta = frontmatterOf(this.app, candidate);
-        return meta.type === "agent-run" && String(meta.task_id || "") === String(recordMeta.task_id);
-      }) || null;
-    }
-    const runMeta = runFile ? frontmatterOf(this.app, runFile) : {};
-    const outputPath = String(runMeta.output_file || "");
-    const resolvedOutput = outputPath ? this.app.vault.getAbstractFileByPath(outputPath) : null;
-    const outputFile = resolvedOutput instanceof TFile ? resolvedOutput : file;
-    const outputMeta = frontmatterOf(this.app, outputFile);
-    const outputContent = await this.app.vault.cachedRead(outputFile);
-    const runContent = runFile && runFile !== outputFile ? await this.app.vault.cachedRead(runFile) : outputContent;
-    const prompt = String(outputMeta.user_prompt || runMeta.task || markdownSection(outputContent, "任务") || markdownSection(runContent, "任务") || "").trim();
-    const response = String(
-      markdownSection(outputContent, "AI 输出")
-      || markdownSection(outputContent, "FDE365")
-      || (outputMeta.type === "ai-assistant-output" ? markdownBody(outputContent) : "")
-      || markdownSection(runContent, "执行状态")
-      || "该历史任务没有保存可显示的输出。",
-    ).trim();
-    const sourcePaths = [...new Set([
-      ...frontmatterPaths(runMeta.source_files),
-      ...frontmatterPaths(outputMeta.source_files),
-      ...linkedPaths(markdownSection(outputContent, "来源")),
-      ...linkedPaths(markdownSection(runContent, "输入来源")),
-    ])].filter((path) => this.app.vault.getAbstractFileByPath(path) instanceof TFile);
-    const provider = String(outputMeta.provider || runMeta.provider || "FDE365 Agent");
-    const model = String(outputMeta.model || runMeta.model || "");
-    this.assistantMode = "chat";
-    this.assistantSessionId = String(outputMeta.conversation_id || runMeta.conversation_id || "");
-    this.assistantPrimaryPath = sourcePaths[0] || "";
-    this.assistantSourcePaths = sourcePaths.slice(1);
-    this.assistantDraft = "";
-    this.assistantActivity = [];
-    this.assistantMessages = [
-      ...(prompt ? [{ role: "user", content: prompt }] : []),
-      { role: "assistant", content: response, provider: this.plugin.providerLabel(provider), model },
-    ];
-    await this.render();
-    window.setTimeout(() => {
-      const body = this.contentEl.querySelector(".wis-assistant-body");
-      if (body) body.scrollTop = body.scrollHeight;
-      this.contentEl.querySelector(".wis-composer textarea")?.focus();
-    }, 0);
-  }
-
-  renderAssistantConversation(parent) {
-    if (!this.assistantMessages.length && !this.assistantLoading) return false;
-    const conversation = parent.createDiv({ cls: "wis-conversation" });
-    this.assistantMessages.forEach((message) => {
-      const item = conversation.createEl("article", { cls: `wis-message is-${message.role}${message.error ? " is-error" : ""}` });
-      const avatar = item.createDiv({ cls: "wis-message-avatar" });
-      makeIcon(avatar, message.role === "user" ? "user-round" : message.error ? "triangle-alert" : "sparkles");
-      const bubble = item.createDiv({ cls: "wis-message-bubble" });
-      const meta = bubble.createDiv({ cls: "wis-message-meta" });
-      meta.createEl("strong", { text: message.role === "user" ? "你" : message.error ? "请求未完成" : "FDE365" });
-      if (message.provider) meta.createSpan({ text: [message.provider, message.model].filter(Boolean).join(" · ") });
-      bubble.createDiv({ text: message.content, cls: "wis-message-content" });
-      if (message.role === "assistant" && !message.error) {
-        const actions = bubble.createDiv({ cls: "wis-message-actions" });
-        const copy = makeButton(actions, "复制", "copy", "is-text");
-        copy.addEventListener("click", async () => {
-          try {
-            await navigator.clipboard.writeText(message.content);
-            new Notice("回答已复制");
-          } catch (error) {
-            new Notice(`复制失败：${error instanceof Error ? error.message : String(error)}`);
-          }
-        });
-        const save = makeButton(actions, "保存", "file-plus-2", "is-text");
-        save.addEventListener("click", async () => {
-          const prompt = [...this.assistantMessages].reverse().find((item) => item.role === "user")?.content || "";
-          const file = await this.plugin.saveAssistantOutput(message, `${this.getDisplayText()} · AI 对话`, {
-            conversationId: this.assistantSessionId,
-            sourceFiles: this.assistantContextFiles().map((source) => source.path),
-            prompt,
-          });
-          new Notice(`回答已保存：${file.path}`);
-          await this.render();
-        });
-      }
-    });
-    if (this.assistantLoading) {
-      const loading = conversation.createEl("article", { cls: "wis-message is-assistant is-loading" });
-      const avatar = loading.createDiv({ cls: "wis-message-avatar" });
-      makeIcon(avatar, "sparkles");
-      const bubble = loading.createDiv({ cls: "wis-message-bubble" });
-      bubble.createEl("strong", { text: "Agent 处理中…" });
-      const stop = makeButton(bubble, "停止生成", "square", "is-secondary");
-      stop.addEventListener("click", () => {
-        if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
-      });
-    }
-    return true;
-  }
-
-  renderAssistantChat(parent, data) {
-    if (!this.renderAssistantConversation(parent)) {
-      const welcome = parent.createDiv({ cls: "wis-assistant-welcome" });
-      const icon = welcome.createDiv({ cls: "wis-assistant-welcome-icon" });
-      makeIcon(icon, "orbit");
-      welcome.createEl("strong", { text: "在知识库里，和 AI 协作工作" });
-      welcome.createEl("p", { text: "连续对话、选取上下文、调用 FDE Skills，并把可用结果保存回本地。" });
-      const features = welcome.createDiv({ cls: "wis-assistant-feature-chips" });
-      ["本地会话", "知识上下文", "结果留档"].forEach((label) => features.createSpan({ text: label }));
-    }
-    const context = parent.createDiv({ cls: "wis-context-card" });
-    context.createEl("strong", { text: "当前知识库" });
-    context.createSpan({ text: `${data.total} 项资产 · ${data.pending.length} 份待处理` });
-    context.createSpan({ text: `来源覆盖 ${percent(data.sourceCoverage)} · ${data.unknown} 个待确认项` });
-  }
-
-  renderAssistantKnowledge(parent, data) {
-    const intro = parent.createDiv({ cls: "wis-assistant-section-head" });
-    intro.createEl("strong", { text: "六类资产" });
-    intro.createSpan({ text: "进入真实业务边界，查看来源、版本和待确认项。" });
-    const list = parent.createDiv({ cls: "wis-assistant-fde-list" });
-    data.libraries.forEach((library) => {
-      const button = list.createEl("button", { cls: `wis-assistant-fde-item is-${library.color}` });
-      button.createSpan({ text: library.order, cls: `wis-library-code is-${library.color}` });
-      const copy = button.createDiv();
-      copy.createEl("strong", { text: library.name });
-      copy.createSpan({ text: library.count ? `来源 ${percent(library.sourceCoverage)} · ${library.unknown} 待确认` : library.emptyAction });
-      button.createSpan({ text: String(library.count) });
-      button.addEventListener("click", () => this.service.openLibrary(library.id));
-    });
-    makeButton(parent, "查库 /fde-library", "sparkles", "is-secondary wis-assistant-wide-action", () => void this.prefillAssistantCommand("fde-library"));
-  }
-
-  renderAssistantSkills(parent) {
-    const intro = parent.createDiv({ cls: "wis-assistant-section-head" });
-    intro.createEl("strong", { text: "当前页面工作流" });
-    intro.createSpan({ text: "运行前读取项目内 SKILL.md，结果进入本地 AI 协作记录。" });
-    const quick = parent.createDiv({ cls: "wis-skill-quick" });
-    this.pageSkills().map((id) => SKILLS.find((skill) => skill.id === id)).filter(Boolean).forEach((skill) => {
-      const button = quick.createEl("button", { cls: "wis-quick-skill" });
-      makeIcon(button, skill.icon);
-      const text = button.createDiv();
-      text.createEl("strong", { text: `/${skill.id}` });
-      text.createSpan({ text: skill.name });
-      button.addEventListener("click", () => void this.prefillAssistantCommand(skill.id));
-    });
-    makeButton(parent, "查看全部 35 个 FDE Skills", "blocks", "is-secondary wis-assistant-wide-action", () => this.plugin.router.navigate("skills"));
-  }
-
-  renderAssistantHistory(parent) {
-    const intro = parent.createDiv({ cls: "wis-assistant-section-head" });
-    intro.createEl("strong", { text: "本地协作历史" });
-    intro.createSpan({ text: "点击记录会恢复到右侧对话，可继续确认下一步；Markdown 只在后台留档。" });
-    const files = this.assistantHistoryFiles();
-    const list = parent.createDiv({ cls: "wis-assistant-history" });
-    if (!files.length) list.createDiv({ text: "还没有已保存的协作对话。完成一次对话或运行 Skill 后会出现在这里。", cls: "wis-empty" });
-    files.forEach((file) => {
-      const meta = frontmatterOf(this.app, file);
-      const topic = assistantHistoryTopic(meta);
-      const skill = meta.agent_id ? `/${meta.agent_id}` : "";
-      const provider = meta.provider ? this.plugin.providerLabel(String(meta.provider)) : "";
-      const button = list.createEl("button", { cls: "wis-assistant-history-item" });
-      makeIcon(button, meta.type === "agent-run" ? "list-checks" : "message-square-text");
-      const copy = button.createDiv();
-      copy.createEl("strong", { text: topic });
-      copy.createSpan({ text: [skill, provider, meta.model, formatRelativeTime(file.stat.mtime)].filter(Boolean).join(" · ") });
-      button.setAttr("title", `${topic}\n恢复到右侧对话并继续处理`);
-      button.addEventListener("click", () => void this.openAssistantHistory(file));
-    });
-  }
-
-  renderAssistantComposer(panel) {
-    const composer = panel.createDiv({ cls: "wis-composer" });
-    const toolbar = composer.createDiv({ cls: "wis-composer-toolbar" });
-    const primary = this.app.vault.getAbstractFileByPath(this.assistantPrimaryPath);
-    const primarySelected = primary instanceof TFile;
-    const note = makeButton(toolbar, primarySelected ? "已选笔记" : "选择笔记", "file-search-2", `is-tool${primarySelected ? " is-active" : ""}`);
-    note.setAttr("title", primarySelected ? `当前选择：${primary.path}；点击重新选择` : "点击搜索并选择一篇知识库笔记");
-    note.addEventListener("click", () => new AssistantNotePickerModal(this.app, this.assistantPrimaryPath, async (path) => {
-      this.assistantPrimaryPath = path;
-      if (path) this.assistantSourcePaths = this.assistantSourcePaths.filter((item) => item !== path);
-      await this.render();
-    }).open());
-    const attach = makeButton(toolbar, "添加上下文", "paperclip", "is-tool");
-    attach.addEventListener("click", () => new AssistantContextModal(this.app, this.assistantSourcePaths, async (paths) => {
-      this.assistantSourcePaths = paths.filter((path) => path !== this.assistantPrimaryPath);
-      await this.render();
-    }).open());
-    const fresh = makeButton(toolbar, "新对话", "message-square-plus", "is-tool");
-    fresh.addEventListener("click", async () => {
-      if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
-      this.assistantMessages = [];
-      this.assistantDraft = "";
-      this.assistantSessionId = "";
-      this.assistantActivity = [];
-      await this.render();
-    });
-    if (this.assistantContextFiles().length) {
-      const files = composer.createDiv({ cls: "wis-composer-context" });
-      this.assistantContextFiles().forEach((file) => {
-        const chip = files.createEl("button", { cls: "wis-context-chip", attr: { title: file.path } });
-        makeIcon(chip, "file-text");
-        chip.createSpan({ text: file.basename });
-        makeIcon(chip, "x");
-        chip.addEventListener("click", async () => {
-          if (this.assistantPrimaryPath === file.path) this.assistantPrimaryPath = "";
-          this.assistantSourcePaths = this.assistantSourcePaths.filter((path) => path !== file.path);
-          await this.render();
-        });
-      });
-    }
-    const row = composer.createDiv({ cls: "wis-composer-row" });
-    const inputShell = row.createDiv({ cls: "wis-composer-input-shell" });
-    const commandMenu = inputShell.createDiv({
-      cls: "wis-command-menu",
-      attr: { role: "listbox", "aria-label": "FDE 命令建议" },
-    });
-    commandMenu.hidden = true;
-    const input = inputShell.createEl("textarea", { attr: { placeholder: "问六类资产，或输入 /fd 选择命令…", rows: "3", "aria-label": "交给 FDE365 Agent", "aria-autocomplete": "list", "aria-expanded": "false" } });
-    input.value = this.assistantDraft;
-    let commandMatches = [];
-    let commandSelection = 0;
-    let commandRange = null;
-
-    const closeCommandMenu = () => {
-      commandMatches = [];
-      commandRange = null;
-      commandSelection = 0;
-      commandMenu.hidden = true;
-      commandMenu.empty();
-      input.setAttr("aria-expanded", "false");
-      input.removeAttribute("aria-activedescendant");
-    };
-    const fillCommand = (skill) => {
-      if (!skill || !commandRange) return;
-      const replacement = `/${skill.id} `;
-      input.value = `${input.value.slice(0, commandRange.start)}${replacement}${input.value.slice(commandRange.end)}`;
-      const caret = commandRange.start + replacement.length;
-      input.setSelectionRange(caret, caret);
-      this.assistantDraft = input.value;
-      closeCommandMenu();
-      input.focus();
-    };
-    const renderCommandMenu = () => {
-      commandMenu.empty();
-      commandMatches.forEach((skill, index) => {
-        const option = commandMenu.createEl("button", {
-          cls: `wis-command-option${index === commandSelection ? " is-selected" : ""}`,
-          attr: { id: `wis-command-${skill.id}`, role: "option", "aria-selected": String(index === commandSelection) },
-        });
-        makeIcon(option, skill.icon);
-        const copy = option.createDiv();
-        copy.createEl("strong", { text: `/${skill.id}` });
-        copy.createSpan({ text: skill.name });
-        option.createSpan({ text: skill.output, cls: "wis-command-output" });
-        option.addEventListener("mousedown", (event) => event.preventDefault());
-        option.addEventListener("click", () => fillCommand(skill));
-      });
-      commandMenu.hidden = !commandMatches.length;
-      input.setAttr("aria-expanded", String(Boolean(commandMatches.length)));
-      if (commandMatches.length) input.setAttr("aria-activedescendant", `wis-command-${commandMatches[commandSelection].id}`);
-    };
-    const updateCommandMenu = () => {
-      const caret = input.selectionStart ?? input.value.length;
-      const completion = commandCompletionState(input.value, caret);
-      if (!completion) {
-        closeCommandMenu();
-        return;
-      }
-      commandMatches = completion.matches;
-      commandSelection = Math.min(commandSelection, Math.max(0, commandMatches.length - 1));
-      commandRange = { start: completion.start, end: completion.end };
-      renderCommandMenu();
-    };
-    input.addEventListener("input", () => {
-      this.assistantDraft = input.value;
-      updateCommandMenu();
-    });
-    input.addEventListener("click", updateCommandMenu);
-    input.addEventListener("blur", () => window.setTimeout(closeCommandMenu, 100));
-    const submitStack = row.createDiv({ cls: "wis-composer-submit-stack" });
-    const executionMode = this.plugin.settings.ai.assistant.executionMode === "yolo" ? "yolo" : "approval";
-    const modeSelect = submitStack.createEl("select", {
-      cls: `wis-agent-mode-select is-${executionMode}`,
-      attr: { "aria-label": "Agent 执行模式", title: executionMode === "yolo" ? "YOLO：当前 Vault 内无需批准" : "命令和写入需要批准" },
-    });
-    modeSelect.createEl("option", { text: "需批准", attr: { value: "approval" } });
-    modeSelect.createEl("option", { text: "YOLO", attr: { value: "yolo" } });
-    modeSelect.value = executionMode;
-    modeSelect.addEventListener("change", async () => {
-      this.plugin.settings.ai.assistant.executionMode = modeSelect.value === "yolo" ? "yolo" : "approval";
-      await this.plugin.saveSettings();
-      new Notice(modeSelect.value === "yolo"
-        ? "YOLO 已开启：当前 Vault 内不再逐次批准"
-        : "已切换为需要批准模式");
-      this.plugin.refreshDashboard();
-    });
-    const send = makeButton(submitStack, this.assistantLoading ? "停止" : "发送", this.assistantLoading ? "square" : "arrow-up", this.assistantLoading ? "is-secondary" : "is-primary");
-    const submit = async () => {
-      if (this.assistantLoading) {
-        if (this.assistantRequestId) this.plugin.cancelAgentRequest(this.assistantRequestId);
-        return;
-      }
-      const prompt = input.value.trim();
-      if (!prompt) return;
-      const submittedSources = this.assistantContextFiles();
-      this.assistantMode = "chat";
-      this.assistantMessages.push({ role: "user", content: prompt });
-      this.assistantDraft = "";
-      input.value = "";
-      closeCommandMenu();
-      this.assistantLoading = true;
-      this.assistantActivity = [];
-      await this.render();
-      const requestId = `fde365-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      this.assistantRequestId = requestId;
-      try {
-        const result = await this.plugin.askAssistant({
-          requestId,
-          prompt,
-          history: this.assistantMessages.slice(0, -1),
-          systemPrompt: `你是独立于中间工作台页面的 FDE365 本地 Agent。\n${BASE_SKILL_RULES}\n${executionModeRule(this.plugin)}\n插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容。需要时使用本地工具检查 Vault。`,
-          sourceFiles: submittedSources,
-          localContext: await this.service.assistantRuntimeContext(prompt),
-          sessionId: this.assistantSessionId,
-          onEvent: () => {
-            this.assistantActivity = [{ label: "Agent 处理中…" }];
-            this.plugin.refreshDashboard();
-          },
-        });
-        this.assistantSessionId = result.conversationId || this.assistantSessionId;
-        const message = {
-          role: "assistant",
-          content: result.content,
-          provider: this.plugin.providerLabel(result.provider),
-          model: result.model,
-          result,
-        };
-        this.assistantMessages.push(message);
-        if (isInboxClosurePrompt(prompt)) {
-          const movedPaths = await this.service.completeInboxFiles(submittedSources);
-          if (movedPaths.size) {
-            const movedPath = (path) => movedPaths.get(path) || path;
-            this.assistantPrimaryPath = movedPath(this.assistantPrimaryPath);
-            this.assistantSourcePaths = this.assistantSourcePaths.map(movedPath);
-            new Notice(`已结案并移入已处理记录：${movedPaths.size} 份材料`);
-          }
-        }
-        if (this.plugin.settings.ai.assistant.autoSaveOutput) await this.plugin.saveAssistantOutput(message, `${this.getDisplayText()} · AI 对话`, {
-          conversationId: this.assistantSessionId,
-          sourceFiles: this.assistantContextFiles().map((source) => source.path),
-          prompt,
-        });
-      } catch (error) {
-        this.assistantMessages.push({
-          role: "assistant",
-          content: error instanceof Error ? error.message : String(error),
-          error: true,
-          code: error?.code || "UNKNOWN_ERROR",
-        });
-      } finally {
-        this.assistantLoading = false;
-        this.assistantRequestId = null;
-        this.assistantActivity = [];
-        this.plugin.refreshDashboard();
-      }
-    };
-    send.addEventListener("click", () => void submit());
-    input.addEventListener("keydown", (event) => {
-      if (!commandMenu.hidden && commandMatches.length) {
-        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-          event.preventDefault();
-          const delta = event.key === "ArrowDown" ? 1 : -1;
-          commandSelection = (commandSelection + delta + commandMatches.length) % commandMatches.length;
-          renderCommandMenu();
-          commandMenu.querySelector(".wis-command-option.is-selected")?.scrollIntoView({ block: "nearest" });
-          return;
-        }
-        if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
-          event.preventDefault();
-          fillCommand(commandMatches[commandSelection]);
-          return;
-        }
-        if (event.key === "Escape") {
-          event.preventDefault();
-          closeCommandMenu();
-          return;
-        }
-      }
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        void submit();
-      }
-    });
-    const contextScope = this.plugin.settings.ai.assistant.contextScope;
-    composer.createDiv({
-      text: contextScope === "retrieved" ? "Agent 已预附加本地检索结果" : contextScope === "none" ? "Agent 按任务需要读取 Vault" : "Agent 已预附加当前笔记",
-      cls: "wis-composer-note",
-    });
-  }
-
-  renderAssistant(app, data) {
-    const panel = app.createEl("aside", { cls: "wis-assistant" });
-    this.renderAssistantResizeHandle(app, panel);
-    const head = panel.createDiv({ cls: "wis-assistant-head" });
-    const title = head.createDiv();
-    title.createSpan({ text: "FDE365 AGENT", cls: "wis-eyebrow" });
-    title.createEl("strong", { text: "对话 · FDE · Skills · 历史" });
-    const capability = this.plugin.providerManager.describeSelected();
-    const agentCapability = this.plugin.agentRuntime?.describe?.() || { available: false, error: "本地 Agent 未就绪" };
-    const isDeveloperRuntime = agentCapability.mode === "local-cli";
-    const headActions = head.createDiv({ cls: "wis-assistant-head-actions" });
-    const executionMode = this.plugin.settings.ai.assistant.executionMode === "yolo" ? "yolo" : "approval";
-    const provider = headActions.createEl("button", {
-      cls: `wis-provider-dot${agentCapability.available && (isDeveloperRuntime || capability.configured && capability.compatible) ? " is-ready" : ""}`,
-      attr: { title: [isDeveloperRuntime ? "DEV · 本地 Codex CLI" : "FDE365 Codex Agent", isDeveloperRuntime ? "继承本机登录与配置" : capability.model, capability.error, agentCapability.error].filter(Boolean).join(" · ") },
-    });
-    provider.createSpan({ text: isDeveloperRuntime
-      ? agentCapability.available ? "DEV · 本地 Codex CLI" : "缺少 Codex CLI"
-      : !capability.configured ? "配置 Token" : agentCapability.available ? capability.model : "缺少 Codex 组件" });
-    provider.addEventListener("click", () => this.plugin.openSettings("ai"));
-    const body = panel.createDiv({ cls: "wis-assistant-body" });
-    body.createEl("p", {
-      text: executionMode === "yolo"
-        ? "YOLO 模式：Agent 在当前 Vault 内自动执行，不再逐次批准。"
-        : "需要批准：Agent 可读取当前 Vault、运行 FDE Skills；命令和写入会向你确认。",
-      cls: `wis-assistant-rule is-${executionMode}`,
-    });
-    const tabs = body.createDiv({ cls: "wis-assistant-tabs", attr: { role: "tablist", "aria-label": "AI 工作区" } });
-    [["chat", "对话"], ["fde", "FDE"], ["skills", "Skills"], ["history", "历史"]].forEach(([id, label]) => {
-      const tab = tabs.createEl("button", { cls: this.assistantMode === id ? "is-active" : "", attr: { role: "tab", "aria-selected": String(this.assistantMode === id) } });
-      tab.createSpan({ text: label });
-      tab.addEventListener("click", async () => {
-        this.assistantMode = id;
-        await this.render();
-      });
-    });
-    const surface = body.createDiv({ cls: `wis-assistant-surface is-${this.assistantMode}` });
-    if (this.assistantMode === "fde") this.renderAssistantKnowledge(surface, data);
-    else if (this.assistantMode === "skills") this.renderAssistantSkills(surface);
-    else if (this.assistantMode === "history") this.renderAssistantHistory(surface);
-    else this.renderAssistantChat(surface, data);
-    this.renderAssistantComposer(panel);
-  }
-
-  renderAssistantResizeHandle(app, panel) {
-    const handle = panel.createDiv({
-      cls: "wis-assistant-resize-handle",
-      attr: {
-        role: "separator",
-        tabindex: "0",
-        "aria-label": "调整右侧 Agent 对话栏宽度",
-        "aria-orientation": "vertical",
-        title: "拖动调整对话栏宽度；双击恢复默认宽度",
-      },
-    });
-    const applyWidth = (value) => {
-      const width = Math.max(280, Math.min(560, Math.round(Number(value) || 336)));
-      this.plugin.settings.ai.assistant.panelWidth = width;
-      app.style.setProperty("--wis-assistant-width", `${width}px`);
-      handle.setAttr("aria-valuenow", String(width));
-      return width;
-    };
-    applyWidth(this.plugin.settings.ai.assistant.panelWidth);
-    let startX = 0;
-    let startWidth = 0;
-    let dragging = false;
-    handle.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      dragging = true;
-      startX = event.clientX;
-      startWidth = Number(this.plugin.settings.ai.assistant.panelWidth) || 336;
-      app.addClass("is-resizing-assistant");
-      handle.setPointerCapture?.(event.pointerId);
-    });
-    handle.addEventListener("pointermove", (event) => {
-      if (!dragging) return;
-      applyWidth(startWidth + startX - event.clientX);
-    });
-    const finishResize = async (event) => {
-      if (!dragging) return;
-      dragging = false;
-      app.removeClass("is-resizing-assistant");
-      handle.releasePointerCapture?.(event.pointerId);
-      await this.plugin.saveSettings();
-    };
-    handle.addEventListener("pointerup", (event) => void finishResize(event));
-    handle.addEventListener("pointercancel", (event) => void finishResize(event));
-    handle.addEventListener("dblclick", async () => {
-      applyWidth(336);
-      await this.plugin.saveSettings();
-    });
-    handle.addEventListener("keydown", async (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
-      event.preventDefault();
-      const current = Number(this.plugin.settings.ai.assistant.panelWidth) || 336;
-      applyWidth(event.key === "Home" ? 336 : current + (event.key === "ArrowLeft" ? 16 : -16));
-      await this.plugin.saveSettings();
+    }, prompt || skill.description, sources, {
+      visibleConversation: true,
+      sessionId: options.sessionId || "",
+      onTaskStart: options.onTaskStart,
+      onEvent: options.onEvent,
     });
   }
 }
 
-class FDEDashboardView extends FDEBaseView {
-  constructor(leaf, plugin) { super(leaf, plugin, "dashboard"); }
-
-  async renderMain(main, data) {
-    const hero = main.createEl("section", { cls: "wis-hero" });
-    const copy = hero.createDiv();
-    copy.createSpan({ text: "FDE365 · 六类资产", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "六类资产运营台" });
-    copy.createEl("p", { text: "不按话题堆笔记。围绕个人、产品、客户、案例、方法和内容，持续保留真源与下一步。" });
-    const signal = hero.createDiv({ cls: "wis-today-signal" });
-    makeIcon(signal, data.pending.length ? "inbox" : data.unknown ? "circle-help" : "circle-check-big");
-    const signalCopy = signal.createDiv();
-    signalCopy.createSpan({ text: "当前入口" });
-    signalCopy.createEl("strong", { text: data.pending.length ? `先处理 ${data.pending.length} 份原始材料` : data.unknown ? `先确认 ${data.unknown} 个未知项` : "六库状态可以继续推进" });
-    makeButton(signal, "运行 /fde-start", "arrow-right", "is-secondary", () => this.service.runSkill("fde-start", "请读取当前六类资产库状态，为我选择并执行一个最值得推进的入口。"));
-
-    const head = main.createDiv({ cls: "wis-section-head" });
-    const headCopy = head.createDiv();
-    headCopy.createEl("h2", { text: "六类资产" });
-    headCopy.createSpan({ text: "目录就是业务边界；数字只统计正式资产，不包含系统文件和 Skill。" });
-    const grid = main.createDiv({ cls: "wis-library-grid" });
-    data.libraries.forEach((library) => {
-      const card = grid.createEl("button", { cls: `wis-library-card is-${library.color}` });
-      const top = card.createDiv({ cls: "wis-library-card-top" });
-      top.createSpan({ text: library.order, cls: "wis-library-number" });
-      makeIcon(top, library.icon);
-      card.createEl("h3", { text: library.name });
-      card.createEl("p", { text: library.description });
-      const metrics = card.createDiv({ cls: "wis-library-metrics" });
-      metrics.createDiv({ text: String(library.count), cls: "wis-library-count" });
-      const detail = metrics.createDiv();
-      detail.createSpan({ text: "项资产" });
-      detail.createSpan({ text: `来源 ${percent(library.sourceCoverage)}` });
-      const footer = card.createDiv({ cls: "wis-library-card-foot" });
-      footer.createSpan({ text: library.count ? `${library.unknown} 个待确认` : library.emptyAction });
-      footer.createSpan({ text: library.updated ? formatRelativeTime(library.updated) : "尚未建立" });
-      card.addEventListener("click", () => this.service.openLibrary(library.id));
-    });
-
-    const lower = main.createDiv({ cls: "wis-dashboard-lower" });
-    const pipeline = lower.createEl("section", { cls: "wis-panel wis-pipeline-summary" });
-    const pipelineHead = pipeline.createDiv({ cls: "wis-panel-head" });
-    const pipelineTitle = pipelineHead.createDiv();
-    pipelineTitle.createEl("h2", { text: "内容流转" });
-    pipelineTitle.createSpan({ text: "一个文件只处于一个阶段" });
-    makeButton(pipelineHead, "打开流水线", "arrow-right", "is-text", () => this.plugin.activateProjects());
-    const track = pipeline.createDiv({ cls: "wis-stage-track" });
-    data.stages.forEach((stage, index) => {
-      const item = track.createDiv({ cls: `wis-stage-node is-${stage.color}` });
-      item.createSpan({ text: String(index + 1).padStart(2, "0") });
-      item.createEl("strong", { text: stage.id });
-      item.createDiv({ text: String(stage.items.length) });
-    });
-    const quality = lower.createEl("section", { cls: "wis-panel wis-quality-summary" });
-    const qualityHead = quality.createDiv({ cls: "wis-panel-head" });
-    const qualityTitle = qualityHead.createDiv();
-    qualityTitle.createEl("h2", { text: "知识质量" });
-    qualityTitle.createSpan({ text: "只显示可行动的问题" });
-    makeButton(qualityHead, "完整体检", "arrow-right", "is-text", () => this.plugin.activateAnalytics());
-    [
-      { label: "缺少来源", value: data.total - data.notes.filter((note) => note.source).length, note: "不能作为确定事实", icon: "link-2-off", color: "orange" },
-      { label: "待确认内容", value: data.unknown, note: "推断和事实尚未分开", icon: "circle-help", color: "violet" },
-      { label: "超过 90 天", value: data.stale, note: "可能需要版本复核", icon: "clock-3", color: "blue" },
-    ].forEach((item) => {
-      const row = quality.createDiv({ cls: `wis-quality-row is-${item.color}` });
-      makeIcon(row, item.icon);
-      const text = row.createDiv();
-      text.createEl("strong", { text: item.label });
-      text.createSpan({ text: item.note });
-      row.createSpan({ text: String(item.value) });
-    });
-
-    const recent = main.createEl("section", { cls: "wis-panel wis-recent" });
-    const recentHead = recent.createDiv({ cls: "wis-panel-head" });
-    const recentTitle = recentHead.createDiv();
-    recentTitle.createEl("h2", { text: "最近资产" });
-    recentTitle.createSpan({ text: "来自六个正式资产库" });
-    if (!data.recent.length) recent.createDiv({ text: "六类资产还是空的。运行 /fde-interview，或先把材料放入待处理。", cls: "wis-empty" });
-    data.recent.forEach((note) => {
-      const row = recent.createEl("button", { cls: "wis-note-row" });
-      row.createSpan({ text: note.library?.order || "--", cls: `wis-library-code is-${note.library?.color || "blue"}` });
-      const text = row.createDiv({ cls: "wis-note-row-copy" });
-      text.createEl("strong", { text: note.file.basename, cls: "wis-note-row-title" });
-      text.createSpan({ text: `${note.library?.name || "资产"} · ${note.source ? `来源：${note.source}` : "缺少来源"}`, cls: "wis-note-row-meta" });
-      row.createSpan({ text: formatRelativeTime(note.file.stat.mtime), cls: "wis-note-row-time" });
-      row.addEventListener("click", () => this.service.openFile(note.file));
-    });
-  }
-}
-
-class FDEInboxView extends FDEBaseView {
-  constructor(leaf, plugin) {
-    super(leaf, plugin, "inbox");
-    this.selectedPaths = new Set();
-  }
-
-  async processFiles(files) {
-    const result = await this.service.processInboxFiles(files);
-    if (result.status === "success") {
-      files.forEach((file) => this.selectedPaths.delete(file.path));
-      new Notice("处理完成。点击“继续处理”，在右侧 Agent 对话中确认下一步");
-    }
-    await this.render();
-  }
-
-  async openProcessingConversation(state, file) {
-    const sourcePaths = [...new Set((state?.sourcePaths || [file.path]).filter(Boolean))];
-    const primaryPath = sourcePaths[0] || file.path;
-    const resultContent = String(state?.resultContent || state?.preview || "").trim();
-    const conversationId = state?.conversationId || "";
-    const sameConversation = Boolean(conversationId && this.assistantSessionId === conversationId && this.assistantMessages.length);
-    this.assistantMode = "chat";
-    this.assistantSessionId = conversationId;
-    this.assistantPrimaryPath = primaryPath;
-    this.assistantSourcePaths = sourcePaths.filter((path) => path !== primaryPath);
-    if (!sameConversation || !this.assistantDraft.trim()) {
-      this.assistantDraft = "请基于上面的分流预览给出可执行的下一步，等我确认后再写入正式资产库。";
-    }
-    this.assistantActivity = [];
-    if (!sameConversation) {
-      this.assistantMessages = Array.isArray(state?.messages) && state.messages.length
-        ? state.messages
-        : [
-          { role: "user", content: `处理待处理材料：${sourcePaths.map((path) => path.split("/").pop()).join("、")}` },
-          {
-            role: "assistant",
-            content: resultContent || "分流预览已生成。请确认下一步要写入、修改，还是暂不处理。",
-            provider: state?.provider || "FDE365 Agent",
-            model: state?.model || "",
-          },
-        ];
-    }
-    await this.render();
-    window.setTimeout(() => {
-      const input = this.contentEl.querySelector(".wis-composer textarea");
-      input?.focus();
-      const body = this.contentEl.querySelector(".wis-assistant-body");
-      if (body) body.scrollTop = body.scrollHeight;
-    }, 0);
-  }
-
-  renderProcessingStatus(parent, state) {
-    const status = state?.status || "idle";
-    const line = parent.createDiv({
-      cls: `wis-inbox-processing-status is-${status}`,
-      attr: { role: "status", "aria-live": "polite", title: state?.message || "等待处理" },
-    });
-    if (status === "running") line.createSpan({ cls: "wis-processing-spinner", attr: { "aria-hidden": "true" } });
-    else makeIcon(line, status === "success" ? "circle-check" : status === "failed" ? "circle-x" : "clock-3");
-    line.createSpan({ text: state?.message || "等待处理" });
-  }
-
-  createQuickNote() {
-    new TextPromptModal(this.app, {
-      title: "快速记录原始材料",
-      description: "先完整保留原始表达，之后再运行 /fde-ingest 分流。",
-      placeholder: "给这份材料起一个可识别的标题…",
-      onSubmit: async (value) => this.service.createQuickNote(value),
-    }).open();
-  }
-
-  startVoiceCapture() {
-    new VoiceCaptureModal(this.app, {
-      plugin: this.plugin,
-      service: this.service,
-      onSaved: async () => this.render(),
-    }).open();
-  }
-
-  async renderMain(main, data) {
-    const pendingPaths = new Set(data.pending.map((file) => file.path));
-    this.selectedPaths = new Set([...this.selectedPaths].filter((path) => pendingPaths.has(path)));
-    const header = main.createDiv({ cls: "wis-page-header" });
-    const copy = header.createDiv();
-    copy.createSpan({ text: "FDE365 · 原始材料", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "待处理材料" });
-    copy.createEl("p", { text: "录音、聊天、会议纪要和旧资料先保留原文；AI 只生成分流预览，确认后才写入六类资产。" });
-    const actions = header.createDiv({ cls: "wis-header-actions" });
-    makeButton(actions, "快速记录", "plus", "is-primary", () => this.createQuickNote());
-    makeButton(actions, "AI 语音", "audio-lines", "is-secondary", () => this.startVoiceCapture());
-    const processAll = makeButton(actions, "处理全部待处理", "sparkles", "is-secondary", () => void this.processFiles(data.pending));
-    processAll.disabled = !data.pending.length || data.pending.every((file) => this.service.inboxProcessingState(file).status === "running");
-
-    const dropZone = main.createEl("section", {
-      cls: "wis-inbox-dropzone",
-      attr: { role: "button", tabindex: "0", "aria-label": "拖入或选择要收录到待处理的文件" },
-    });
-    const dropIcon = dropZone.createDiv({ cls: "wis-inbox-drop-icon" });
-    makeIcon(dropIcon, "cloud-upload");
-    const dropCopy = dropZone.createDiv({ cls: "wis-inbox-drop-copy" });
-    const dropTitle = dropCopy.createEl("strong", { text: "把文件拖到这里" });
-    dropCopy.createSpan({ text: "只收录并保留原文，不会自动运行 Skill" });
-    dropZone.createSpan({ text: "选择文件", cls: "wis-inbox-drop-action" });
-    const picker = dropZone.createEl("input", { attr: { type: "file", multiple: "", tabindex: "-1", "aria-hidden": "true" } });
-    picker.addClass("wis-inbox-file-picker");
-    let importing = false;
-    const importFiles = async (fileList) => {
-      if (importing) return;
-      const files = Array.from(fileList || []);
-      if (!files.length) return;
-      importing = true;
-      dropZone.addClass("is-importing");
-      dropTitle.setText(`正在收录 ${files.length} 个文件…`);
-      try {
-        const imported = await this.service.importInboxFiles(files);
-        new Notice(`已收录 ${imported.length} 个文件；等待你决定是否运行 /fde-ingest`);
-        await this.render();
-      } catch (error) {
-        dropZone.removeClass("is-importing");
-        dropTitle.setText("收录未完成，可重新拖入");
-        new Notice(`文件收录失败：${error instanceof Error ? error.message : String(error)}`, 8000);
-      } finally {
-        importing = false;
-        picker.value = "";
-      }
-    };
-    dropZone.addEventListener("click", (event) => {
-      if (event.target !== picker) picker.click();
-    });
-    dropZone.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        picker.click();
-      }
-    });
-    picker.addEventListener("change", () => void importFiles(picker.files));
-    dropZone.addEventListener("dragenter", (event) => {
-      event.preventDefault();
-      if (!importing) dropZone.addClass("is-dragging");
-    });
-    dropZone.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
-    });
-    dropZone.addEventListener("dragleave", (event) => {
-      if (!dropZone.contains(event.relatedTarget)) dropZone.removeClass("is-dragging");
-    });
-    dropZone.addEventListener("drop", (event) => {
-      event.preventDefault();
-      dropZone.removeClass("is-dragging");
-      void importFiles(event.dataTransfer?.files);
-    });
-
-    const stats = main.createDiv({ cls: "wis-compact-stats" });
-    [
-      ["待处理", data.pending.length, "inbox", "orange"],
-      ["已处理记录", data.processed.length, "archive-restore", "blue"],
-      ["正式资产", data.total, "library", "indigo"],
-      ["待确认项", data.unknown, "circle-help", "violet"],
-    ].forEach(([label, value, iconName, color]) => {
-      const card = stats.createDiv({ cls: `wis-compact-stat is-${color}` });
-      makeIcon(card, iconName);
-      const text = card.createDiv();
-      text.createSpan({ text: label });
-      text.createEl("strong", { text: String(value) });
-    });
-
-    const flow = main.createEl("section", { cls: "wis-panel wis-ingest-flow" });
-    const flowHead = flow.createDiv({ cls: "wis-panel-head" });
-    const title = flowHead.createDiv();
-    title.createEl("h2", { text: "安全入库流程" });
-    title.createSpan({ text: "确认点放在真正写入之前" });
-    const steps = flow.createDiv({ cls: "wis-ingest-steps" });
-    [
-      ["01", "保留原文", "登记路径、日期、参与人", "file-lock-2"],
-      ["02", "通读拆分", "原话、事实、判断、方法、案例、选题", "scan-text"],
-      ["03", "分流预览", "新增、补充、冲突、重复", "split"],
-      ["04", "人工确认", "确认后写六库并记录处理批次", "badge-check"],
-    ].forEach(([number, label, note, iconName]) => {
-      const step = steps.createDiv({ cls: "wis-ingest-step" });
-      step.createSpan({ text: number });
-      makeIcon(step, iconName);
-      step.createEl("strong", { text: label });
-      step.createDiv({ text: note });
-    });
-
-    const list = main.createEl("section", { cls: "wis-panel wis-inbox-list" });
-    const listHead = list.createDiv({ cls: "wis-panel-head" });
-    const listTitle = listHead.createDiv();
-    listTitle.createEl("h2", { text: "原始材料" });
-    listTitle.createSpan({ text: "插件不会删除或用摘要替换这些文件" });
-    const selectedFiles = data.pending.filter((file) => this.selectedPaths.has(file.path));
-    const selectableFiles = data.pending.filter((file) => this.service.inboxProcessingState(file).status !== "running");
-    const batch = listHead.createDiv({ cls: "wis-inbox-batch-actions" });
-    const selectAllLabel = batch.createEl("label", { cls: "wis-inbox-select-all" });
-    const selectAll = selectAllLabel.createEl("input", { attr: { type: "checkbox", "aria-label": "全选待处理材料" } });
-    selectAll.checked = Boolean(selectableFiles.length) && selectableFiles.every((file) => this.selectedPaths.has(file.path));
-    selectAll.indeterminate = selectedFiles.length > 0 && !selectAll.checked;
-    selectAll.disabled = !selectableFiles.length;
-    selectAllLabel.createSpan({ text: "全选" });
-    selectAll.addEventListener("change", () => {
-      if (selectAll.checked) selectableFiles.forEach((file) => this.selectedPaths.add(file.path));
-      else this.selectedPaths.clear();
-      void this.render();
-    });
-    batch.createSpan({ text: `已选 ${selectedFiles.length} 项`, cls: "wis-inbox-selected-count" });
-    if (selectedFiles.length) makeButton(batch, "取消选择", "x", "is-text", () => {
-      this.selectedPaths.clear();
-      void this.render();
-    });
-    const batchButton = makeButton(batch, `批量处理${selectedFiles.length ? ` (${selectedFiles.length})` : ""}`, "sparkles", "is-primary", () => void this.processFiles(selectedFiles));
-    const batchReady = selectedFiles.some((file) => this.service.inboxProcessingState(file).status !== "running");
-    batchButton.disabled = !batchReady;
-    if (batchReady) batchButton.addClass("is-ready");
-    if (!data.pending.length) list.createDiv({ text: "待处理目录是空的。可以快速记录，或把录音转写、聊天导出和会议纪要放进该目录。", cls: "wis-empty" });
-    data.pending.forEach((file) => {
-      const state = this.service.inboxProcessingState(file);
-      const row = list.createDiv({ cls: `wis-inbox-row is-${state.status}` });
-      const selectLabel = row.createEl("label", { cls: "wis-inbox-select", attr: { title: `选择 ${file.basename}` } });
-      const checkbox = selectLabel.createEl("input", { attr: { type: "checkbox", "aria-label": `选择 ${file.basename}` } });
-      checkbox.checked = this.selectedPaths.has(file.path);
-      checkbox.disabled = state.status === "running";
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) this.selectedPaths.add(file.path);
-        else this.selectedPaths.delete(file.path);
-        void this.render();
-      });
-      makeIcon(row, "file-text", "is-orange");
-      const text = row.createDiv({ cls: "wis-inbox-row-copy" });
-      text.createEl("strong", { text: file.basename });
-      text.createSpan({ text: `${formatRelativeTime(file.stat.mtime)} · 原始材料保留` });
-      this.renderProcessingStatus(text, state);
-      if (state.status === "success" && state.preview) text.createDiv({ text: state.preview, cls: "wis-inbox-result-preview" });
-      const actions = row.createDiv({ cls: "wis-row-actions" });
-      makeButton(actions, "打开原文", "external-link", "is-text", () => this.service.openFile(file));
-      if (state.status === "success") {
-        makeButton(actions, "继续处理", "messages-square", "is-primary", () => void this.openProcessingConversation(state, file));
-      }
-      const processButton = makeButton(
-        actions,
-        state.status === "running" ? "处理中…" : state.status === "failed" ? "重试处理" : state.status === "success" ? "重新处理" : "用 /fde-ingest 处理",
-        state.status === "running" ? "loader-circle" : "sparkles",
-        "is-secondary",
-        () => void this.processFiles([file]),
-      );
-      processButton.disabled = state.status === "running";
-      if (state.status === "running") processButton.setAttr("aria-busy", "true");
-    });
-  }
-}
-
-class FDELibrariesView extends FDEBaseView {
-  constructor(leaf, plugin) {
-    super(leaf, plugin, "libraries");
-    this.selectedLibrary = "all";
-    this.query = "";
-  }
-
-  async renderMain(main, data) {
-    const header = main.createDiv({ cls: "wis-page-header" });
-    const copy = header.createDiv();
-    copy.createSpan({ text: "FDE365 · 真实来源", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "六类资产" });
-    copy.createEl("p", { text: "每个库回答一种不同的问题。路径决定归属，来源决定能否作为事实使用。" });
-    makeButton(header, "新建资产", "plus", "is-primary", () => new AssetModal(this.app, this.selectedLibrary, async (value) => this.service.createAsset(value)).open());
-    const selector = main.createDiv({ cls: "wis-library-selector" });
-    const all = selector.createEl("button", { cls: `wis-library-tab${this.selectedLibrary === "all" ? " is-active" : ""}` });
-    all.createSpan({ text: "ALL" });
-    all.createEl("strong", { text: "全部资产" });
-    all.createSpan({ text: String(data.total) });
-    all.addEventListener("click", () => { this.selectedLibrary = "all"; void this.render(); });
-    data.libraries.forEach((library) => {
-      const button = selector.createEl("button", { cls: `wis-library-tab is-${library.color}${this.selectedLibrary === library.id ? " is-active" : ""}` });
-      button.createSpan({ text: library.order });
-      button.createEl("strong", { text: library.name });
-      button.createSpan({ text: String(library.count) });
-      button.addEventListener("click", () => { this.selectedLibrary = library.id; void this.render(); });
-    });
-    const selected = this.selectedLibrary === "all" ? null : data.libraries.find((item) => item.id === this.selectedLibrary);
-    if (selected) {
-      const brief = main.createDiv({ cls: `wis-library-brief is-${selected.color}` });
-      makeIcon(brief, selected.icon);
-      const briefCopy = brief.createDiv();
-      briefCopy.createEl("h2", { text: selected.name });
-      briefCopy.createEl("p", { text: selected.description });
-      const briefMetrics = brief.createDiv({ cls: "wis-brief-metrics" });
-      briefMetrics.createSpan({ text: `${selected.count} 项资产` });
-      briefMetrics.createSpan({ text: `来源覆盖 ${percent(selected.sourceCoverage)}` });
-      briefMetrics.createSpan({ text: `${selected.unknown} 个待确认` });
-    }
-    const toolbar = main.createDiv({ cls: "wis-library-toolbar" });
-    const search = toolbar.createEl("input", { attr: { type: "search", placeholder: "在当前资产范围搜索…" } });
-    search.value = this.query;
-    search.addEventListener("input", () => {
-      this.query = search.value.trim().toLowerCase();
-      main.querySelectorAll(".wis-asset-card").forEach((card) => card.toggleClass("is-hidden", !card.dataset.search.includes(this.query)));
-    });
-    makeButton(toolbar, "查库 /fde-library", "sparkles", "is-secondary", () => void this.prefillAssistantCommand("fde-library"));
-    const notes = data.notes.filter((note) => this.selectedLibrary === "all" || note.library?.id === this.selectedLibrary);
-    const grid = main.createDiv({ cls: "wis-asset-grid" });
-    if (!notes.length) grid.createDiv({ text: selected?.emptyAction || "六类资产还是空的。", cls: "wis-empty" });
-    notes.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime).forEach((note) => {
-      const card = grid.createEl("button", { cls: `wis-asset-card is-${note.library?.color || "blue"}` });
-      card.dataset.search = `${note.file.basename} ${note.content}`.toLowerCase();
-      const top = card.createDiv({ cls: "wis-asset-card-top" });
-      top.createSpan({ text: note.library?.order || "--", cls: "wis-library-code" });
-      top.createSpan({ text: note.library?.name || "资产" });
-      card.createEl("h3", { text: note.file.basename });
-      card.createEl("p", { text: note.excerpt || "尚未填写正文。" });
-      const evidence = card.createDiv({ cls: "wis-evidence-row" });
-      evidence.createSpan({ text: note.source ? "有来源" : "缺少来源", cls: note.source ? "is-good" : "is-warning" });
-      if (note.unknown) evidence.createSpan({ text: `${note.unknown} 待确认`, cls: "is-unknown" });
-      evidence.createSpan({ text: formatRelativeTime(note.file.stat.mtime) });
-      card.addEventListener("click", () => this.service.openFile(note.file));
-    });
-  }
-}
-
-class FDENetworkView extends FDEBaseView {
-  constructor(leaf, plugin) { super(leaf, plugin, "network"); }
-
-  async renderMain(main, data) {
-    const header = main.createDiv({ cls: "wis-page-header" });
-    const copy = header.createDiv();
-    copy.createSpan({ text: "FDE365 · 资产连接", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "资产网络" });
-    copy.createEl("p", { text: "关系不是装饰：产品要连接客户需求，方法要连接真实案例，内容要能回到来源。" });
-    makeButton(header, "整理关联", "sparkles", "is-primary", () => this.service.runSkill("fde-organize", "请只读检查六类资产之间的支持、冲突、例子和版本关系，先给关联与迁移预览。"));
-    const map = main.createEl("section", { cls: "wis-network-map" });
-    const center = map.createDiv({ cls: "wis-network-center" });
-    center.createSpan({ text: "FDE365" });
-    center.createEl("strong", { text: `${data.relations.edges.length}` });
-    center.createSpan({ text: "跨库连接" });
-    data.libraries.forEach((library, index) => {
-      const node = map.createEl("button", { cls: `wis-network-node is-${library.color} at-${index + 1}` });
-      node.createSpan({ text: library.order });
-      makeIcon(node, library.icon);
-      node.createEl("strong", { text: library.short });
-      node.createSpan({ text: `${library.count} 项` });
-      node.addEventListener("click", () => this.service.openLibrary(library.id));
-    });
-    const matrixPanel = main.createEl("section", { cls: "wis-panel wis-relation-matrix" });
-    const matrixHead = matrixPanel.createDiv({ cls: "wis-panel-head" });
-    const title = matrixHead.createDiv();
-    title.createEl("h2", { text: "跨库关系矩阵" });
-    title.createSpan({ text: "只统计实际双向链接，不生成模拟数据" });
-    const table = matrixPanel.createDiv({ cls: "wis-matrix" });
-    table.createSpan();
-    data.libraries.forEach((library) => table.createSpan({ text: library.short, cls: `is-${library.color}` }));
-    data.libraries.forEach((source) => {
-      table.createSpan({ text: source.short, cls: `is-${source.color}` });
-      data.libraries.forEach((target) => {
-        const value = data.relations.matrix[source.id][target.id];
-        table.createSpan({ text: String(value), cls: value ? "has-link" : "" });
-      });
-    });
-    const gaps = main.createEl("section", { cls: "wis-panel" });
-    const gapsHead = gaps.createDiv({ cls: "wis-panel-head" });
-    const gapsTitle = gapsHead.createDiv();
-    gapsTitle.createEl("h2", { text: "关键连接检查" });
-    gapsTitle.createSpan({ text: "优先补能验证业务判断的连接" });
-    [
-      ["产品 → 客户", "产品承诺是否来自真实需求", "product", "customer"],
-      ["案例 → 方法", "方法是否有实际使用证据", "case", "method"],
-      ["内容 → 来源", "成稿是否能回到产品、客户和案例", "content", "case"],
-    ].forEach(([label, note, from, to]) => {
-      const value = data.relations.matrix[from][to] + data.relations.matrix[to][from];
-      const row = gaps.createDiv({ cls: "wis-check-row" });
-      makeIcon(row, value ? "circle-check-big" : "circle-dashed", value ? "is-good" : "is-warning");
-      const text = row.createDiv();
-      text.createEl("strong", { text: label });
-      text.createSpan({ text: note });
-      row.createSpan({ text: value ? `${value} 条连接` : "尚未连接" });
-    });
-  }
-}
-
-class FDEContentView extends FDEBaseView {
-  constructor(leaf, plugin) { super(leaf, plugin, "content"); }
-
-  async renderMain(main, data) {
-    const header = main.createDiv({ cls: "wis-page-header" });
-    const copy = header.createDiv();
-    copy.createSpan({ text: "FDE365 · 内容工作流", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "内容生产" });
-    copy.createEl("p", { text: "同一稿件不复制成多个状态。目录和文件中的当前阶段必须一致，发布结论必须能回到六库来源。" });
-    const actions = header.createDiv({ cls: "wis-header-actions" });
-    makeButton(actions, "新建选题", "plus", "is-primary", () => new TextPromptModal(this.app, {
-      title: "新建选题",
-      description: "创建后进入“选题”阶段；请在文件中补目标读者、核心问题和来源。",
-      placeholder: "选题标题…",
-      onSubmit: async (value) => this.service.createContent(value, "选题"),
-    }).open());
-    makeButton(actions, "从六库找选题", "sparkles", "is-secondary", () => this.service.runSkill("fde-topics", "请从客户原话、产品问题、案例结果、个人判断和方法资产中生成可追溯选题。"));
-    const summary = main.createDiv({ cls: "wis-content-summary" });
-    data.stages.forEach((stage, index) => {
-      const item = summary.createDiv({ cls: `wis-content-summary-item is-${stage.color}` });
-      item.createSpan({ text: String(index + 1).padStart(2, "0") });
-      makeIcon(item, stage.icon);
-      item.createEl("strong", { text: stage.id });
-      item.createDiv({ text: String(stage.items.length) });
-    });
-    const board = main.createDiv({ cls: "wis-content-board" });
-    data.stages.forEach((stage, index) => {
-      const column = board.createEl("section", { cls: `wis-stage-column is-${stage.color}` });
-      const stageHead = column.createDiv({ cls: "wis-stage-column-head" });
-      const stageTitle = stageHead.createDiv();
-      stageTitle.createSpan({ text: String(index + 1).padStart(2, "0") });
-      stageTitle.createEl("strong", { text: stage.id });
-      stageHead.createSpan({ text: String(stage.items.length) });
-      column.createDiv({ text: stage.description, cls: "wis-stage-description" });
-      const cards = column.createDiv({ cls: "wis-stage-cards" });
-      if (!stage.items.length) cards.createDiv({ text: "暂无内容", cls: "wis-stage-empty" });
-      stage.items.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime).forEach((note) => {
-        const card = cards.createDiv({ cls: "wis-content-card" });
-        card.createEl("strong", { text: note.file.basename });
-        card.createSpan({ text: note.source ? `来源：${note.source}` : "缺少来源", cls: note.source ? "is-source" : "is-warning" });
-        if (note.unknown) card.createSpan({ text: `${note.unknown} 个未核实项`, cls: "is-unknown" });
-        const cardActions = card.createDiv({ cls: "wis-content-card-actions" });
-        makeButton(cardActions, "打开", "external-link", "is-text", () => this.service.openFile(note.file));
-        if (index < CONTENT_STAGES.length - 1) makeButton(cardActions, "推进", "arrow-right", "is-text", () => this.service.advanceContent(note));
-        if (stage.id === "待审核") makeButton(cardActions, "审核", "sparkles", "is-text", () => this.service.runSkill("fde-review", `请审核稿件 ${note.file.path}，默认只诊断，不直接改稿。`, [note.file]));
-      });
-    });
-    if (data.stageConflicts.length) {
-      const conflict = main.createEl("section", { cls: "wis-alert is-warning" });
-      makeIcon(conflict, "triangle-alert");
-      const text = conflict.createDiv();
-      text.createEl("strong", { text: `${data.stageConflicts.length} 个阶段冲突` });
-      text.createSpan({ text: "文件所在目录与“当前阶段”字段不一致。运行 /fde-health 查看路径证据，插件不会自动选边。" });
-      makeButton(conflict, "运行体检", "activity", "is-secondary", () => this.service.runSkill("fde-health", "请检查内容文件目录与当前阶段字段冲突，只报告，不自动移动。", data.stageConflicts.map((note) => note.file)));
-    }
-  }
-}
-
-class FDESkillsView extends FDEBaseView {
-  constructor(leaf, plugin) {
-    super(leaf, plugin, "skills");
-    this.selectedSkill = "fde-start";
-    this.selectedGroup = "entry";
-  }
-
-  async renderMain(main, data) {
-    const header = main.createDiv({ cls: "wis-page-header" });
-    const copy = header.createDiv();
-    copy.createSpan({ text: "FDE365 · 本地工作流", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "FDE Skills" });
-    copy.createEl("p", { text: "35 项能力随知识库部署在 .agents/skills。它们共享六库边界、来源规则、未知项和确认机制。" });
-    const capability = this.plugin.providerManager.describeSelected();
-    const agentCapability = this.plugin.agentRuntime?.describe?.() || { available: false };
-    const isDeveloperRuntime = agentCapability.mode === "local-cli";
-    const isReady = isDeveloperRuntime ? agentCapability.available : capability.configured;
-    const status = header.createDiv({ cls: `wis-provider-status${isReady ? " is-ready" : ""}` });
-    makeIcon(status, isReady ? "circle-check-big" : "circle-alert");
-    status.createSpan({ text: isDeveloperRuntime
-      ? agentCapability.available ? "DEV · 本地 Codex CLI" : "DEV · 未找到 Codex CLI"
-      : capability.configured ? `${capability.label} · ${capability.model || "默认模型"}` : "AI Provider 未配置" });
-    const overview = main.createDiv({ cls: "wis-skill-overview" });
-    overview.createDiv({ text: String(data.installedSkills.length), cls: "wis-skill-big-number" });
-    const overviewCopy = overview.createDiv();
-    overviewCopy.createEl("strong", { text: `已部署 / ${SKILLS.length} Skills` });
-    overviewCopy.createSpan({ text: "create-only 安装，不覆盖已有 Skill；Codex 从知识库根目录发现本地能力。" });
-    const meter = overview.createDiv({ cls: "wis-skill-meter" });
-    meter.createDiv({ cls: "wis-skill-meter-fill", attr: { style: `width:${Math.round(data.installedSkills.length / SKILLS.length * 100)}%` } });
-    const tabs = main.createDiv({ cls: "wis-skill-groups" });
-    SKILL_GROUPS.forEach((group) => {
-      const button = tabs.createEl("button", { cls: this.selectedGroup === group.id ? "is-active" : "" });
-      button.createEl("strong", { text: group.name });
-      button.createSpan({ text: String(SKILLS.filter((skill) => skill.group === group.id).length) });
-      button.addEventListener("click", () => { this.selectedGroup = group.id; this.selectedSkill = SKILLS.find((skill) => skill.group === group.id)?.id; void this.render(); });
-    });
-    const layout = main.createDiv({ cls: "wis-skill-layout" });
-    const catalog = layout.createDiv({ cls: "wis-skill-catalog" });
-    SKILLS.filter((skill) => skill.group === this.selectedGroup).forEach((skill) => {
-      const installed = data.installedSkills.includes(skill.id);
-      const button = catalog.createEl("button", { cls: `wis-skill-card${this.selectedSkill === skill.id ? " is-selected" : ""}` });
-      makeIcon(button, skill.icon);
-      const text = button.createDiv();
-      text.createEl("strong", { text: `/${skill.id}` });
-      text.createSpan({ text: skill.name });
-      button.createSpan({ text: installed ? "已部署" : "缺失", cls: installed ? "is-installed" : "is-missing" });
-      button.addEventListener("click", () => { this.selectedSkill = skill.id; void this.render(); });
-    });
-    const skill = SKILLS.find((item) => item.id === this.selectedSkill) || SKILLS[0];
-    const detail = layout.createEl("section", { cls: "wis-skill-detail" });
-    const detailIcon = detail.createDiv({ cls: "wis-skill-detail-icon" });
-    makeIcon(detailIcon, skill.icon);
-    detail.createSpan({ text: `/${skill.id}`, cls: "wis-eyebrow" });
-    detail.createEl("h2", { text: skill.name });
-    detail.createEl("p", { text: skill.description });
-    const contract = detail.createDiv({ cls: "wis-skill-contract" });
-    contract.createEl("strong", { text: "共同工作合同" });
-    ["读取 .fde/config.yaml", "关键判断附来源", "事实 / 推断 / 未知分开", "破坏性动作先预览确认"].forEach((item) => {
-      const row = contract.createDiv();
-      makeIcon(row, "check");
-      row.createSpan({ text: item });
-    });
-    detail.createDiv({ text: `交付：${skill.output}`, cls: "wis-skill-output" });
-    const detailActions = detail.createDiv({ cls: "wis-skill-detail-actions" });
-    makeButton(detailActions, `填入 /${skill.id}`, "message-square-text", "is-primary", () => void this.prefillAssistantCommand(skill.id));
-    makeButton(detailActions, "查看运行记录", "history", "is-secondary", async () => {
-      this.assistantMode = "history";
-      await this.render();
-    });
-  }
-}
-
-class FDEHealthView extends FDEBaseView {
-  constructor(leaf, plugin) { super(leaf, plugin, "health"); }
-
-  async renderMain(main, data) {
-    const header = main.createDiv({ cls: "wis-page-header" });
-    const copy = header.createDiv();
-    copy.createSpan({ text: "FDE365 · 知识质量", cls: "wis-eyebrow" });
-    copy.createEl("h1", { text: "知识体检" });
-    copy.createEl("p", { text: "检查六库配置、来源、未知项、收件箱、内容阶段和本地 Skill。默认只报告，不替你选择业务事实。" });
-    const actions = header.createDiv({ cls: "wis-header-actions" });
-    makeButton(actions, "运行 /fde-health", "activity", "is-primary", () => this.service.runSkill("fde-health", "请对当前六类资产知识库做完整只读体检，按阻塞、要处理、提醒给出路径和证据。"));
-    makeButton(actions, "补齐缺失模板", "folder-plus", "is-secondary", () => this.plugin.bootstrapService.ensure({ notify: true }));
-    const score = Math.max(0, Math.round(100 - (1 - data.sourceCoverage) * 45 - Math.min(25, data.unknown * 3) - Math.min(15, data.stageConflicts.length * 5) - Math.min(15, data.missingPaths.length * 8)));
-    const hero = main.createDiv({ cls: "wis-health-hero" });
-    const ring = hero.createDiv({ cls: "wis-health-ring", attr: { style: `--wis-health:${score * 3.6}deg` } });
-    ring.createEl("strong", { text: String(score) });
-    ring.createSpan({ text: "健康度" });
-    const heroCopy = hero.createDiv();
-    heroCopy.createEl("h2", { text: score >= 80 ? "六库可以继续使用" : score >= 55 ? "知识库可用，但有明确缺口" : "先修结构和来源，再扩大使用" });
-    heroCopy.createEl("p", { text: "健康度只基于当前本地证据，不生成模拟增长率或成功率。空库不会被判断为损坏。" });
-    const heroMetrics = heroCopy.createDiv({ cls: "wis-health-hero-metrics" });
-    heroMetrics.createSpan({ text: `来源覆盖 ${percent(data.sourceCoverage)}` });
-    heroMetrics.createSpan({ text: `${data.unknown} 个待确认` });
-    heroMetrics.createSpan({ text: `${data.pending.length} 份待处理` });
-    heroMetrics.createSpan({ text: `${data.installedSkills.length}/${SKILLS.length} Skills` });
-    const issues = main.createDiv({ cls: "wis-health-issues" });
-    [
-      { level: data.missingPaths.length ? "block" : "ok", title: "六库路径", value: data.missingPaths.length ? `${data.missingPaths.length} 个缺失` : "配置与目录存在", note: data.missingPaths[0] || `${ROOT}/.fde/config.yaml` },
-      { level: data.sourceCoverage < 0.8 ? "warn" : "ok", title: "来源覆盖", value: percent(data.sourceCoverage), note: `${data.total - data.notes.filter((note) => note.source).length} 项资产没有可识别来源` },
-      { level: data.unknown ? "warn" : "ok", title: "事实边界", value: `${data.unknown} 个待确认`, note: "待确认、待验证、未核实和当前推断保持显式分开" },
-      { level: data.stageConflicts.length ? "block" : "ok", title: "内容阶段", value: data.stageConflicts.length ? `${data.stageConflicts.length} 个冲突` : "目录与字段一致", note: "一个文件同时只处于一个阶段" },
-      { level: data.installedSkills.length < SKILLS.length ? "warn" : "ok", title: "项目 Skills", value: `${data.installedSkills.length}/${SKILLS.length}`, note: `${ROOT}/.agents/skills` },
-    ].forEach((item) => {
-      const card = issues.createDiv({ cls: `wis-health-issue is-${item.level}` });
-      makeIcon(card, item.level === "ok" ? "circle-check-big" : item.level === "block" ? "octagon-alert" : "triangle-alert");
-      const text = card.createDiv();
-      text.createEl("strong", { text: item.title });
-      text.createSpan({ text: item.note });
-      card.createSpan({ text: item.value });
-    });
-    const table = main.createEl("section", { cls: "wis-panel wis-library-health" });
-    const tableHead = table.createDiv({ cls: "wis-panel-head" });
-    const title = tableHead.createDiv();
-    title.createEl("h2", { text: "六库质量" });
-    title.createSpan({ text: "来源、未知项和更新时间共同决定是否能复用" });
-    data.libraries.forEach((library) => {
-      const row = table.createDiv({ cls: "wis-library-health-row" });
-      row.createSpan({ text: library.order, cls: `wis-library-code is-${library.color}` });
-      const text = row.createDiv();
-      text.createEl("strong", { text: library.name });
-      text.createSpan({ text: library.count ? `${library.count} 项 · ${library.unknown} 待确认 · ${library.stale} 过期候选` : library.emptyAction });
-      const meter = row.createDiv({ cls: "wis-health-meter" });
-      meter.createDiv({ cls: `wis-health-meter-fill is-${library.color}`, attr: { style: `width:${library.score}%` } });
-      row.createSpan({ text: `${library.score}` });
-    });
-  }
-}
+const createWorkspaceViews = require("./fde-workspace-views.js");
+const {
+  FDEDashboardView,
+  FDEInboxView,
+  FDELibrariesView,
+  FDENetworkView,
+  FDEContentView,
+  FDESkillsView,
+  FDEHealthView,
+} = createWorkspaceViews({
+  getRoot: () => ROOT,
+  VIEW_TYPES,
+  LIBRARIES,
+  CONTENT_STAGES,
+  CONTENT_STAGE_GATES,
+  SKILL_GROUPS,
+  SKILLS,
+  commandCompletionState,
+  appendAssistantSkillCommand,
+  BASE_SKILL_RULES,
+  executionModeRule,
+  INBOX_COMPLETION_MARKER,
+  stripInboxCompletionMarker,
+  shouldCompleteInboxTurn,
+  assistantScrollTarget,
+  NAV_ITEMS,
+  makeIcon,
+  makeButton,
+  formatRelativeTime,
+  assistantHistoryTopic,
+  percent,
+  parseConfigYaml,
+  sourceFromContent,
+  unknownFromContent,
+  frontmatterOf,
+  markdownSection,
+  markdownBody,
+  frontmatterPaths,
+  linkedPaths,
+  TextPromptModal,
+  AssetModal,
+  ConfirmActionModal,
+  AssistantNotePickerModal,
+  FDEWorkspaceService,
+});
 
 module.exports = {
   ROOT,
@@ -2688,6 +1301,7 @@ module.exports = {
   VIEW_TYPES,
   LIBRARIES,
   CONTENT_STAGES,
+  CONTENT_STAGE_GATES,
   SKILLS,
   SKILL_GROUPS,
   FDEWorkspaceService,
@@ -2702,9 +1316,16 @@ module.exports = {
   sourceFromContent,
   unknownFromContent,
   commandCompletionState,
+  appendAssistantSkillCommand,
   assistantHistoryTopic,
-  isInboxClosurePrompt,
+  INBOX_COMPLETION_MARKER,
+  isInboxConfirmationPrompt,
+  hasInboxCompletionMarker,
+  stripInboxCompletionMarker,
+  hasInboxWriteEvidence,
+  shouldCompleteInboxTurn,
   markdownSection,
   frontmatterPaths,
   linkedPaths,
+  assistantScrollTarget,
 };

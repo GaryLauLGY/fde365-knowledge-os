@@ -1,11 +1,12 @@
 ﻿param(
-    [Parameter(Mandatory = $true)][string]$QaRoot
+    [Parameter(Mandatory = $true)][string]$QaRoot,
+    [string]$Version = "1.1.2"
 )
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2.0
 try { [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false) } catch {}
 
-$zip = Join-Path $QaRoot "FDE365-Knowledge-OS-Windows-v1.1.0.zip"
+$zip = Join-Path $QaRoot "FDE365-Knowledge-OS-Windows-v$Version.zip"
 $extract = Join-Path $QaRoot "extracted"
 $rollback = Join-Path $env:LOCALAPPDATA ("FDE365-TestRollback-" + [Guid]::NewGuid().ToString("N"))
 $support = Join-Path $env:LOCALAPPDATA "FDE365"
@@ -36,7 +37,7 @@ foreach ($path in $configPaths) {
 
 try {
     Expand-Archive -LiteralPath $zip -DestinationPath $extract
-    $bundle = Join-Path $extract "FDE365-Knowledge-OS-Windows-v1.1.0"
+    $bundle = Join-Path $extract "FDE365-Knowledge-OS-Windows-v$Version"
     $install = Join-Path $bundle "开始安装 FDE365.ps1"
     if (-not (Test-Path -LiteralPath $install)) { throw "发布包解压后的入口文件缺失。" }
 
@@ -98,7 +99,7 @@ try {
         ObsidianPublisher = [string]$signature.SignerCertificate.Subject
         ClaudeVersionDetected = $true
         CodexVersionDetected = $true
-        PluginVersion = "1.1.0"
+        PluginVersion = $Version
         FixedClaudeBaseUrl = $true
         FixedCodexBaseUrl = $true
         TokenStoredOnlyInVault = $true

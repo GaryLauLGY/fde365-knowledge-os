@@ -24,7 +24,7 @@
 - `/fde-export`：导出聊天记录，交给导入流程。
 - `/fde-library`：搜索、录入和维护知识库。
 - `/fde-health`：检查目录、来源、索引和运行状态。
-- `/fde-organize`：整理已有内容资产。
+- `/fde-organize`：整理已有资产；“整理关联”会在确认依据后，把跨库关系写入两端真实 Obsidian 双链。
 - `/fde-setup`：建立 Agent 工作目录。
 - `/fde-connect`：把 Skill 真源连接到指定 Agent 技能目录。
 - `/fde-update`：检查或更新这一套 `fde-*`。

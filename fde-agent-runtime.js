@@ -461,7 +461,6 @@ class FdeCodexAgentRuntime {
         onEvent: typeof request.onEvent === "function" ? request.onEvent : null,
       };
       this.pendingNotifications = [];
-      const timeoutMs = Math.max(30000, Number(settings.timeoutMs) || 120000);
       const turnResult = await this.transport.request("turn/start", withOptionalModel({
         threadId,
         input: [{ type: "text", text: buildTurnPrompt({ ...request, sessionId: threadId }), text_elements: [] }],
@@ -469,21 +468,12 @@ class FdeCodexAgentRuntime {
         effort: "medium",
         summary: "concise",
         sandboxPolicy: execution.sandboxPolicy,
-      }, model), Math.min(timeoutMs, APP_SERVER_REQUEST_TIMEOUT_MS));
+      }, model), APP_SERVER_REQUEST_TIMEOUT_MS);
       this.active.turnId = String(turnResult?.turn?.id || "");
       this.flushPendingNotifications();
       if (!this.active.turnId) throw new Error("Codex Agent 未返回任务 ID");
 
-      let timer;
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new FdeAgentRuntimeError("TIMEOUT", `Codex Agent 运行超过 ${Math.round(timeoutMs / 1000)} 秒`)), timeoutMs);
-      });
-      let completed;
-      try {
-        completed = await Promise.race([done.promise, timeout]);
-      } finally {
-        clearTimeout(timer);
-      }
+      const completed = await done.promise;
       if (!String(completed.content || "").trim()) throw new FdeAgentRuntimeError("EMPTY_RESPONSE", "Codex Agent 没有返回可见内容");
       return {
         content: completed.content,
