@@ -13,12 +13,6 @@ function readJson(path) {
   }
 }
 
-function readToken() {
-  const data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;
-  const text = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding);
-  return ObjC.unwrap(text).replace(/[\r\n]+$/, "").trim();
-}
-
 function writeJson(path, value) {
   const text = JSON.stringify(value, null, 2) + "\n";
   const output = $.NSString.alloc.initWithUTF8String(text);
@@ -30,18 +24,17 @@ function writeJson(path, value) {
 function run(argv) {
   const path = argv[0];
   const model = argv[1];
-  const token = readToken();
-  if (!path || !model || !token) throw new Error("插件配置参数不完整");
+  if (!path || !model) throw new Error("插件配置参数不完整");
 
   const settings = readJson(path);
-  settings.schemaVersion = 4;
+  settings.schemaVersion = 5;
   settings.onboardingVersion = Number(settings.onboardingVersion || 0);
   settings.ai = settings.ai && typeof settings.ai === "object" ? settings.ai : {};
   settings.ai.provider = "fde365";
   settings.ai.fde365 = settings.ai.fde365 && typeof settings.ai.fde365 === "object"
     ? settings.ai.fde365
     : {};
-  settings.ai.fde365.token = token;
+  // 登录凭证由插件邮箱登录后保存；安装器不接收凭证。
   settings.ai.fde365.model = model;
   settings.ai.fde365.temperature = 0.3;
   settings.ai.fde365.timeoutMs = 120000;

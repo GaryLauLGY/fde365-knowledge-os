@@ -8,7 +8,7 @@ var require_blueprint = __commonJS({
   "blueprint.json"(exports2, module2) {
     module2.exports = {
       id: "fde365-six-assets",
-      version: 6,
+      version: 7,
       root: "FDE365知识库",
       folders: [
         ".agents",
@@ -23,10 +23,6 @@ var require_blueprint = __commonJS({
         ".agents/skills/fde-check",
         ".agents/skills/fde-check/agents",
         ".agents/skills/fde-check/references",
-        ".agents/skills/fde-connect",
-        ".agents/skills/fde-connect/agents",
-        ".agents/skills/fde-connect/references",
-        ".agents/skills/fde-connect/scripts",
         ".agents/skills/fde-decide",
         ".agents/skills/fde-decide/agents",
         ".agents/skills/fde-decide/references",
@@ -197,20 +193,6 @@ var require_blueprint = __commonJS({
         ".agents/skills/fde-check/references/source-evidence.md": "# 当前实现证据\n\n- 工作流规格：`tools/rewrite-owned-suite.py` 的 `fde-check`。\n- 六类资产路径：`六类资产库目录模板/.fde/config.yaml`。\n- 名称和历史映射：`改造清单/skill-manifest.json`。\n- 相似度验收：`tools/check-source-similarity.py`。\n",
         ".agents/skills/fde-check/references/source-map.md": "# 来源映射\n\n## 当前实现\n\n- 运行流程由 `tools/rewrite-owned-suite.py` 中的 `fde-check` 规格生成。\n- 资产模型来自本项目 `六类资产库目录模板/.fde/config.yaml`。\n- 用户要求是：英文 `fde-` 名称、易于理解、服务当前六类资产库。\n\n## 历史对照\n\n- 历史能力对照：`dbskill-upstream/skills/dbs-ai-check`。\n- 固定快照：`v2.17.15`，commit `af99c577bfb9f1926236671a882b15030242fe8b`。\n- 该快照只用于能力盘点、相似度检查和署名追溯，不在运行时加载。\n\n历史对照不代表当前运行规则。商业许可仍按项目 `NOTICE.md` 和授权清单处理。\n",
         ".agents/skills/fde-check/SKILL.md": "---\nname: fde-check\ndescription: |\n  检查文稿中的空泛判断、整齐模板、无来源事实和与个人表达不一致的句子。默认只标问题。触发方式：/fde-check、「检查 AI 味」「这段像不像我」。\n---\n\n# 文字痕迹检查\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- 待检查文本\n- 个人说明书中的原话和禁区\n- 内容来源\n- 用户要求保留的表达\n\n## 必须保留的能力\n\n- 扫描空泛结构和常见 AI 写作特征\n- 标出具体句子和问题类型\n- 对照个人表达检查偏差\n- 默认只诊断不改写\n- 不声称能证明真实作者\n\n## 执行\n\n1. 先找没有来源的事实和过度确定的判断。\n2. 再找重复句式、均匀段落、概念堆叠和替读者总结。\n3. 对照本人原话标出语气和用词偏差。\n4. 按删、补证据、还原原话和保留分组。\n\n## 交付\n\n- 问题位置\n- 问题类型\n- 为什么有问题\n- 最小修改动作\n- 应保留内容\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 默认不改原文；确认后另存版本\n\n## 停止条件\n\n- 不能根据文本判断是否由 AI 实际生成\n- 不删除行业必要术语\n- 不为了口语化添加虚构场景\n\n## 接续\n\n- 整体审核用 fde-review\n- 需要写稿用 fde-write\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
-        ".agents/skills/fde-connect/agents/openai.yaml": 'interface:\n  display_name: "连接 Skill"\n  short_description: "读取当前六类资产知识库，执行连接 Skill并返回来源、结果和未确认项。"\n  default_prompt: "请使用 $fde-connect 处理当前知识库里的真实任务，并说明来源和未确认项。"\n',
-        ".agents/skills/fde-connect/references/acceptance.md": "# 验收\n\n- [ ] fde-connect 使用当前知识库配置。\n- [ ] 读取范围与任务有关。\n- [ ] 事实、推断和未知分开。\n- [ ] 关键判断有来源。\n- [ ] 破坏性动作先确认。\n- [ ] 输出包含：真源、目标、动作、冲突、验证结果。\n- [ ] 能力：支持单个 Skill、绝对路径和 Skill 集合目录。\n- [ ] 能力：支持连接、取消和状态检查。\n- [ ] 能力：覆盖 Claude Code、Codex、通用 Agents 和 Grok。\n- [ ] 能力：普通目标目录不覆盖。\n- [ ] 能力：连接后验证 name 和目标。\n",
-        ".agents/skills/fde-connect/references/atoms.jsonl": '{"id": "FDE-CONNECT-001", "rule": "先定位当前知识库配置，再读取资料。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-002", "rule": "只加载当前任务需要的资产。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-003", "rule": "区分事实、用户陈述、推断和未知。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-004", "rule": "关键结论返回来源路径。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-005", "rule": "原始材料保持不变。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-006", "rule": "批量写入、移动、覆盖和删除先确认。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-007", "rule": "不跨客户或跨项目读取。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-008", "rule": "资料不足时完成证据允许的部分。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-009", "rule": "不能确认的分类进入待确认区。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-CONNECT-010", "rule": "交付后说明写入位置和未完成项。", "source": "fde-skills-workflow-v1"}\n',
-        ".agents/skills/fde-connect/references/axioms.md": "# 公理\n\n## AXIOM-01：定位\n\n没有知识库配置就不猜路径。\n\n## AXIOM-02：最小读取\n\n只读取当前任务需要的资产。\n\n## AXIOM-03：证据\n\n事实和推断分开，关键判断附来源。\n\n## AXIOM-04：可恢复\n\n原始材料不覆盖，破坏性动作先确认。\n\n## AXIOM-05：闭环\n\n交付说明结果、写入位置、未知项和下一步。\n",
-        ".agents/skills/fde-connect/references/behavior-tests.json": '[\n  {\n    "id": "case-1",\n    "prompt": "使用 fde-connect 完成：支持单个 Skill、绝对路径和 Skill 集合目录。",\n    "must_do": [\n      "支持单个 Skill、绝对路径和 Skill 集合目录",\n      "支持连接、取消和状态检查",\n      "覆盖 Claude Code、Codex、通用 Agents 和 Grok"\n    ],\n    "must_not": [\n      "编造事实",\n      "跨项目读取"\n    ]\n  },\n  {\n    "id": "case-2",\n    "prompt": "继续使用 fde-connect 完成：连接后验证 name 和目标。",\n    "must_do": [\n      "连接后验证 name 和目标",\n      "返回来源",\n      "说明未确认项"\n    ],\n    "must_not": [\n      "把推断写成事实",\n      "覆盖原始材料"\n    ]\n  },\n  {\n    "id": "counterexample-1",\n    "prompt": "找不到配置，但要求 fde-connect 批量写入。",\n    "must_do": [\n      "停止写入",\n      "询问根目录"\n    ],\n    "must_not": [\n      "猜路径",\n      "写入用户主目录"\n    ]\n  }\n]\n',
-        ".agents/skills/fde-connect/references/capability-contract.json": '{\n  "skill": "fde-connect",\n  "implementation": "fde-skills-owned",\n  "runtime_uses_historical_skill": false,\n  "must_support": [\n    "支持单个 Skill、绝对路径和 Skill 集合目录",\n    "支持连接、取消和状态检查",\n    "覆盖 Claude Code、Codex、通用 Agents 和 Grok",\n    "普通目标目录不覆盖",\n    "连接后验证 name 和目标"\n  ],\n  "tests": [\n    "case-1",\n    "case-2",\n    "counterexample-1"\n  ]\n}\n',
-        ".agents/skills/fde-connect/references/cases.md": "# 案例\n\n## 正常\n\n配置可读，fde-connect 只读取所需资产，交付附来源。\n\n## 资料不足\n\n完成有证据的部分，把缺口留给用户。\n\n## 停止\n\n找不到配置或请求越过项目边界时停止写入。\n",
-        ".agents/skills/fde-connect/references/library-map.md": "# 六类资产映射\n\n运行时以知识库根目录的 `.fde/config.yaml` 为准。\n\n- owner：个人说明书\n- product：产品库\n- customer：客户需求库\n- case：素材案例库\n- method：方法论库\n- content：内容生产\n\n不得把这些显示名当成固定路径。\n",
-        ".agents/skills/fde-connect/references/maturity.json": '{\n  "status": "project-owned-v1",\n  "source_role": "historical_reference_only",\n  "live_customer_test": false\n}\n',
-        ".agents/skills/fde-connect/references/method.md": "# 连接 Skill方法\n\n## 输入\n\n- Skill 真源目录或 Skill 集合目录\n- 目标 Agent 的技能目录\n- 现有同名路径\n- scripts/link_skill.py\n\n## 步骤\n\n1. 使用脚本识别单个 Skill、绝对路径或 Skill 集合目录。\n2. 列出 Claude Code、Codex、通用 Agents 和 Grok 的目标路径与现有类型。\n3. link 时为前三者创建软链，为 Grok 创建只指向真源的薄入口；存在普通目录时报告冲突。\n4. unlink 只移除本工具创建的连接；status 重新解析并核对 name 与目标。\n\n## 交付\n\n- 真源\n- 目标\n- 动作\n- 冲突\n- 验证结果\n\n## 停止\n\n- 目标已有普通目录时不覆盖\n- 跨机器路径不创建无效链接\n- 全局目录写入前确认\n",
-        ".agents/skills/fde-connect/references/source-evidence.md": "# 当前实现证据\n\n- 工作流规格：`tools/rewrite-owned-suite.py` 的 `fde-connect`。\n- 六类资产路径：`六类资产库目录模板/.fde/config.yaml`。\n- 名称和历史映射：`改造清单/skill-manifest.json`。\n- 相似度验收：`tools/check-source-similarity.py`。\n",
-        ".agents/skills/fde-connect/references/source-map.md": "# 来源映射\n\n## 当前实现\n\n- 运行流程由 `tools/rewrite-owned-suite.py` 中的 `fde-connect` 规格生成。\n- 资产模型来自本项目 `六类资产库目录模板/.fde/config.yaml`。\n- 用户要求是：英文 `fde-` 名称、易于理解、服务当前六类资产库。\n\n## 历史对照\n\n- 历史能力对照：`dbskill-upstream/skills/dbs-bridge`。\n- 固定快照：`v2.17.15`，commit `af99c577bfb9f1926236671a882b15030242fe8b`。\n- 该快照只用于能力盘点、相似度检查和署名追溯，不在运行时加载。\n\n历史对照不代表当前运行规则。商业许可仍按项目 `NOTICE.md` 和授权清单处理。\n",
-        ".agents/skills/fde-connect/scripts/link_skill.py": '#!/usr/bin/env python3\n"""Connect project-owned skills to supported local Agent directories."""\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport shutil\nfrom pathlib import Path\n\n\nAGENT_DIRS = {"claude": ".claude/skills", "codex": ".codex/skills", "agents": ".agents/skills", "grok": ".grok/skills"}\nMARKER = "FDE-SKILLS-GROK-BRIDGE"\n\n\ndef sources(path: Path) -> list[Path]:\n    path = path.expanduser().resolve()\n    if (path / "SKILL.md").is_file():\n        return [path]\n    found = sorted(item for item in path.iterdir() if item.is_dir() and (item / "SKILL.md").is_file()) if path.is_dir() else []\n    if not found:\n        raise ValueError(f"no skill found: {path}")\n    return found\n\n\ndef destination(base: Path, agent: str, source: Path) -> Path:\n    return base / AGENT_DIRS[agent] / source.name\n\n\ndef owned_wrapper(path: Path) -> bool:\n    file = path / "SKILL.md"\n    return file.is_file() and MARKER in file.read_text(encoding="utf-8", errors="ignore")\n\n\ndef link_one(source: Path, target: Path, agent: str) -> str:\n    target.parent.mkdir(parents=True, exist_ok=True)\n    if target.exists() or target.is_symlink():\n        if target.is_symlink() and target.resolve() == source:\n            return "already-linked"\n        if agent == "grok" and target.is_dir() and owned_wrapper(target):\n            shutil.rmtree(target)\n        else:\n            return "blocked-existing-target"\n    if agent == "grok":\n        target.mkdir()\n        (target / "SKILL.md").write_text(\n            f"---\\nname: {source.name}\\ndescription: Project skill bridge for Grok.\\n---\\n\\n# {source.name}\\n\\n<!-- {MARKER} -->\\n\\nRead and follow `{source / \'SKILL.md\'}`.\\n",\n            encoding="utf-8",\n        )\n    else:\n        target.symlink_to(source, target_is_directory=True)\n    return "linked"\n\n\ndef unlink_one(target: Path) -> str:\n    if target.is_symlink():\n        target.unlink()\n        return "unlinked"\n    if target.is_dir() and owned_wrapper(target):\n        shutil.rmtree(target)\n        return "unlinked"\n    return "not-owned-or-missing"\n\n\ndef status(source: Path, target: Path, agent: str) -> str:\n    if target.is_symlink():\n        return "linked" if target.resolve() == source else "linked-elsewhere"\n    if agent == "grok" and target.is_dir() and owned_wrapper(target):\n        return "linked"\n    return "blocked-existing-target" if target.exists() else "missing"\n\n\ndef main() -> None:\n    parser = argparse.ArgumentParser()\n    parser.add_argument("command", choices=["link", "unlink", "status"])\n    parser.add_argument("--source", type=Path, required=True)\n    parser.add_argument("--agent", action="append", choices=sorted(AGENT_DIRS))\n    parser.add_argument("--base", type=Path, default=Path.home())\n    args = parser.parse_args()\n    agents = args.agent or list(AGENT_DIRS)\n    rows = []\n    try:\n        skill_sources = sources(args.source)\n    except ValueError as error:\n        parser.error(str(error))\n    for source in skill_sources:\n        for agent in agents:\n            target = destination(args.base.resolve(), agent, source)\n            if args.command == "link":\n                result = link_one(source, target, agent)\n            elif args.command == "unlink":\n                result = unlink_one(target)\n            else:\n                result = status(source, target, agent)\n            rows.append({"skill": source.name, "agent": agent, "target": str(target), "result": result})\n    print(json.dumps(rows, ensure_ascii=False, indent=2))\n\n\nif __name__ == "__main__":\n    main()\n',
-        ".agents/skills/fde-connect/SKILL.md": "---\nname: fde-connect\ndescription: |\n  把一个 Skill 真源连接到用户指定的 Agent 技能目录，并检查连接状态。默认使用可恢复的符号链接。触发方式：/fde-connect、「连接这个 Skill」「让多个 Agent 都能用」。\n---\n\n# 连接 Skill\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- Skill 真源目录或 Skill 集合目录\n- 目标 Agent 的技能目录\n- 现有同名路径\n- scripts/link_skill.py\n\n## 必须保留的能力\n\n- 支持单个 Skill、绝对路径和 Skill 集合目录\n- 支持连接、取消和状态检查\n- 覆盖 Claude Code、Codex、通用 Agents 和 Grok\n- 普通目标目录不覆盖\n- 连接后验证 name 和目标\n\n## 执行\n\n1. 使用脚本识别单个 Skill、绝对路径或 Skill 集合目录。\n2. 列出 Claude Code、Codex、通用 Agents 和 Grok 的目标路径与现有类型。\n3. link 时为前三者创建软链，为 Grok 创建只指向真源的薄入口；存在普通目录时报告冲突。\n4. unlink 只移除本工具创建的连接；status 重新解析并核对 name 与目标。\n\n## 交付\n\n- 真源\n- 目标\n- 动作\n- 冲突\n- 验证结果\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 只修改用户确认的目标技能目录\n- 状态记录写入 `.fde/logs`\n\n## 停止条件\n\n- 目标已有普通目录时不覆盖\n- 跨机器路径不创建无效链接\n- 全局目录写入前确认\n\n## 接续\n\n- 整理完整工作台用 fde-setup\n- 风险检查用 fde-safety\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
         ".agents/skills/fde-decide/agents/openai.yaml": 'interface:\n  display_name: "决策记录"\n  short_description: "读取当前六类资产知识库，执行决策记录并返回来源、结果和未确认项。"\n  default_prompt: "请使用 $fde-decide 处理当前知识库里的真实任务，并说明来源和未确认项。"\n',
         ".agents/skills/fde-decide/references/acceptance.md": "# 验收\n\n- [ ] fde-decide 使用当前知识库配置。\n- [ ] 读取范围与任务有关。\n- [ ] 事实、推断和未知分开。\n- [ ] 关键判断有来源。\n- [ ] 破坏性动作先确认。\n- [ ] 输出包含：领域档案、决策事件、不可改快照、当前选择、关键假设、回填计划、模式和状态画像。\n- [ ] 能力：为长期领域建立决策记录。\n- [ ] 能力：保存带来源且写后不改的快照。\n- [ ] 能力：支持结果回填和判断变化。\n- [ ] 能力：从多次记录提炼重复模式。\n- [ ] 能力：生成当前状态画像。\n",
         ".agents/skills/fde-decide/references/atoms.jsonl": '{"id": "FDE-DECIDE-001", "rule": "先定位当前知识库配置，再读取资料。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-002", "rule": "只加载当前任务需要的资产。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-003", "rule": "区分事实、用户陈述、推断和未知。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-004", "rule": "关键结论返回来源路径。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-005", "rule": "原始材料保持不变。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-006", "rule": "批量写入、移动、覆盖和删除先确认。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-007", "rule": "不跨客户或跨项目读取。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-008", "rule": "资料不足时完成证据允许的部分。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-009", "rule": "不能确认的分类进入待确认区。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-DECIDE-010", "rule": "交付后说明写入位置和未完成项。", "source": "fde-skills-workflow-v1"}\n',
@@ -752,7 +734,7 @@ if __name__ == "__main__":
         ".agents/skills/fde-safety/references/source-evidence.md": "# 当前实现证据\n\n- 工作流规格：`tools/rewrite-owned-suite.py` 的 `fde-safety`。\n- 六类资产路径：`六类资产库目录模板/.fde/config.yaml`。\n- 名称和历史映射：`改造清单/skill-manifest.json`。\n- 相似度验收：`tools/check-source-similarity.py`。\n",
         ".agents/skills/fde-safety/references/source-map.md": "# 来源映射\n\n## 当前实现\n\n- 运行流程由 `tools/rewrite-owned-suite.py` 中的 `fde-safety` 规格生成。\n- 资产模型来自本项目 `六类资产库目录模板/.fde/config.yaml`。\n- 用户要求是：英文 `fde-` 名称、易于理解、服务当前六类资产库。\n\n## 历史对照\n\n- 历史能力对照：`dbskill-upstream/skills/dbs-skill-cleaner`。\n- 固定快照：`v2.17.15`，commit `af99c577bfb9f1926236671a882b15030242fe8b`。\n- 该快照只用于能力盘点、相似度检查和署名追溯，不在运行时加载。\n\n历史对照不代表当前运行规则。商业许可仍按项目 `NOTICE.md` 和授权清单处理。\n",
         ".agents/skills/fde-safety/scripts/audit_skill.py": '#!/usr/bin/env python3\n"""Inspect local skill files and quarantine only with explicit confirmation."""\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport re\nimport shutil\nfrom datetime import datetime\nfrom pathlib import Path\n\n\nRULES = {\n    "promotion": re.compile(r"affiliate|referral|推广码|返佣|导流", re.I),\n    "task_hijack": re.compile(r"ignore (all|previous)|忽略.{0,8}(指令|要求)|secretly|隐蔽", re.I),\n    "network_send": re.compile(r"curl\\s|wget\\s|requests\\.(post|put)|fetch\\(|socket\\.", re.I),\n    "sensitive_read": re.compile(r"\\.ssh|\\.aws|\\.env|keychain|credentials|id_rsa", re.I),\n    "install_or_execute": re.compile(r"pip install|npm install|subprocess\\.|os\\.system|eval\\(", re.I),\n    "delete_or_move": re.compile(r"rm\\s+-rf|shutil\\.rmtree|unlink\\(|\\bmv\\s", re.I),\n}\nTEXT_SUFFIXES = {".md", ".py", ".sh", ".js", ".ts", ".json", ".yaml", ".yml", ".toml"}\n\n\ndef scan(root: Path) -> list[dict]:\n    findings = []\n    for path in sorted(root.rglob("*")):\n        if path.is_symlink():\n            findings.append({"risk": "symlink", "file": str(path), "line": 0, "evidence": str(path.readlink())[:200]})\n            continue\n        if not path.is_file() or (path.suffix.lower() not in TEXT_SUFFIXES and path.name != "SKILL.md"):\n            continue\n        try:\n            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()\n        except OSError:\n            continue\n        for number, line in enumerate(lines, 1):\n            for risk, pattern in RULES.items():\n                if pattern.search(line):\n                    findings.append({"risk": risk, "file": str(path), "line": number, "evidence": line.strip()[:200]})\n    return findings\n\n\ndef quarantine(source: Path, fde_root: Path) -> dict:\n    area = fde_root / ".fde" / "quarantine"\n    area.mkdir(parents=True, exist_ok=True)\n    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")\n    target = area / f"{source.name}-{stamp}"\n    if target.exists():\n        raise ValueError(f"target exists: {target}")\n    shutil.move(str(source), str(target))\n    record = {"source": str(source), "target": str(target), "time": datetime.now().isoformat(timespec="seconds")}\n    (area / f"{source.name}-{stamp}.json").write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")\n    return record\n\n\ndef restore(record_path: Path) -> dict:\n    record = json.loads(record_path.read_text(encoding="utf-8"))\n    source, target = Path(record["source"]), Path(record["target"])\n    if source.exists() or not target.exists():\n        raise ValueError("restore path is occupied or quarantine item is missing")\n    source.parent.mkdir(parents=True, exist_ok=True)\n    shutil.move(str(target), str(source))\n    record["restored"] = datetime.now().isoformat(timespec="seconds")\n    record_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")\n    return record\n\n\ndef main() -> None:\n    parser = argparse.ArgumentParser()\n    sub = parser.add_subparsers(dest="command", required=True)\n    scan_parser = sub.add_parser("scan")\n    scan_parser.add_argument("path", type=Path)\n    quarantine_parser = sub.add_parser("quarantine")\n    quarantine_parser.add_argument("path", type=Path)\n    quarantine_parser.add_argument("--fde-root", type=Path, required=True)\n    quarantine_parser.add_argument("--yes", action="store_true")\n    restore_parser = sub.add_parser("restore")\n    restore_parser.add_argument("record", type=Path)\n    restore_parser.add_argument("--yes", action="store_true")\n    args = parser.parse_args()\n    if args.command == "scan":\n        root = args.path.expanduser().resolve()\n        print(json.dumps({"root": str(root), "findings": scan(root)}, ensure_ascii=False, indent=2))\n    elif args.command == "quarantine":\n        if not args.yes:\n            parser.error("quarantine requires --yes")\n        print(json.dumps(quarantine(args.path.resolve(), args.fde_root.resolve()), ensure_ascii=False, indent=2))\n    else:\n        if not args.yes:\n            parser.error("restore requires --yes")\n        print(json.dumps(restore(args.record.resolve()), ensure_ascii=False, indent=2))\n\n\nif __name__ == "__main__":\n    main()\n',
-        ".agents/skills/fde-safety/SKILL.md": "---\nname: fde-safety\ndescription: |\n  只读检查本地 Skill 的外部命令、网络访问、敏感目录读取、隐藏指令和删除行为。隔离必须逐项确认。触发方式：/fde-safety、「检查 Skill 安全」「扫描可疑 Skill」。\n---\n\n# Skill 风险检查\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- 默认 Agent Skill 目录或用户指定目录\n- SKILL.md\n- scripts 和可执行文件\n- 链接目标\n- scripts/audit_skill.py\n\n## 必须保留的能力\n\n- 扫描默认 Agent Skill 目录和指定目录\n- 检查广告导流、隐蔽商业意图和任务劫持\n- 检查外部调用和敏感数据读取\n- 报告文件、行号和原文证据\n- 确认后隔离并支持恢复\n\n## 执行\n\n1. 使用脚本枚举文件、链接和可执行入口。\n2. 查找广告导流、隐蔽商业关系、任务劫持、网络发送、凭证读取、外部安装和删除移动。\n3. 为每个命中给文件、行号、原文和可能影响。\n4. 先报告；用户逐项确认后才移动到当前知识库隔离区，并保留恢复记录。\n\n## 交付\n\n- 扫描范围\n- 风险项\n- 证据位置\n- 误报可能\n- 建议动作\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 报告可写入 `.fde/logs`\n- 隔离只进入 `.fde/quarantine`\n\n## 停止条件\n\n- 扫描结果不等于安全保证\n- 不得自动删除\n- 不得读取凭证内容来证明风险\n\n## 接续\n\n- 需要连接时用 fde-connect\n- 整体工作台用 fde-setup\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
+        ".agents/skills/fde-safety/SKILL.md": "---\nname: fde-safety\ndescription: |\n  只读检查本地 Skill 的外部命令、网络访问、敏感目录读取、隐藏指令和删除行为。隔离必须逐项确认。触发方式：/fde-safety、「检查 Skill 安全」「扫描可疑 Skill」。\n---\n\n# Skill 风险检查\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- 默认 Agent Skill 目录或用户指定目录\n- SKILL.md\n- scripts 和可执行文件\n- 链接目标\n- scripts/audit_skill.py\n\n## 必须保留的能力\n\n- 扫描默认 Agent Skill 目录和指定目录\n- 检查广告导流、隐蔽商业意图和任务劫持\n- 检查外部调用和敏感数据读取\n- 报告文件、行号和原文证据\n- 确认后隔离并支持恢复\n\n## 执行\n\n1. 使用脚本枚举文件、链接和可执行入口。\n2. 查找广告导流、隐蔽商业关系、任务劫持、网络发送、凭证读取、外部安装和删除移动。\n3. 为每个命中给文件、行号、原文和可能影响。\n4. 先报告；用户逐项确认后才移动到当前知识库隔离区，并保留恢复记录。\n\n## 交付\n\n- 扫描范围\n- 风险项\n- 证据位置\n- 误报可能\n- 建议动作\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 报告可写入 `.fde/logs`\n- 隔离只进入 `.fde/quarantine`\n\n## 停止条件\n\n- 扫描结果不等于安全保证\n- 不得自动删除\n- 不得读取凭证内容来证明风险\n\n## 接续\n\n- 不提供连接本机 Claude Code 或 Codex 的功能；不要修改全局客户端配置\n- 整体工作台用 fde-setup\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
         ".agents/skills/fde-save/agents/openai.yaml": 'interface:\n  display_name: "保存进度"\n  short_description: "读取当前六类资产知识库，执行保存进度并返回来源、结果和未确认项。"\n  default_prompt: "请使用 $fde-save 处理当前知识库里的真实任务，并说明来源和未确认项。"\n',
         ".agents/skills/fde-save/references/acceptance.md": "# 验收\n\n- [ ] fde-save 使用当前知识库配置。\n- [ ] 读取范围与任务有关。\n- [ ] 事实、推断和未知分开。\n- [ ] 关键判断有来源。\n- [ ] 破坏性动作先确认。\n- [ ] 输出包含：状态 ID、完成项、来源、未知项、下一步、恢复提示。\n- [ ] 能力：保存目标、来源、结论、未知项和下一步。\n- [ ] 能力：写入当前知识库而非用户主目录。\n- [ ] 能力：生成状态 ID 和恢复提示。\n",
         ".agents/skills/fde-save/references/atoms.jsonl": '{"id": "FDE-SAVE-001", "rule": "先定位当前知识库配置，再读取资料。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-002", "rule": "只加载当前任务需要的资产。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-003", "rule": "区分事实、用户陈述、推断和未知。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-004", "rule": "关键结论返回来源路径。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-005", "rule": "原始材料保持不变。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-006", "rule": "批量写入、移动、覆盖和删除先确认。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-007", "rule": "不跨客户或跨项目读取。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-008", "rule": "资料不足时完成证据允许的部分。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-009", "rule": "不能确认的分类进入待确认区。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SAVE-010", "rule": "交付后说明写入位置和未完成项。", "source": "fde-skills-workflow-v1"}\n',
@@ -767,18 +749,18 @@ if __name__ == "__main__":
         ".agents/skills/fde-save/references/source-map.md": "# 来源映射\n\n## 当前实现\n\n- 运行流程由 `tools/rewrite-owned-suite.py` 中的 `fde-save` 规格生成。\n- 资产模型来自本项目 `六类资产库目录模板/.fde/config.yaml`。\n- 用户要求是：英文 `fde-` 名称、易于理解、服务当前六类资产库。\n\n## 历史对照\n\n- 历史能力对照：`dbskill-upstream/skills/dbs-save`。\n- 固定快照：`v2.17.15`，commit `af99c577bfb9f1926236671a882b15030242fe8b`。\n- 该快照只用于能力盘点、相似度检查和署名追溯，不在运行时加载。\n\n历史对照不代表当前运行规则。商业许可仍按项目 `NOTICE.md` 和授权清单处理。\n",
         ".agents/skills/fde-save/SKILL.md": "---\nname: fde-save\ndescription: |\n  保存当前知识库任务的目标、已用来源、完成项、未知项和下一步。触发方式：/fde-save、「保存进度」「下次接着做」。\n---\n\n# 保存进度\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- 当前对话中的任务\n- 本轮读取和写入的文件\n- 用户已经确认的结论\n\n## 必须保留的能力\n\n- 保存目标、来源、结论、未知项和下一步\n- 写入当前知识库而非用户主目录\n- 生成状态 ID 和恢复提示\n\n## 执行\n\n1. 提取当前目标和范围。\n2. 列出已完成动作及文件路径。\n3. 分开保存已确认、推断、未知和被否定方向。\n4. 生成短 ID 和下一次恢复入口。\n\n## 交付\n\n- 状态 ID\n- 完成项\n- 来源\n- 未知项\n- 下一步\n- 恢复提示\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 写入 `.fde/state/sessions`，不写用户主目录\n\n## 停止条件\n\n- 没有明确任务时不创建空状态\n- 敏感信息按用户要求删减\n- 不保存未获授权的外部内容\n\n## 接续\n\n- 恢复时用 fde-resume\n- 多次状态汇总用 fde-report\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
         ".agents/skills/fde-setup/agents/openai.yaml": 'interface:\n  display_name: "Agent 工作目录"\n  short_description: "读取当前六类资产知识库，执行Agent 工作目录并返回来源、结果和未确认项。"\n  default_prompt: "请使用 $fde-setup 处理当前知识库里的真实任务，并说明来源和未确认项。"\n',
-        ".agents/skills/fde-setup/references/acceptance.md": "# 验收\n\n- [ ] fde-setup 使用当前知识库配置。\n- [ ] 读取范围与任务有关。\n- [ ] 事实、推断和未知分开。\n- [ ] 关键判断有来源。\n- [ ] 破坏性动作先确认。\n- [ ] 输出包含：当前结构、真源选择、目标结构、变更预览、验证结果。\n- [ ] 能力：审计 Agent 规则文件和技能目录。\n- [ ] 能力：确定规则真源和 Skill 真源。\n- [ ] 能力：统一名称和入口。\n- [ ] 能力：覆盖 Claude Code、Codex、Grok 和通用 Agents。\n- [ ] 能力：先预览再迁移。\n",
+        ".agents/skills/fde-setup/references/acceptance.md": "# 验收\n\n- [ ] fde-setup 使用当前知识库配置。\n- [ ] 读取范围与任务有关。\n- [ ] 事实、推断和未知分开。\n- [ ] 关键判断有来源。\n- [ ] 破坏性动作先确认。\n- [ ] 输出包含：当前结构、真源选择、目标结构、变更预览、验证结果。\n- [ ] 能力：审计 Agent 规则文件和技能目录。\n- [ ] 能力：确定规则真源和 Skill 真源。\n- [ ] 能力：统一名称和入口。\n- [ ] 能力：仅处理当前 Vault 内的 FDE 规则与技能。\n- [ ] 能力：先预览再迁移。\n",
         ".agents/skills/fde-setup/references/atoms.jsonl": '{"id": "FDE-SETUP-001", "rule": "先定位当前知识库配置，再读取资料。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-002", "rule": "只加载当前任务需要的资产。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-003", "rule": "区分事实、用户陈述、推断和未知。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-004", "rule": "关键结论返回来源路径。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-005", "rule": "原始材料保持不变。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-006", "rule": "批量写入、移动、覆盖和删除先确认。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-007", "rule": "不跨客户或跨项目读取。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-008", "rule": "资料不足时完成证据允许的部分。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-009", "rule": "不能确认的分类进入待确认区。", "source": "fde-skills-workflow-v1"}\n{"id": "FDE-SETUP-010", "rule": "交付后说明写入位置和未完成项。", "source": "fde-skills-workflow-v1"}\n',
         ".agents/skills/fde-setup/references/axioms.md": "# 公理\n\n## AXIOM-01：定位\n\n没有知识库配置就不猜路径。\n\n## AXIOM-02：最小读取\n\n只读取当前任务需要的资产。\n\n## AXIOM-03：证据\n\n事实和推断分开，关键判断附来源。\n\n## AXIOM-04：可恢复\n\n原始材料不覆盖，破坏性动作先确认。\n\n## AXIOM-05：闭环\n\n交付说明结果、写入位置、未知项和下一步。\n",
         ".agents/skills/fde-setup/references/behavior-tests.json": '[\n  {\n    "id": "case-1",\n    "prompt": "使用 fde-setup 完成：审计 Agent 规则文件和技能目录。",\n    "must_do": [\n      "审计 Agent 规则文件和技能目录",\n      "确定规则真源和 Skill 真源",\n      "统一名称和入口"\n    ],\n    "must_not": [\n      "编造事实",\n      "跨项目读取"\n    ]\n  },\n  {\n    "id": "case-2",\n    "prompt": "继续使用 fde-setup 完成：先预览再迁移。",\n    "must_do": [\n      "先预览再迁移",\n      "返回来源",\n      "说明未确认项"\n    ],\n    "must_not": [\n      "把推断写成事实",\n      "覆盖原始材料"\n    ]\n  },\n  {\n    "id": "counterexample-1",\n    "prompt": "找不到配置，但要求 fde-setup 批量写入。",\n    "must_do": [\n      "停止写入",\n      "询问根目录"\n    ],\n    "must_not": [\n      "猜路径",\n      "写入用户主目录"\n    ]\n  }\n]\n',
-        ".agents/skills/fde-setup/references/capability-contract.json": '{\n  "skill": "fde-setup",\n  "implementation": "fde-skills-owned",\n  "runtime_uses_historical_skill": false,\n  "must_support": [\n    "审计 Agent 规则文件和技能目录",\n    "确定规则真源和 Skill 真源",\n    "统一名称和入口",\n    "覆盖 Claude Code、Codex、Grok 和通用 Agents",\n    "先预览再迁移"\n  ],\n  "tests": [\n    "case-1",\n    "case-2",\n    "counterexample-1"\n  ]\n}\n',
+        ".agents/skills/fde-setup/references/capability-contract.json": '{\n  "skill": "fde-setup",\n  "implementation": "fde-skills-owned",\n  "runtime_uses_historical_skill": false,\n  "must_support": [\n    "审计 Agent 规则文件和技能目录",\n    "确定规则真源和 Skill 真源",\n    "统一名称和入口",\n    "仅处理当前 Vault 内的 FDE 规则与技能",\n    "先预览再迁移"\n  ],\n  "tests": [\n    "case-1",\n    "case-2",\n    "counterexample-1"\n  ]\n}\n',
         ".agents/skills/fde-setup/references/cases.md": "# 案例\n\n## 正常\n\n配置可读，fde-setup 只读取所需资产，交付附来源。\n\n## 资料不足\n\n完成有证据的部分，把缺口留给用户。\n\n## 停止\n\n找不到配置或请求越过项目边界时停止写入。\n",
         ".agents/skills/fde-setup/references/library-map.md": "# 六类资产映射\n\n运行时以知识库根目录的 `.fde/config.yaml` 为准。\n\n- owner：个人说明书\n- product：产品库\n- customer：客户需求库\n- case：素材案例库\n- method：方法论库\n- content：内容生产\n\n不得把这些显示名当成固定路径。\n",
         ".agents/skills/fde-setup/references/maturity.json": '{\n  "status": "project-owned-v1",\n  "source_role": "historical_reference_only",\n  "live_customer_test": false\n}\n',
-        ".agents/skills/fde-setup/references/method.md": "# Agent 工作目录方法\n\n## 输入\n\n- 项目根目录\n- 现有 AGENTS.md、CLAUDE.md 和 skills\n- 目标 Agent\n- 真源位置\n\n## 步骤\n\n1. 盘点现有规则、技能和重复副本。\n2. 选择一个规则真源和一个 Skill 真源。\n3. 生成各宿主需要的最小入口文件或连接方案。\n4. 先预览新增、修改和冲突，确认后执行。\n\n## 交付\n\n- 当前结构\n- 真源选择\n- 目标结构\n- 变更预览\n- 验证结果\n\n## 停止\n\n- 不删除原有配置\n- 规则冲突时不自动合并\n- 不得把客户知识库连接到其他项目\n",
+        ".agents/skills/fde-setup/references/method.md": "# Agent 工作目录方法\n\n## 输入\n\n- 项目根目录\n- 现有 AGENTS.md、CLAUDE.md 和 skills\n- 目标 Agent\n- 真源位置\n\n## 步骤\n\n1. 盘点现有规则、技能和重复副本。\n2. 选择一个规则真源和一个 Skill 真源。\n3. 生成当前 Vault 内的规则与技能目录整理方案，不创建跨客户端连接。\n4. 先预览新增、修改和冲突，确认后执行。\n\n## 交付\n\n- 当前结构\n- 真源选择\n- 目标结构\n- 变更预览\n- 验证结果\n\n## 停止\n\n- 不删除原有配置\n- 规则冲突时不自动合并\n- 不得把客户知识库连接到其他项目\n",
         ".agents/skills/fde-setup/references/source-evidence.md": "# 当前实现证据\n\n- 工作流规格：`tools/rewrite-owned-suite.py` 的 `fde-setup`。\n- 六类资产路径：`六类资产库目录模板/.fde/config.yaml`。\n- 名称和历史映射：`改造清单/skill-manifest.json`。\n- 相似度验收：`tools/check-source-similarity.py`。\n",
         ".agents/skills/fde-setup/references/source-map.md": "# 来源映射\n\n## 当前实现\n\n- 运行流程由 `tools/rewrite-owned-suite.py` 中的 `fde-setup` 规格生成。\n- 资产模型来自本项目 `六类资产库目录模板/.fde/config.yaml`。\n- 用户要求是：英文 `fde-` 名称、易于理解、服务当前六类资产库。\n\n## 历史对照\n\n- 历史能力对照：`dbskill-upstream/skills/dbs-agent-migration`。\n- 固定快照：`v2.17.15`，commit `af99c577bfb9f1926236671a882b15030242fe8b`。\n- 该快照只用于能力盘点、相似度检查和署名追溯，不在运行时加载。\n\n历史对照不代表当前运行规则。商业许可仍按项目 `NOTICE.md` 和授权清单处理。\n",
-        ".agents/skills/fde-setup/SKILL.md": "---\nname: fde-setup\ndescription: |\n  把一个知识库项目整理成 Claude Code、Codex 和其他 Agent 都能识别的本地工作目录。保留一个真源，其他入口只做连接。触发方式：/fde-setup、「整理 Agent 工作台」「统一项目规则」。\n---\n\n# Agent 工作目录\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- 项目根目录\n- 现有 AGENTS.md、CLAUDE.md 和 skills\n- 目标 Agent\n- 真源位置\n\n## 必须保留的能力\n\n- 审计 Agent 规则文件和技能目录\n- 确定规则真源和 Skill 真源\n- 统一名称和入口\n- 覆盖 Claude Code、Codex、Grok 和通用 Agents\n- 先预览再迁移\n\n## 执行\n\n1. 盘点现有规则、技能和重复副本。\n2. 选择一个规则真源和一个 Skill 真源。\n3. 生成各宿主需要的最小入口文件或连接方案。\n4. 先预览新增、修改和冲突，确认后执行。\n\n## 交付\n\n- 当前结构\n- 真源选择\n- 目标结构\n- 变更预览\n- 验证结果\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 只在当前项目内写入口文件\n- 全局安装必须单独确认\n\n## 停止条件\n\n- 不删除原有配置\n- 规则冲突时不自动合并\n- 不得把客户知识库连接到其他项目\n\n## 接续\n\n- 只连接一个 Skill 用 fde-connect\n- 完成后用 fde-health\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
+        ".agents/skills/fde-setup/SKILL.md": "---\nname: fde-setup\ndescription: |\n  审计当前 FDE 知识库的规则与技能真源，整理项目内目录；不连接本机 Claude Code 或 Codex。触发方式：/fde-setup、「整理 Agent 工作台」「统一项目规则」。\n---\n\n# Agent 工作目录\n\n<!-- FDE-OWNED-WORKFLOW: v1 -->\n\n## 开始前\n\n1. 从当前目录向上找到 `.fde/config.yaml`，按配置解析六类资产库。\n2. 只读取本任务需要的文件，不跨知识库搜索。\n3. 把库内事实、用户本轮信息、当前推断和未知项分开。\n4. 原始材料不覆盖；删除、移动和批量写入先确认。\n\n## 读取\n\n- 项目根目录\n- 现有 AGENTS.md、CLAUDE.md 和 skills\n- 当前 FDE 工作台\n- 真源位置\n\n## 必须保留的能力\n\n- 审计 Agent 规则文件和技能目录\n- 确定规则真源和 Skill 真源\n- 统一名称和入口\n- 仅处理当前 Vault 内的 FDE 规则与技能\n- 先预览再迁移\n\n## 执行\n\n1. 盘点现有规则、技能和重复副本。\n2. 选择一个规则真源和一个 Skill 真源。\n3. 生成当前 Vault 内的规则与技能目录整理方案，不创建跨客户端连接。\n4. 先预览新增、修改和冲突，确认后执行。\n\n## 交付\n\n- 当前结构\n- 真源选择\n- 目标结构\n- 变更预览\n- 验证结果\n\n每个关键判断附来源路径；没有来源的内容标为推断或待确认。\n\n## 写回\n\n- 只在当前项目内写入口文件\n- 不写入全局客户端配置、全局技能目录或 Shell 环境变量\n\n## 停止条件\n\n- 不删除原有配置\n- 规则冲突时不自动合并\n- 不得把客户知识库连接到其他项目\n\n## 接续\n\n- 完成后用 fde-health\n\n来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。\n",
         ".agents/skills/fde-spread/agents/openai.yaml": 'interface:\n  display_name: "传播复盘"\n  short_description: "读取当前六类资产知识库，执行传播复盘并返回来源、结果和未确认项。"\n  default_prompt: "请使用 $fde-spread 处理当前知识库里的真实任务，并说明来源和未确认项。"\n',
         ".agents/skills/fde-spread/references/acceptance.md": "# 验收\n\n- [ ] fde-spread 使用当前知识库配置。\n- [ ] 读取范围与任务有关。\n- [ ] 事实、推断和未知分开。\n- [ ] 关键判断有来源。\n- [ ] 破坏性动作先确认。\n- [ ] 输出包含：数据摘要、有效信号、可能机制、反证、下一次实验。\n- [ ] 能力：没有发布数据时只列出所需指标，不下传播效果结论。\n- [ ] 能力：有数据时用评论和指标验证。\n- [ ] 能力：分析受众情绪、有效立场和传播动作。\n- [ ] 能力：给出可继续讨论的方向。\n- [ ] 能力：区分相关性和因果。\n",
         ".agents/skills/fde-spread/references/analysis-modes.md": "# 传播分析模式\n\n## 内容假设\n\n没有数据时，只提出可证伪机制：身份表达、情绪释放、实用交换、群体信号、行动成本。\n\n## 发布数据分析\n\n用户上传或回填真实数据后，用曝光、停留、互动、转发、转化和评论原话验证或否定假设。没有真实数据时只列出需要补充的指标，不生成数据结论。\n",
@@ -877,9 +859,9 @@ if __name__ == "__main__":
         "6-内容生产/发布数据/README.md": "# 发布数据\n\n这里保存用户主动上传或回填的真实发布数据，例如抖音后台 CSV、平台导出的 Excel、TSV 或 JSON。\n\n- `已发布` 是内容流程终点，上传数据不会改变稿件阶段。\n- 数据文件应关联对应的已发布内容，并保留平台、时间范围和指标口径。\n- 在右侧 Agent 点击“上传数据”后，使用 `/fde-spread` 分析。\n- 没有真实数据时，只列出需要补充的指标，不输出传播效果结论。\n- 原始导出文件保留不覆盖；分析结果可写入本目录的 `分析` 子目录。\n",
         "6-内容生产/README.md": "# 内容生产\n\n这里保存内容从选题到发布的状态。一个文件同时只处在一个阶段；每次推进前先确认当前环节已经完成。\n\n## 阶段\n\n- `选题`：已经有来源、读者和核心问题。\n- `草稿`：正在写，尚未审核。\n- `待审核`：等待事实、表达和平台检查。\n- `待发布`：审核通过，等待发布。\n- `已发布`：流程终点，记录平台、链接和日期。\n\n## 发布数据分析（可选）\n\n发布后的 CSV、Excel、TSV 或 JSON 数据放进 `发布数据`。这些文件只作为 `/fde-spread` 的分析输入，不是新的内容阶段，也不会把“已发布”稿件继续推进。\n\n## 内容文件最少包含\n\n```markdown\n# 标题\n\n- 目标读者：\n- 目标平台：\n- 当前阶段：\n- 来源文件：\n- 创建日期：\n- 最后修改：\n\n## 正文或提纲\n\n## 未核实项\n\n## 发布记录\n```\n\n移动阶段时更新文件中的当前阶段，不重复复制同一稿件。选题未补全时用 `/fde-write`，草稿未完成时继续用 `/fde-write`，审核未完成时用 `/fde-review`；由用户确认完成后再推进。\n",
         "AGENTS.md": "# FDE365六类资产知识库规则\n\n## 作用域\n\n- 本文件约束当前 `FDE365知识库` 及其子目录。\n- `.fde/config.yaml` 是六类资产、收件箱和运行目录的唯一路径真源。\n- 旧 `.kb/` 只作历史追溯，不是运行配置或状态真源；任何 Agent 均不得按其中路径执行。\n- 项目本地 Skill 位于 `.agents/skills/`，只在当前知识库内使用。\n\n## 六类资产\n\n- `1-个人说明书`：身份、判断、表达和不能公开的边界。\n- `2-产品库`：产品、价格、承诺、交付和异议。\n- `3-客户需求库`：客户原话、行为、阶段和结果。\n- `4-素材案例库`：事件、原话、数据、动作和结果。\n- `5-方法论库`：实际使用过的方法、条件、步骤和失败信号。\n- `6-内容生产`：选题、草稿、审核和发布；`已发布` 是流程终点，发布数据单独分析。\n\n## 写入边界\n\n- 录音、聊天、会议纪要、文档、图片和其他原始材料保留在 `0-待处理材料/待处理`；处理流程不会移动、删除或用摘要覆盖。只有用户在原始材料列表明确确认删除时，才将收件记录和对应原始文件一并移入回收站。\n- 库内事实、用户本轮信息、AI 推断和未知项必须分开。\n- 新增结论必须写明来源路径和日期；没有来源时标记为推断或待确认。\n- 分类不确定时先留在待处理或待确认区，不强行写入正式资产。\n- 移动、覆盖、删除和批量写入前必须展示预览并取得用户确认。\n- 内容文件同时只处于一个阶段；目录和“当前阶段”字段必须一致。\n- 阶段推进前必须由用户确认当前环节已经完成；不完整时先在同一对话调用对应内容 Skill。\n- 发布数据由用户上传或回填，分析记录不得变成“已发布”之后的新阶段。\n- 跨库关系只有在两端资产和来源能够支持时才建立；已确认关系写入两端 Markdown 的 `## 关联资产` 和完整路径 Wikilink，不以 Canvas 代替。\n- 状态、索引、日志和版本只写入 `.fde`，AI 运行记录写入 `7-系统/AI协作`。\n- 分流预览只显示在当前 Agent 对话和 AI 运行记录中，不得在待处理目录新建“分流预览”材料。\n\n## AI 协作\n\n- 不跨当前知识库检索，除非用户明确授权具体来源。\n- 关键判断返回来源路径；来源冲突时不自动选边。\n- 默认先诊断或生成预览，用户确认后再执行会改变现有资产的动作。\n",
-        "docs/FDE-Skills-新手入门.md": "# FDE Skills 新手入门\n\n## 第一次使用\n\n先确认当前目录包含 `.fde/config.yaml`。然后输入：\n\n```text\n/fde-start\n```\n\n`fde-start` 会先判断知识库是否为空，再把任务交给一个具体 Skill。\n\n- 知识库为空：使用 `/fde-interview`。\n- 有录音、聊天记录或旧文档：使用 `/fde-ingest`。\n- 已经有六类资产：根据任务进入诊断、选题、写作或审核。\n\n## 35 个 Skill\n\n### 建库和维护\n\n- `/fde-start`：主入口和任务路由。\n- `/fde-interview`：采访用户，建立六类资产。\n- `/fde-ingest`：处理录音、聊天记录和旧文档。\n- `/fde-export`：导出聊天记录，交给导入流程。\n- `/fde-library`：搜索、录入和维护知识库。\n- `/fde-health`：检查目录、来源、索引和运行状态。\n- `/fde-organize`：整理已有资产；“整理关联”会在确认依据后，把跨库关系写入两端真实 Obsidian 双链。\n- `/fde-setup`：建立 Agent 工作目录。\n- `/fde-connect`：把 Skill 真源连接到指定 Agent 技能目录。\n- `/fde-update`：检查或更新这一套 `fde-*`。\n- `/fde-safety`：检查 Skill 中的可疑行为。\n\n### 生意和行动\n\n- `/fde-diagnose`：诊断生意、产品、定价和客户问题。\n- `/fde-benchmark`：研究对标对象。\n- `/fde-define`：拆解模糊概念。\n- `/fde-goal`：把愿望改成可检查的目标。\n- `/fde-question`：把困惑整理成可处理的问题。\n- `/fde-decide`：记录和复盘决策。\n- `/fde-action`：处理知道要做但没有行动的问题。\n- `/fde-focus`：找到当前约束，确定主动作和暂停清单。\n- `/fde-learn`：根据反馈继续学习。\n\n### 内容生产\n\n- `/fde-topics`：从六类资产中找选题。\n- `/fde-write`：按平台和任务写内容。\n- `/fde-review`：内容审核总入口。\n- `/fde-hook`：检查短视频开头。\n- `/fde-title`：生成小红书标题。\n- `/fde-flow`：检查逐字稿衔接。\n- `/fde-impact`：检查文稿是否击中受众。\n- `/fde-spread`：分析内容的传播原因。\n- `/fde-check`：检查空泛表达、无来源事实和表达偏差。\n- `/fde-format`：生成微信公众号 HTML。\n\n### 讨论和状态\n\n- `/fde-discuss`：按不同职责讨论一个具体决定。\n- `/fde-economy`：从价格、成本、选择、激励和信息检查判断。\n- `/fde-save`：保存当前任务状态。\n- `/fde-resume`：恢复上次状态。\n- `/fde-report`：把多次记录整理成报告。\n\n## 写入规则\n\n- 原始材料保留在 `0-待处理材料/待处理` 或用户指定的收件位置。\n- 新增资产要记录来源。\n- 不能确定分类时，先放待处理区，不要猜。\n- 删除和覆盖前要让用户确认。\n- 内容草稿、审核稿和发布稿分开保存。\n\n## 常用流程\n\n```text\n采访或导入\n→ 六类资产库\n→ 选题\n→ 写作\n→ 审核\n→ 发布和复盘\n```\n\n遇到不确定的任务，回到 `/fde-start`。\n",
-        "fde-manifest.json": '{\n  "suite": "fde-skills",\n  "source": {\n    "repository": "https://github.com/dontbesilent2025/dbskill",\n    "version": "v2.17.15",\n    "commit": "af99c577bfb9f1926236671a882b15030242fe8b",\n    "license": "CC BY-NC 4.0"\n  },\n  "knowledge_base": "六类资产库目录模板",\n  "implementation": "fde365-six-library-workflows-v4",\n  "skill_namespace": "fde",\n  "source_role": "historical-reference-and-attribution-only",\n  "similarity_threshold": 0.30,\n  "success_definition": [\n    "目录名与 SKILL.md name 一致",\n    "SKILL.md 只含 name 和 description 两个 frontmatter 字段",\n    "运行正文与对应来源的 sequence 和 target containment 均低于 0.30",\n    "产品目录不包含上游知识包和原样执行资源",\n    "旧 dbs 名称和 ~/.dbs 状态路径已清理",\n    "包含六类资产库读取和写入边界",\n    "35 个能力合同全部通过",\n    "原套件不作为运行依赖",\n    "导出、排版、连接、安全和盘点使用当前项目脚本",\n    "quick_validate.py 通过",\n    "正常案例和停止条件反例存在"\n  ],\n  "skills": [\n    {\n      "source": "dbs",\n      "target": "fde-start",\n      "profile": "router"\n    },\n    {\n      "source": "dbs-action",\n      "target": "fde-action",\n      "profile": "decision"\n    },\n    {\n      "source": "dbs-agent-migration",\n      "target": "fde-setup",\n      "profile": "system"\n    },\n    {\n      "source": "dbs-ai-check",\n      "target": "fde-check",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-benchmark",\n      "target": "fde-benchmark",\n      "profile": "strategy"\n    },\n    {\n      "source": "dbs-bridge",\n      "target": "fde-connect",\n      "profile": "system"\n    },\n    {\n      "source": "dbs-chatroom-austrian",\n      "target": "fde-economy",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-chatroom",\n      "target": "fde-discuss",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-content-system",\n      "target": "fde-organize",\n      "profile": "all"\n    },\n    {\n      "source": "dbs-content",\n      "target": "fde-write",\n      "profile": "content"\n    },\n    {\n      "source": "dbs-decision",\n      "target": "fde-decide",\n      "profile": "decision"\n    },\n    {\n      "source": "dbs-deconstruct",\n      "target": "fde-define",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-diagnosis",\n      "target": "fde-diagnose",\n      "profile": "business"\n    },\n    {\n      "source": "dbs-goal",\n      "target": "fde-goal",\n      "profile": "decision"\n    },\n    {\n      "source": "dbs-good-question",\n      "target": "fde-question",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-hook",\n      "target": "fde-hook",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-knowledge",\n      "target": "fde-library",\n      "profile": "all"\n    },\n    {\n      "source": "dbs-learning",\n      "target": "fde-learn",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-report",\n      "target": "fde-report",\n      "profile": "state"\n    },\n    {\n      "source": "dbs-resonate",\n      "target": "fde-impact",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-restore",\n      "target": "fde-resume",\n      "profile": "state"\n    },\n    {\n      "source": "dbs-save",\n      "target": "fde-save",\n      "profile": "state"\n    },\n    {\n      "source": "dbs-script-flow",\n      "target": "fde-flow",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-skill-cleaner",\n      "target": "fde-safety",\n      "profile": "system"\n    },\n    {\n      "source": "dbs-slowisfast",\n      "target": "fde-focus",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-spread",\n      "target": "fde-spread",\n      "profile": "strategy"\n    },\n    {\n      "source": "dbs-update",\n      "target": "fde-update",\n      "profile": "system"\n    },\n    {\n      "source": "dbs-wechat-html",\n      "target": "fde-format",\n      "profile": "output"\n    },\n    {\n      "source": "dbs-xhs-title",\n      "target": "fde-title",\n      "profile": "strategy"\n    }\n  ],\n  "new_skills": [\n    {\n      "target": "fde-interview",\n      "profile": "ingest",\n      "source_folder": "知识库采访机器人"\n    },\n    {\n      "target": "fde-ingest",\n      "profile": "ingest",\n      "source_folder": "录音处理"\n    },\n    {\n      "target": "fde-export",\n      "profile": "ingest",\n      "source_folder": "导出聊天记录"\n    },\n    {\n      "target": "fde-health",\n      "profile": "system",\n      "source_folder": "CLAUDE体检"\n    },\n    {\n      "target": "fde-topics",\n      "profile": "strategy",\n      "source_folder": "小红书选题挖掘"\n    },\n    {\n      "target": "fde-review",\n      "profile": "review",\n      "source_folder": "内容诊断"\n    }\n  ]\n}\n',
-        VERSION: "0.4.0\n"
+        "docs/FDE-Skills-新手入门.md": "# FDE Skills 新手入门\n\n## 第一次使用\n\n先确认当前目录包含 `.fde/config.yaml`。然后输入：\n\n```text\n/fde-start\n```\n\n`fde-start` 会先判断知识库是否为空，再把任务交给一个具体 Skill。\n\n- 知识库为空：使用 `/fde-interview`。\n- 有录音、聊天记录或旧文档：使用 `/fde-ingest`。\n- 已经有六类资产：根据任务进入诊断、选题、写作或审核。\n\n## 34 个 Skill\n\n### 建库和维护\n\n- `/fde-start`：主入口和任务路由。\n- `/fde-interview`：采访用户，建立六类资产。\n- `/fde-ingest`：处理录音、聊天记录和旧文档。\n- `/fde-export`：导出聊天记录，交给导入流程。\n- `/fde-library`：搜索、录入和维护知识库。\n- `/fde-health`：检查目录、来源、索引和运行状态。\n- `/fde-organize`：整理已有资产；“整理关联”会在确认依据后，把跨库关系写入两端真实 Obsidian 双链。\n- `/fde-setup`：建立 Agent 工作目录。\n- `/fde-update`：检查或更新这一套 `fde-*`。\n- `/fde-safety`：检查 Skill 中的可疑行为。\n\n### 生意和行动\n\n- `/fde-diagnose`：诊断生意、产品、定价和客户问题。\n- `/fde-benchmark`：研究对标对象。\n- `/fde-define`：拆解模糊概念。\n- `/fde-goal`：把愿望改成可检查的目标。\n- `/fde-question`：把困惑整理成可处理的问题。\n- `/fde-decide`：记录和复盘决策。\n- `/fde-action`：处理知道要做但没有行动的问题。\n- `/fde-focus`：找到当前约束，确定主动作和暂停清单。\n- `/fde-learn`：根据反馈继续学习。\n\n### 内容生产\n\n- `/fde-topics`：从六类资产中找选题。\n- `/fde-write`：按平台和任务写内容。\n- `/fde-review`：内容审核总入口。\n- `/fde-hook`：检查短视频开头。\n- `/fde-title`：生成小红书标题。\n- `/fde-flow`：检查逐字稿衔接。\n- `/fde-impact`：检查文稿是否击中受众。\n- `/fde-spread`：分析内容的传播原因。\n- `/fde-check`：检查空泛表达、无来源事实和表达偏差。\n- `/fde-format`：生成微信公众号 HTML。\n\n### 讨论和状态\n\n- `/fde-discuss`：按不同职责讨论一个具体决定。\n- `/fde-economy`：从价格、成本、选择、激励和信息检查判断。\n- `/fde-save`：保存当前任务状态。\n- `/fde-resume`：恢复上次状态。\n- `/fde-report`：把多次记录整理成报告。\n\n## 写入规则\n\n- 原始材料保留在 `0-待处理材料/待处理` 或用户指定的收件位置。\n- 新增资产要记录来源。\n- 不能确定分类时，先放待处理区，不要猜。\n- 删除和覆盖前要让用户确认。\n- 内容草稿、审核稿和发布稿分开保存。\n\n## 常用流程\n\n```text\n采访或导入\n→ 六类资产库\n→ 选题\n→ 写作\n→ 审核\n→ 发布和复盘\n```\n\n遇到不确定的任务，回到 `/fde-start`。\n",
+        "fde-manifest.json": '{\n  "suite": "fde-skills",\n  "source": {\n    "repository": "https://github.com/dontbesilent2025/dbskill",\n    "version": "v2.17.15",\n    "commit": "af99c577bfb9f1926236671a882b15030242fe8b",\n    "license": "CC BY-NC 4.0"\n  },\n  "knowledge_base": "六类资产库目录模板",\n  "implementation": "fde365-six-library-workflows-v4",\n  "skill_namespace": "fde",\n  "source_role": "historical-reference-and-attribution-only",\n  "similarity_threshold": 0.3,\n  "success_definition": [\n    "目录名与 SKILL.md name 一致",\n    "SKILL.md 只含 name 和 description 两个 frontmatter 字段",\n    "运行正文与对应来源的 sequence 和 target containment 均低于 0.30",\n    "产品目录不包含上游知识包和原样执行资源",\n    "旧 dbs 名称和 ~/.dbs 状态路径已清理",\n    "包含六类资产库读取和写入边界",\n    "34 个能力合同全部通过",\n    "原套件不作为运行依赖",\n    "导出、排版、安全和盘点使用当前项目脚本",\n    "quick_validate.py 通过",\n    "正常案例和停止条件反例存在"\n  ],\n  "skills": [\n    {\n      "source": "dbs",\n      "target": "fde-start",\n      "profile": "router"\n    },\n    {\n      "source": "dbs-action",\n      "target": "fde-action",\n      "profile": "decision"\n    },\n    {\n      "source": "dbs-agent-migration",\n      "target": "fde-setup",\n      "profile": "system"\n    },\n    {\n      "source": "dbs-ai-check",\n      "target": "fde-check",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-benchmark",\n      "target": "fde-benchmark",\n      "profile": "strategy"\n    },\n    {\n      "source": "dbs-chatroom-austrian",\n      "target": "fde-economy",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-chatroom",\n      "target": "fde-discuss",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-content-system",\n      "target": "fde-organize",\n      "profile": "all"\n    },\n    {\n      "source": "dbs-content",\n      "target": "fde-write",\n      "profile": "content"\n    },\n    {\n      "source": "dbs-decision",\n      "target": "fde-decide",\n      "profile": "decision"\n    },\n    {\n      "source": "dbs-deconstruct",\n      "target": "fde-define",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-diagnosis",\n      "target": "fde-diagnose",\n      "profile": "business"\n    },\n    {\n      "source": "dbs-goal",\n      "target": "fde-goal",\n      "profile": "decision"\n    },\n    {\n      "source": "dbs-good-question",\n      "target": "fde-question",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-hook",\n      "target": "fde-hook",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-knowledge",\n      "target": "fde-library",\n      "profile": "all"\n    },\n    {\n      "source": "dbs-learning",\n      "target": "fde-learn",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-report",\n      "target": "fde-report",\n      "profile": "state"\n    },\n    {\n      "source": "dbs-resonate",\n      "target": "fde-impact",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-restore",\n      "target": "fde-resume",\n      "profile": "state"\n    },\n    {\n      "source": "dbs-save",\n      "target": "fde-save",\n      "profile": "state"\n    },\n    {\n      "source": "dbs-script-flow",\n      "target": "fde-flow",\n      "profile": "review"\n    },\n    {\n      "source": "dbs-skill-cleaner",\n      "target": "fde-safety",\n      "profile": "system"\n    },\n    {\n      "source": "dbs-slowisfast",\n      "target": "fde-focus",\n      "profile": "method"\n    },\n    {\n      "source": "dbs-spread",\n      "target": "fde-spread",\n      "profile": "strategy"\n    },\n    {\n      "source": "dbs-update",\n      "target": "fde-update",\n      "profile": "system"\n    },\n    {\n      "source": "dbs-wechat-html",\n      "target": "fde-format",\n      "profile": "output"\n    },\n    {\n      "source": "dbs-xhs-title",\n      "target": "fde-title",\n      "profile": "strategy"\n    }\n  ],\n  "new_skills": [\n    {\n      "target": "fde-interview",\n      "profile": "ingest",\n      "source_folder": "知识库采访机器人"\n    },\n    {\n      "target": "fde-ingest",\n      "profile": "ingest",\n      "source_folder": "录音处理"\n    },\n    {\n      "target": "fde-export",\n      "profile": "ingest",\n      "source_folder": "导出聊天记录"\n    },\n    {\n      "target": "fde-health",\n      "profile": "system",\n      "source_folder": "CLAUDE体检"\n    },\n    {\n      "target": "fde-topics",\n      "profile": "strategy",\n      "source_folder": "小红书选题挖掘"\n    },\n    {\n      "target": "fde-review",\n      "profile": "review",\n      "source_folder": "内容诊断"\n    }\n  ],\n  "integration": {\n    "owner": "ozrwayne",\n    "repository": "kb-suite",\n    "commit": "b010603c5047bd8c7ef87ea9f34b6e6a888b5f64",\n    "skills": 34,\n    "excluded": [\n      "kb-connect"\n    ],\n    "policy": "preserve-newer-FDE-contracts"\n  }\n}\n',
+        VERSION: "0.5.0\n"
       }
     };
   }
@@ -1126,7 +1108,7 @@ ${submittedPrompt}` });
             const latest = this.plugin.lastAgentResult;
             const succeeded = Boolean(task && latest?.task?.taskId === task.taskId && latest.result?.content?.trim());
             if (!succeeded) {
-              const message = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 Token 配置");
+              const message = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 账号登录");
               throw new Error(message);
             }
             this.assistantSessionId = latest.result.conversationId || "";
@@ -1761,7 +1743,7 @@ ${executionModeRule(this.plugin)}
             cls: `wis-provider-dot${agentCapability.available && (isDeveloperRuntime || capability.configured && capability.compatible) ? " is-ready" : ""}`,
             attr: { title: [isDeveloperRuntime ? "DEV · 本地 Codex CLI" : "FDE365 Codex Agent", isDeveloperRuntime ? "继承本机登录与配置" : capability.model, capability.error, agentCapability.error].filter(Boolean).join(" · ") }
           });
-          provider.createSpan({ text: isDeveloperRuntime ? agentCapability.available ? "DEV · 本地 Codex CLI" : "缺少 Codex CLI" : !capability.configured ? "配置 Token" : agentCapability.available ? capability.model : "缺少 Codex 组件" });
+          provider.createSpan({ text: isDeveloperRuntime ? agentCapability.available ? "DEV · 本地 Codex CLI" : "缺少 Codex CLI" : !capability.configured ? "登录账号" : agentCapability.available ? capability.model : "缺少 Codex 组件" });
           provider.addEventListener("click", () => this.plugin.openSettings("ai"));
           const body = panel.createDiv({ cls: "wis-assistant-body" });
           body.dataset.assistantMode = this.assistantMode;
@@ -2755,7 +2737,6 @@ var require_fde_workspace = __commonJS({
       { id: "fde-benchmark", group: "content", name: "研究对标", description: "围绕业务目标比较可观察做法并安排小实验，不复制人设。", output: "对标观察与实验", icon: "telescope" },
       { id: "fde-library", group: "library", name: "查库与维护", description: "查找、收录、纠错和维护六类资产，每个结论返回来源。", output: "答案、来源与版本", icon: "library" },
       { id: "fde-organize", group: "library", name: "整理资产", description: "检查重复、错库、来源和跨库关系，并用真实 Obsidian 双链连接已确认的资产。", output: "资产清单、关联预览与双链写入记录", icon: "list-tree" },
-      { id: "fde-connect", group: "library", name: "连接 Skill", description: "把 Skill 真源连接到指定 Agent 技能目录并检查状态。", output: "连接状态", icon: "link" },
       { id: "fde-setup", group: "library", name: "整理 Agent 项目", description: "整理规则真源和 Skill 真源，让多个本地 Agent 识别项目。", output: "项目设置预览", icon: "wrench" },
       { id: "fde-safety", group: "library", name: "Skill 安全检查", description: "只读检查外部命令、网络、敏感读取、隐藏指令和删除行为。", output: "安全报告", icon: "shield-check" },
       { id: "fde-save", group: "state", name: "保存进度", description: "保存目标、来源、完成项、未知项和下一步。", output: "任务状态", icon: "save" },
@@ -2832,7 +2813,7 @@ var require_fde_workspace = __commonJS({
       { key: "libraries", label: "六类资产", note: "真源与版本", icon: "library" },
       { key: "network", label: "资产网络", note: "跨库关系", icon: "network" },
       { key: "content", label: "内容生产", note: "五阶段发布闭环", icon: "panels-top-left" },
-      { key: "skills", label: "FDE Skills", note: "35 项工作流", icon: "blocks" },
+      { key: "skills", label: "FDE Skills", note: "34 项工作流", icon: "blocks" },
       { key: "health", label: "知识体检", note: "来源与冲突", icon: "activity" }
     ]);
     function makeIcon(parent, name, cls = "") {
@@ -3820,7 +3801,7 @@ ${fileList}
             });
             return { status: "awaiting-confirmation", task, outputPath };
           }
-          const failure = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 Token 配置");
+          const failure = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 账号登录");
           this.setInboxProcessing(selected, "failed", `处理失败 · ${failure}`);
           return { status: "failed", task };
         } catch (error) {
@@ -4069,7 +4050,7 @@ var require_fde_agent_runtime = __commonJS({
         "",
         "[model_providers.fde365]",
         'name = "FDE365"',
-        'base_url = "https://api.fde365.ai/v1"',
+        'base_url = "https://api.ipzsk.com/v1"',
         'wire_api = "responses"',
         'env_key = "FDE365_TOKEN"',
         ""
@@ -4094,7 +4075,7 @@ var require_fde_agent_runtime = __commonJS({
     function hasManagedCodexConfig(codexHome) {
       try {
         const config = fs.readFileSync(codexConfigPath(codexHome), "utf8");
-        return config.includes('model_provider = "fde365"') && config.includes('base_url = "https://api.fde365.ai/v1"') && config.includes('wire_api = "responses"') && config.includes('env_key = "FDE365_TOKEN"');
+        return config.includes('model_provider = "fde365"') && config.includes('base_url = "https://api.ipzsk.com/v1"') && config.includes('wire_api = "responses"') && config.includes('env_key = "FDE365_TOKEN"');
       } catch {
         return false;
       }
@@ -4283,6 +4264,7 @@ ${item.excerpt || ""}`)
         `- FDE365 知识库根目录：${knowledgeRoot}`,
         "- 只读取完成当前任务所需的文件；不得读取 Vault 外的文件、凭据、浏览器数据或其他项目。",
         "- 不得读取或输出 .obsidian/plugins/fde365-knowledge-os/data.json、Token、密钥或任何凭据。",
+        "- 仅使用当前 FDE 技能目录列出的启用技能；旧 Vault 中残留的 fde-connect 已停用，不得调用，也不得连接或改写本机 Claude Code/Codex 配置。",
         "- 禁止删除、清空或覆盖原始材料；写入必须优先新建草稿。",
         "- 禁止网络访问、安装软件、修改 Obsidian 插件配置或修改 .fde/.agents 运行合同。",
         "- 当用户调用 /fde-* 时，先读取知识库内对应 .agents/skills/<skill>/SKILL.md，再按合同执行。",
@@ -4340,19 +4322,19 @@ ${item.excerpt || ""}`)
         };
       }
       async ensureReady() {
-        const token = String(this.plugin.settings?.ai?.fde365?.token || "").trim();
+        const token = this.usesLocalCli ? "" : await this.plugin.accountClient.getAccessToken();
         const model = String(this.plugin.settings?.ai?.fde365?.model || "gpt-5.6-luna").trim();
         const binary = this.options.codexPath || locateCodexBinary();
         if (!binary) throw new FdeAgentRuntimeError("AGENT_RUNTIME_MISSING", "未找到 Codex 运行组件；请先安装官方 Codex 应用或命令行组件");
         if (!this.usesLocalCli) {
-          if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+          if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先登录 FDE365 账号");
           try {
             ensureIsolatedCodexConfig(this.codexHome, model);
           } catch (error) {
             throw new FdeAgentRuntimeError("AGENT_CONFIG_FAILED", `无法创建当前 Vault 的独立 Agent 配置：${error instanceof Error ? error.message : String(error)}`);
           }
         }
-        if (this.transport && !this.transport.disposed && this.proc && !this.proc.killed && this.runtimeBinary === binary) return;
+        if (this.transport && !this.transport.disposed && this.proc && !this.proc.killed && this.runtimeBinary === binary && (this.usesLocalCli || this.runtimeToken === token)) return;
         await this.shutdown();
         const spec = buildSpawnSpec(binary);
         const proc = spawn(spec.command, spec.args, {
@@ -4380,6 +4362,7 @@ ${item.excerpt || ""}`)
           });
           this.transport.notify("initialized");
           this.runtimeBinary = binary;
+          this.runtimeToken = token;
         } catch (error) {
           await this.shutdown();
           throw new FdeAgentRuntimeError("AGENT_START_FAILED", redact(error instanceof Error ? error.message : error, token));
@@ -4388,9 +4371,9 @@ ${item.excerpt || ""}`)
       async complete(request) {
         if (this.active) throw new FdeAgentRuntimeError("AGENT_BUSY", "本地 Agent 正在执行另一个任务，请等待完成或先停止");
         const settings = this.plugin.settings.ai.fde365;
-        const token = String(settings.token || "").trim();
+        const token = this.usesLocalCli ? "" : await this.plugin.accountClient.getAccessToken();
         const model = this.usesLocalCli ? "" : String(settings.model || "").trim();
-        if (!this.usesLocalCli && !token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+        if (!this.usesLocalCli && !token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先登录 FDE365 账号");
         await this.ensureReady();
         const execution = executionPolicy(this.plugin.settings?.ai?.assistant?.executionMode, this.vaultPath);
         const baseInstructions = buildBaseInstructions({ ...request, executionMode: execution.mode }, this.vaultPath, this.plugin.knowledgeRoot || "FDE365知识库");
@@ -4466,6 +4449,7 @@ ${item.excerpt || ""}`)
         } finally {
           this.active = null;
           this.pendingNotifications = [];
+          if (!this.usesLocalCli && this.plugin.accountClient?.isLoggedIn?.()) void this.plugin.accountClient.sync({ quiet: true }).catch(() => void 0);
         }
       }
       event(event) {
@@ -4601,6 +4585,7 @@ ${item.excerpt || ""}`)
         this.pendingNotifications = [];
         this.loadedThreads.clear();
         this.runtimeBinary = "";
+        this.runtimeToken = "";
         this.transport?.dispose();
         this.transport = null;
         if (this.proc && !this.proc.killed) {
@@ -4648,6 +4633,298 @@ ${item.excerpt || ""}`)
   }
 });
 
+// fde-account.js
+var require_fde_account = __commonJS({
+  "fde-account.js"(exports2, module2) {
+    var API_BASE = "https://api.ipzsk.com/v1";
+    var ENDPOINTS = Object.freeze({ emailRequest: "/auth/email/request", emailVerify: "/auth/email/verify", refresh: "/auth/refresh", balance: "/me/balance", usage: "/me/usage", pricing: "/pricing", redeem: "/me/redeem" });
+    var numberOrNull = (v) => !["number", "string"].includes(typeof v) || String(v).trim() === "" || !Number.isFinite(Number(v)) ? null : Number(v);
+    var text = (v) => typeof v === "string" ? v.trim() : "";
+    function normalizeAccount(raw = {}) {
+      raw = raw && typeof raw === "object" ? raw : {};
+      const account = { email: text(raw.email), accessToken: text(raw.accessToken), refreshToken: text(raw.refreshToken), expiresAt: text(raw.expiresAt) };
+      if (raw.demo || account.accessToken.startsWith("demo-") || account.refreshToken.startsWith("demo-")) return { email: account.email, accessToken: "", refreshToken: "", expiresAt: "" };
+      return account;
+    }
+    function normalizeBilling(raw = {}) {
+      raw = raw && typeof raw === "object" ? raw : {};
+      return { remainingCredits: numberOrNull(raw.remainingCredits), usedCredits: numberOrNull(raw.usedCredits), totalCredits: numberOrNull(raw.totalCredits), lastSyncedAt: text(raw.lastSyncedAt), lastError: text(raw.lastError), pricing: normalizePricing(raw.pricing), usage: normalizeUsage(raw.usage) };
+    }
+    function normalizePricing(payload) {
+      const rows = Array.isArray(payload) ? payload : payload?.models || payload?.pricing;
+      if (!Array.isArray(rows)) return [];
+      const seen = /* @__PURE__ */ new Set();
+      return rows.filter((r) => r && typeof r === "object").map((r) => ({ id: text(r.id || r.model), inputCredits: numberOrNull(r.inputCredits ?? r.input_credits), outputCredits: numberOrNull(r.outputCredits ?? r.output_credits), unit: text(r.unit) })).filter((r) => {
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}$/.test(r.id) || seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      }).slice(0, 100);
+    }
+    function normalizeUsage(payload) {
+      const rows = Array.isArray(payload) ? payload : payload?.items || payload?.usage;
+      return Array.isArray(rows) ? rows.filter((r) => r && typeof r === "object").slice(0, 20).map((r) => ({ createdAt: text(r.createdAt || r.created_at), type: text(r.type), amount: numberOrNull(r.amount), model: text(r.model), remainingCredits: numberOrNull(r.remainingCredits ?? r.remaining_credits) })) : [];
+    }
+    function modelIds(settings, fallback) {
+      const ids = normalizePricing(settings?.billing?.pricing).map((r) => r.id);
+      return ids.length ? ids : [...fallback];
+    }
+    function accountError(status) {
+      const code = status === 401 || status === 403 ? "AUTH_FAILED" : status === 402 ? "INSUFFICIENT_CREDITS" : status === 429 ? "RATE_LIMITED" : "NETWORK_ERROR";
+      const message = code === "AUTH_FAILED" ? "登录已失效，请重新登录" : code === "INSUFFICIENT_CREDITS" ? "credits 不足，请兑换后再试" : code === "RATE_LIMITED" ? "请求过于频繁，请稍后重试" : `账号服务暂不可用（HTTP ${status}）`;
+      return Object.assign(new Error(message), { code, status });
+    }
+    var FdeAccountClient = class {
+      constructor(plugin, requestUrl2) {
+        this.plugin = plugin;
+        this.requestUrl = requestUrl2;
+        this.generation = 0;
+        this.refreshing = null;
+      }
+      get account() {
+        return this.plugin.settings.account;
+      }
+      get billing() {
+        return this.plugin.settings.billing;
+      }
+      isLoggedIn() {
+        return Boolean(this.account?.accessToken || this.account?.refreshToken);
+      }
+      assertCurrent(generation) {
+        if (generation !== this.generation) throw Object.assign(new Error("账号已切换，请重新操作"), { code: "ACCOUNT_CHANGED" });
+      }
+      async request(path, { method = "GET", body, token } = {}) {
+        if (!Object.values(ENDPOINTS).includes(path)) throw new Error("未知账号接口");
+        let response;
+        try {
+          response = await this.requestUrl({ url: `${API_BASE}${path}`, method, headers: { Accept: "application/json", ...body === void 0 ? {} : { "Content-Type": "application/json" }, ...token ? { Authorization: `Bearer ${token}` } : {} }, body: body === void 0 ? void 0 : JSON.stringify(body), throw: false });
+        } catch {
+          throw new Error("无法连接账号服务，请检查网络或稍后重试");
+        }
+        if (!response || response.status < 200 || response.status >= 300) throw accountError(response?.status || 0);
+        let payload;
+        try {
+          payload = response.json;
+        } catch {
+        }
+        if (path === ENDPOINTS.emailRequest && (!payload || typeof payload !== "object")) return {};
+        if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("账号服务返回了无效数据");
+        return payload;
+      }
+      async getAccessToken() {
+        const a = this.account;
+        const expires = Date.parse(a.expiresAt);
+        if ((!a.accessToken || Number.isFinite(expires) && expires < Date.now() + 3e4) && a.refreshToken) await this.refreshSession();
+        if (Number.isFinite(Date.parse(this.account.expiresAt)) && Date.parse(this.account.expiresAt) < Date.now()) throw accountError(401);
+        if (!this.account.accessToken) throw Object.assign(new Error("请先用邮箱验证码登录"), { code: "PROVIDER_NOT_CONFIGURED" });
+        return this.account.accessToken;
+      }
+      async authorized(path, options = {}) {
+        const generation = this.generation;
+        const token = await this.getAccessToken();
+        this.assertCurrent(generation);
+        try {
+          return await this.request(path, { ...options, token });
+        } catch (error) {
+          if (error.status !== 401 || !this.account.refreshToken) throw error;
+          this.assertCurrent(generation);
+          await this.refreshSession(token);
+          this.assertCurrent(generation);
+          return this.request(path, { ...options, token: this.account.accessToken });
+        }
+      }
+      async requestEmailCode(email) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text(email))) throw new Error("请输入有效邮箱");
+        await this.request(ENDPOINTS.emailRequest, { method: "POST", body: { email: text(email) } });
+      }
+      async applySession(payload, email, generation) {
+        this.assertCurrent(generation);
+        const next = normalizeAccount({ email: payload.email || payload.user?.email || email, accessToken: payload.access_token || payload.accessToken, refreshToken: payload.refresh_token || payload.refreshToken, expiresAt: payload.expires_at || payload.expiresAt || (Number(payload.expires_in) > 0 ? new Date(Date.now() + Number(payload.expires_in) * 1e3).toISOString() : "") });
+        if (!next.accessToken) throw new Error("账号服务未返回有效登录凭证");
+        this.plugin.settings.account = next;
+        await this.plugin.saveSettings();
+      }
+      async verifyEmail(email, code) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text(email)) || !text(code)) throw new Error("请填写邮箱和验证码");
+        const generation = ++this.generation;
+        const payload = await this.request(ENDPOINTS.emailVerify, { method: "POST", body: { email: text(email), code: text(code) } });
+        await this.applySession(payload, text(email), generation);
+        this.plugin.settings.billing = normalizeBilling();
+        await this.plugin.saveSettings();
+        await this.plugin.agentRuntime?.shutdown?.();
+        await this.sync({ quiet: true });
+      }
+      async refreshSession(staleToken) {
+        if (staleToken && staleToken !== this.account.accessToken) return;
+        if (this.refreshing) return this.refreshing;
+        const generation = this.generation;
+        const refreshToken = this.account.refreshToken;
+        if (!refreshToken) throw accountError(401);
+        this.refreshing = (async () => {
+          const payload = await this.request(ENDPOINTS.refresh, { method: "POST", body: { refresh_token: refreshToken } });
+          await this.applySession(payload, this.account.email, generation);
+        })();
+        try {
+          await this.refreshing;
+        } finally {
+          this.refreshing = null;
+        }
+      }
+      async logout() {
+        this.generation++;
+        this.plugin.settings.account = normalizeAccount();
+        this.plugin.settings.billing = normalizeBilling();
+        this.plugin.settings.ai.fde365.token = "";
+        await this.plugin.saveSettings();
+        this.plugin.providerManager?.cancelAll?.();
+        await this.plugin.agentRuntime?.shutdown?.();
+      }
+      applyBalance(payload) {
+        const balance = payload.balance || payload;
+        const remaining = numberOrNull(balance.remaining_credits ?? balance.remainingCredits);
+        if (remaining === null) throw new Error("服务端余额数据缺失");
+        Object.assign(this.billing, { remainingCredits: remaining, usedCredits: numberOrNull(balance.used_credits ?? balance.usedCredits), totalCredits: numberOrNull(balance.total_credits ?? balance.totalCredits), lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString() });
+      }
+      async sync({ quiet = false } = {}) {
+        const generation = this.generation;
+        try {
+          const balance = await this.authorized(ENDPOINTS.balance);
+          this.assertCurrent(generation);
+          this.applyBalance(balance);
+          const usage = await this.authorized(ENDPOINTS.usage);
+          this.assertCurrent(generation);
+          this.billing.usage = normalizeUsage(usage);
+          const pricing = await this.request(ENDPOINTS.pricing);
+          this.assertCurrent(generation);
+          this.billing.pricing = normalizePricing(pricing);
+          this.billing.lastError = "";
+        } catch (error) {
+          this.assertCurrent(generation);
+          this.billing.lastError = error.message;
+          if (!quiet) {
+            await this.plugin.saveSettings();
+            throw error;
+          }
+        }
+        await this.plugin.saveSettings();
+        this.plugin.refreshDashboard?.();
+        return this.billing;
+      }
+      async redeem(code) {
+        if (!text(code)) throw new Error("请输入兑换码");
+        const generation = this.generation;
+        const payload = await this.authorized(ENDPOINTS.redeem, { method: "POST", body: { redemption_code: text(code) } });
+        this.assertCurrent(generation);
+        if (payload.success !== true || !(numberOrNull(payload.credits_added ?? payload.creditsAdded) > 0)) throw new Error("未收到兑换成功凭据，请刷新使用记录确认；不要重复提交");
+        this.applyBalance(payload);
+        await this.plugin.saveSettings();
+        await this.sync({ quiet: true });
+        return { creditsAdded: numberOrNull(payload.credits_added ?? payload.creditsAdded), remainingCredits: this.billing.remainingCredits };
+      }
+    };
+    module2.exports = { API_BASE, ENDPOINTS, FdeAccountClient, normalizeAccount, normalizeBilling, normalizePricing, normalizeUsage, modelIds, accountError };
+  }
+});
+
+// fde-account-settings.js
+var require_fde_account_settings = __commonJS({
+  "fde-account-settings.js"(exports2, module2) {
+    var { Setting: Setting2, Notice: Notice2 } = require("obsidian");
+    var { modelIds } = require_fde_account();
+    var credits = (value) => value == null ? "尚未同步" : `${Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 4 })} credits`;
+    function renderAccountSettings2(tab, containerEl, fallbackModels) {
+      const plugin = tab.plugin;
+      const client = plugin.accountClient;
+      const account = plugin.settings.account;
+      const billing = plugin.settings.billing;
+      const action = (button, label, fn) => button.setButtonText(label).onClick(async () => {
+        button.setDisabled(true);
+        try {
+          await fn();
+        } catch (error) {
+          new Notice2(error.message || "操作失败，请稍后重试");
+        } finally {
+          button.setDisabled(false);
+        }
+      });
+      containerEl.createEl("h3", { text: "账号与额度" });
+      const runtime = plugin.agentRuntime?.describe?.();
+      if (runtime) new Setting2(containerEl).setName("本地 Agent").setDesc(runtime.available ? "Codex 引擎使用当前 Vault 的隔离配置，不连接本机客户端；插件更新无需重新运行安装器。" : runtime.error);
+      new Setting2(containerEl).setName("账号状态").setDesc(client.isLoggedIn() ? `已登录：${account.email}` : "使用邮箱验证码登录，额度保存在服务端账号中。");
+      if (!client.isLoggedIn()) {
+        tab.emailDraft ||= account.email || "";
+        new Setting2(containerEl).setName("邮箱").addText((input) => input.setPlaceholder("you@example.com").setValue(tab.emailDraft).onChange((value) => {
+          tab.emailDraft = value.trim();
+        })).addButton((button) => action(button, "发送验证码", async () => {
+          await client.requestEmailCode(tab.emailDraft);
+          new Notice2("验证码已发送，请查收邮件");
+        }));
+        new Setting2(containerEl).setName("验证码").addText((input) => {
+          input.inputEl.type = "password";
+          input.setPlaceholder("输入邮箱验证码").onChange((value) => {
+            tab.codeDraft = value.trim();
+          });
+        }).addButton((button) => action(button.setCta(), "登录", async () => {
+          await client.verifyEmail(tab.emailDraft, tab.codeDraft);
+          tab.codeDraft = "";
+          new Notice2("登录成功");
+          tab.display();
+        }));
+      } else {
+        new Setting2(containerEl).setName("当前余额").setDesc(`${credits(billing.remainingCredits)}${billing.lastError ? ` · 同步失败：${billing.lastError}` : billing.lastSyncedAt ? ` · ${new Date(billing.lastSyncedAt).toLocaleString()}` : ""}`).addButton((button) => action(button, "刷新额度与价格", async () => {
+          try {
+            await client.sync();
+          } finally {
+            tab.display();
+          }
+        }));
+        new Setting2(containerEl).setName("已使用额度").setDesc(`${credits(billing.usedCredits)} · 统计范围以服务端为准`);
+        new Setting2(containerEl).setName("兑换码").setDesc("兑换成功后增加当前账号额度；失败时不会在本地增加余额。").addText((input) => {
+          input.inputEl.type = "password";
+          input.setPlaceholder("输入兑换码").onChange((value) => {
+            tab.redeemDraft = value.trim();
+          });
+        }).addButton((button) => action(button.setCta(), "兑换", async () => {
+          const result = await client.redeem(tab.redeemDraft);
+          tab.redeemDraft = "";
+          new Notice2(`兑换成功：增加 ${credits(result.creditsAdded)}`);
+          tab.display();
+        }));
+        const usage = new Setting2(containerEl).setName("最近使用记录").setDesc(billing.usage.length ? "服务端返回的最近记录" : "尚无已同步记录");
+        for (const item of billing.usage.slice(0, 8)) usage.descEl.createDiv({ text: `${item.createdAt || "时间未知"} · ${item.type || "变动"}${item.model ? ` · ${item.model}` : ""} · ${credits(item.amount)}` });
+        new Setting2(containerEl).setName("退出登录").setDesc("清除当前 Vault 的用户凭证并停止 Agent。").addButton((button) => action(button.setWarning(), "退出", async () => {
+          await client.logout();
+          tab.codeDraft = "";
+          tab.redeemDraft = "";
+          tab.display();
+          plugin.refreshDashboard();
+        }));
+      }
+      const api = plugin.settings.ai.fde365;
+      const models = modelIds(plugin.settings, fallbackModels);
+      new Setting2(containerEl).setName("模型").setDesc(billing.pricing.length ? "模型及价格来自服务端价格表。" : "价格表尚未同步，显示预置模型；单价未知。").addDropdown((dropdown) => {
+        if (!models.includes(api.model)) dropdown.addOption("", "请选择可用模型");
+        for (const model of models) dropdown.addOption(model, model);
+        dropdown.setValue(models.includes(api.model) ? api.model : "").onChange(async (value) => {
+          if (!models.includes(value)) return;
+          api.model = value;
+          await plugin.saveSettings();
+          plugin.refreshDashboard();
+          tab.display();
+        });
+      });
+      const price = billing.pricing.find((p) => p.id === api.model);
+      if (price) new Setting2(containerEl).setName("模型单价").setDesc(`输入 ${credits(price.inputCredits)} · 输出 ${credits(price.outputCredits)} · ${price.unit || "计价单位尚未由服务端说明"}`);
+      new Setting2(containerEl).setName("测试连接").setDesc("使用当前账号请求模型；可能产生服务端用量。").addButton((button) => action(button.setDisabled(!client.isLoggedIn()), "测试连接", async () => {
+        const result = await plugin.providerManager.getSelected().testConnection();
+        new Notice2(`连接成功：${result.model}`);
+        await client.sync({ quiet: true });
+        tab.display();
+      }));
+    }
+    module2.exports = { renderAccountSettings: renderAccountSettings2 };
+  }
+});
+
 // source.js
 var {
   ItemView,
@@ -4666,6 +4943,8 @@ var KNOWLEDGE_BLUEPRINT = require_blueprint();
 var FDEWorkspace = require_fde_workspace();
 var GitHubUpdater = require_github_updater();
 var { FdeCodexAgentRuntime } = require_fde_agent_runtime();
+var Account = require_fde_account();
+var { renderAccountSettings } = require_fde_account_settings();
 var FDE365_BUILD_CHANNEL = true ? "user" : "user";
 var IS_DEVELOPER_BUILD = FDE365_BUILD_CHANNEL === "dev";
 var DASHBOARD_VIEW_TYPE = "ai-knowledge-os-dashboard";
@@ -4781,9 +5060,8 @@ async function listAdapterFiles(adapter, root) {
   }
   return [...new Set(files)];
 }
-var FDE365_BASE_URL = "https://api.fde365.ai/v1";
+var FDE365_BASE_URL = "https://api.ipzsk.com/v1";
 var FDE365_CHAT_ENDPOINT = `${FDE365_BASE_URL}/chat/completions`;
-var FDE365_PURCHASE_URL = "https://api.fde365.ai/";
 var FDE365_MODELS = Object.freeze([
   "claude-fable-5",
   "claude-opus-4-8",
@@ -4791,7 +5069,7 @@ var FDE365_MODELS = Object.freeze([
   "gpt-5.6-luna"
 ]);
 var DEFAULT_FDE365_MODEL = "gpt-5.6-luna";
-var ONBOARDING_VERSION = 3;
+var ONBOARDING_VERSION = 4;
 var FDE365_RELEASE_REPOSITORY = "GaryLauLGY/fde365-knowledge-os";
 var FDE365_UPDATE_ORIGIN = "https://fdekb.garylau.ai";
 var FDE365_RELEASE_API = `${FDE365_UPDATE_ORIGIN}/plugin/latest.json`;
@@ -4834,26 +5112,26 @@ var ONBOARDING_STEPS = Object.freeze([
     icon: "bot",
     eyebrow: "第三步 · 协作",
     title: "让 AI 在你选定的范围内工作",
-    description: IS_DEVELOPER_BUILD ? "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容，并使用本机 Codex CLI 的登录和配置。" : "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。Token 只保存在当前 Vault。",
+    description: IS_DEVELOPER_BUILD ? "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容，并使用本机 Codex CLI 的登录和配置。" : "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。登录凭证只保存在当前 Vault。",
     highlights: [
       { icon: "bot", title: "FDE365 Agent", text: "可读取 Vault、运行 Skills，需要写入时向你确认。" },
-      { icon: "wand-sparkles", title: "35 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
-      IS_DEVELOPER_BUILD ? { icon: "shield-check", title: "不覆盖本机配置", text: "开发版不注入 Token，不改写 CODEX_HOME 或 Shell 环境变量。" } : { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" }
+      { icon: "wand-sparkles", title: "34 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
+      IS_DEVELOPER_BUILD ? { icon: "shield-check", title: "不覆盖本机配置", text: "开发版不注入 Token，不改写 CODEX_HOME 或 Shell 环境变量。" } : { icon: "shield-check", title: "凭证本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" }
     ]
   },
   {
     icon: "key-round",
     eyebrow: "第四步 · 配置模型",
     title: IS_DEVELOPER_BUILD ? "使用本机 Codex CLI" : "两步连接FDE365 AI",
-    description: IS_DEVELOPER_BUILD ? "开发版使用本机 Codex CLI 已有的登录、Provider 和默认模型，不需在 Obsidian 内填写 Token。" : "先购买 Token，再回到插件设置填写 Token 并选择模型。服务地址已经内置，无需手动配置。",
+    description: IS_DEVELOPER_BUILD ? "开发版使用本机 Codex CLI 已有的登录、Provider 和默认模型，不需在 Obsidian 内填写 Token。" : "先用邮箱登录，再兑换额度并选择模型。服务地址已经内置，无需手动配置。",
     highlights: IS_DEVELOPER_BUILD ? [
       { icon: "terminal", title: "1. 本机登录", text: "先在终端确认 Codex CLI 已经可用并完成登录。" },
       { icon: "settings", title: "2. 原样继承", text: "插件不传入模型或 Provider，使用本机 Codex 默认配置。" },
       { icon: "refresh-cw-off", title: "3. 开发通道", text: "自动更新已关闭，需要新版时重新构建 DEV ZIP。" }
     ] : [
-      { icon: "shopping-bag", title: "1. 购买 Token", text: "前往 api.fde365.ai 购买或创建你的 Token。", action: "purchase-token" },
-      { icon: "settings", title: "2. 填写 Token", text: "打开 Obsidian 设置 → FDE365 Knowledge OS → AI 服务，在 Token 一栏填写。", action: "open-token-settings" },
-      { icon: "cpu", title: "3. 选择模型", text: "从四个可用模型中选择一个，然后点击“测试连接”。" }
+      { icon: "mail", title: "1. 邮箱登录", text: "打开账号与额度，用邮箱验证码登录。", action: "open-token-settings" },
+      { icon: "ticket", title: "2. 兑换额度", text: "在账号与额度中输入兑换码，余额以服务端返回为准。", action: "open-token-settings" },
+      { icon: "cpu", title: "3. 选择模型", text: "同步服务端价格表并选择模型，然后点击“测试连接”（会产生用量）。" }
     ]
   }
 ]);
@@ -4878,7 +5156,9 @@ var AGENT_STATUS_TRANSITIONS = Object.freeze({
   cancelled: /* @__PURE__ */ new Set(["queued"])
 });
 var DEFAULT_SETTINGS = {
-  schemaVersion: 4,
+  schemaVersion: 5,
+  account: Account.normalizeAccount(),
+  billing: Account.normalizeBilling(),
   terminologyVersion: 0,
   inboxLayoutVersion: 0,
   knowledgeContractVersion: 0,
@@ -4923,11 +5203,14 @@ function mergeSettings(raw = {}) {
   const currentApi = raw.ai?.fde365 || {};
   const token = String(currentApi.token || legacyApi.token || legacyApi.apiKey || "").trim();
   const requestedModel = String(currentApi.model || legacyApi.model || "").trim();
-  const model = FDE365_MODELS.includes(requestedModel) ? requestedModel : DEFAULT_FDE365_MODEL;
+  const models = Account.modelIds(raw, FDE365_MODELS);
+  const model = models.includes(requestedModel) ? requestedModel : models.includes(DEFAULT_FDE365_MODEL) ? DEFAULT_FDE365_MODEL : models[0];
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
-    schemaVersion: 4,
+    schemaVersion: 5,
+    account: Account.normalizeAccount(raw.account),
+    billing: Account.normalizeBilling(raw.billing),
     terminologyVersion: Math.max(0, Number(raw.terminologyVersion) || 0),
     inboxLayoutVersion: Math.max(0, Number(raw.inboxLayoutVersion) || 0),
     knowledgeContractVersion: Math.max(0, Number(raw.knowledgeContractVersion) || 0),
@@ -5085,17 +5368,9 @@ var KnowledgeOSOnboardingModal = class extends Modal {
       const cardCopy = card.createDiv();
       cardCopy.createEl("strong", { text: item.title });
       cardCopy.createEl("p", { text: item.text });
-      if (item.action === "purchase-token") {
-        const link = cardCopy.createEl("a", {
-          text: "前往购买 Token",
-          cls: "fde365-onboarding-card-action",
-          href: FDE365_PURCHASE_URL,
-          attr: { target: "_blank", rel: "noopener noreferrer" }
-        });
-        link.addEventListener("click", (event) => event.stopPropagation());
-      } else if (item.action === "open-token-settings") {
+      if (item.action === "open-token-settings") {
         const button = cardCopy.createEl("button", {
-          text: "打开 Token 设置",
+          text: "打开账号设置",
           cls: "fde365-onboarding-card-action",
           attr: { type: "button" }
         });
@@ -5321,7 +5596,8 @@ ${item.excerpt || ""}`).join("\n\n")}`
 }
 function mapHttpProviderError(status, payload) {
   const remoteMessage = String(payload?.error?.message || payload?.message || "").trim();
-  if (status === 401 || status === 403) return new AIProviderError("AUTH_FAILED", "Token 无效或无权访问该服务");
+  if (status === 401 || status === 403) return new AIProviderError("AUTH_FAILED", "登录已失效，请重新登录");
+  if (status === 402) return new AIProviderError("INSUFFICIENT_CREDITS", "credits 不足，请兑换后再试");
   if (status === 404) return new AIProviderError("MODEL_NOT_FOUND", remoteMessage || "所选模型不存在");
   if (status === 429) return new AIProviderError("RATE_LIMITED", "API 请求受到限流，请稍后重试");
   return new AIProviderError("NETWORK_ERROR", remoteMessage || `API 返回 HTTP ${status}`);
@@ -5338,9 +5614,9 @@ var Fde365Provider = class {
     return this.plugin.settings.ai.fde365;
   }
   detect() {
-    const token = String(this.settings.token || "").trim();
+    const token = this.plugin.accountClient?.isLoggedIn() || false;
     const model = String(this.settings.model || "").trim();
-    const configured = Boolean(token && FDE365_MODELS.includes(model));
+    const configured = Boolean(token && Account.modelIds(this.plugin.settings, FDE365_MODELS).includes(model));
     return {
       available: true,
       configured,
@@ -5348,7 +5624,7 @@ var Fde365Provider = class {
       version: "chat-completions",
       model,
       endpoint: FDE365_CHAT_ENDPOINT,
-      error: configured ? null : "请填写 Token 并选择可用模型"
+      error: configured ? null : "请先登录账号并选择可用模型"
     };
   }
   cancel(requestId) {
@@ -5370,6 +5646,7 @@ var Fde365Provider = class {
       this.cancelledRequests.delete(request.requestId);
       throw new AIProviderError("CANCELLED", "任务已取消");
     }
+    const accessToken = await this.plugin.accountClient.getAccessToken();
     const timeoutMs = Math.max(1e4, Number(this.settings.timeoutMs) || 12e4);
     let timer = null;
     const timeout = new Promise((_, reject) => {
@@ -5386,7 +5663,7 @@ var Fde365Provider = class {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${String(this.settings.token).trim()}`
+            Authorization: `Bearer ${accessToken}`
           },
           body: JSON.stringify({
             model: capability.model,
@@ -5933,45 +6210,7 @@ var AIKnowledgeOSSettingTab = class extends PluginSettingTab {
       const localRuntime = this.plugin.agentRuntime?.describe?.() || { available: false, ready: false, error: "本地 Codex CLI 尚未初始化" };
       new Setting(containerEl).setName("DEV · 本地 Codex CLI").setDesc(localRuntime.available ? `使用本机 Codex CLI 的登录、Provider、默认模型和 CODEX_HOME${localRuntime.ready ? " · 运行中" : ""}。插件不会写入或覆盖任何环境变量。` : localRuntime.error);
     } else {
-      new Setting(containerEl).setName("FDE365 AI").setDesc("服务地址已经内置，无需填写或切换。Token 仅保存在当前 Vault 的插件 data.json。").addButton((button) => button.setButtonText("购买 Token").onClick(() => window.open(FDE365_PURCHASE_URL, "_blank", "noopener,noreferrer")));
-      const selected = this.plugin.providerManager?.describeSelected?.() || { label: "尚未配置", configured: false, compatible: false, error: "尚未配置 AI 服务" };
-      new Setting(containerEl).setName("当前状态").setDesc(selected.configured && selected.compatible ? `${selected.label} 已就绪${selected.model ? ` · ${selected.model}` : ""}${selected.version ? ` · ${selected.version}` : ""}` : `${selected.label}：${selected.error || "当前不可用"}`).addButton((button) => button.setButtonText("测试连接").setDisabled(!selected.configured).onClick(async () => {
-        button.setDisabled(true).setButtonText("测试中…");
-        try {
-          const provider = this.plugin.providerManager.getSelected();
-          const result = await provider.testConnection();
-          new Notice(`连接成功：${result.model || result.version || provider.label}`);
-        } catch (error) {
-          new Notice(`连接失败：${error instanceof Error ? error.message : String(error)}`);
-        } finally {
-          button.setDisabled(false).setButtonText("测试连接");
-          this.display();
-        }
-      }));
-      const agentRuntime = this.plugin.agentRuntime?.describe?.() || { available: false, ready: false, error: "本地 Agent 尚未初始化" };
-      new Setting(containerEl).setName("本地 Agent").setDesc(agentRuntime.available ? `Codex app-server 已就绪${agentRuntime.ready ? " · 运行中" : ""}；配置隔离在当前 Vault，不修改本机 Codex App，也无需重新运行安装器。` : agentRuntime.error);
-      const api = this.plugin.settings.ai.fde365;
-      new Setting(containerEl).setName("Token").setDesc(api.token ? "Token 已保存在当前 Vault；输入新值可替换，发布包不会包含该配置。" : "填写购买后获得的 Token；它只保存在当前 Vault。").addText((text) => {
-        text.inputEl.type = "password";
-        text.setPlaceholder(api.token ? "已配置；输入新 Token 可替换" : "粘贴 Token").onChange(async (value) => {
-          if (!value.trim()) return;
-          api.token = value.trim();
-          await this.plugin.saveSettings();
-        });
-      }).addButton((button) => button.setButtonText("清除 Token").setWarning().setDisabled(!api.token).onClick(async () => {
-        api.token = "";
-        await this.plugin.saveSettings();
-        new Notice("Token 已从当前 Vault 清除");
-        this.display();
-      }));
-      new Setting(containerEl).setName("模型").setDesc("选择当前 Token 可使用的模型。").addDropdown((dropdown) => {
-        for (const model of FDE365_MODELS) dropdown.addOption(model, model);
-        dropdown.setValue(api.model).onChange(async (value) => {
-          api.model = FDE365_MODELS.includes(value) ? value : DEFAULT_FDE365_MODEL;
-          await this.plugin.saveSettings();
-          this.plugin.refreshDashboard();
-        });
-      });
+      renderAccountSettings(this, containerEl, FDE365_MODELS);
     }
     const assistant = this.plugin.settings.ai.assistant;
     new Setting(containerEl).setName("Agent 执行模式").setDesc(assistant.executionMode === "yolo" ? "YOLO 已开启：Agent 可在当前 Vault 内直接读写和运行本地命令，不再逐次请求批准；Vault 外访问和网络仍被阻止。" : "需要批准：Agent 读取知识库后，命令执行和文件写入会等待你确认。").addDropdown((dropdown) => dropdown.addOption("approval", "需要批准（推荐）").addOption("yolo", "YOLO（当前 Vault 内）").setValue(assistant.executionMode).onChange(async (value) => {
@@ -5987,7 +6226,7 @@ var AIKnowledgeOSSettingTab = class extends PluginSettingTab {
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h3", { text: "FDE Skills", attr: { id: "fde365-settings-agents" } });
-    new Setting(containerEl).setName("Skill 执行规则").setDesc("35 个项目 Skill 位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。");
+    new Setting(containerEl).setName("Skill 执行规则").setDesc("34 个项目 Skill 位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。");
     containerEl.createEl("h3", { text: "内容生产", attr: { id: "fde365-settings-projects" } });
     new Setting(containerEl).setName("五阶段内容来源").setDesc(`读取 ${PROJECT_ROOT}，按选题、草稿、待审核、待发布、已发布展示；发布数据作为可选分析输入单独管理。`);
     containerEl.createEl("h3", { text: "知识体检", attr: { id: "fde365-settings-analytics" } });
@@ -6011,6 +6250,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
+    this.accountClient = new Account.FdeAccountClient(this, requestUrl);
     this.agentRuntime = new FdeCodexAgentRuntime(this, { mode: IS_DEVELOPER_BUILD ? "local-cli" : "isolated-fde365" });
     this.updateService = new Fde365UpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
@@ -6170,7 +6410,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
   }
   async loadSettings() {
     const raw = await this.loadData();
-    this.needsProviderMigration = Boolean(raw && (Number(raw.schemaVersion || 0) < 4 || raw.ai?.provider !== "fde365" || !raw.ai?.fde365 || raw.ai?.openaiCompatible || raw.ai?.codexCli || raw.ai?.claudeCli));
+    this.needsProviderMigration = Boolean(raw && (Number(raw.schemaVersion || 0) < 5 || raw.ai?.provider !== "fde365" || !raw.ai?.fde365 || raw.ai?.openaiCompatible || raw.ai?.codexCli || raw.ai?.claudeCli));
     this.settings = mergeSettings(raw || {});
   }
   async saveSettings() {
@@ -6388,7 +6628,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
   async migrateProviderSettings() {
     if (!this.needsProviderMigration) return;
     this.settings.ai.provider = "fde365";
-    this.settings.schemaVersion = 4;
+    this.settings.schemaVersion = 5;
     this.needsProviderMigration = false;
     await this.saveSettings();
   }

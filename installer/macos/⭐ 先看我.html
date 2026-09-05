@@ -30,38 +30,4 @@
     @media (max-width:680px) { body{padding:18px 10px} main{padding:25px 20px;border-radius:20px} header{align-items:flex-start;flex-direction:column} .tools{grid-template-columns:1fr} h1{font-size:27px} }
   </style>
 </head>
-<body>
-  <main>
-    <header>
-      <img src="组件/fde365-knowledge-os/assets/fde365-logo.png" alt="FDE365">
-      <div>
-        <h1>第一次使用，只要双击</h1>
-        <p class="lead">不用安装软件，不用配置地址，也不用打开终端。</p>
-      </div>
-    </header>
-
-    <h2>开始安装</h2>
-    <div class="steps">
-      <div class="step"><div class="num">1</div><div><strong>先购买 Token</strong><span>打开 <a href="https://api.fde365.ai/">api.fde365.ai</a>，购买并复制你的 Token。</span></div></div>
-      <div class="step"><div class="num">2</div><div><strong>双击“开始安装 FDE365.command”</strong><span>如果 Mac 询问是否允许打开，请选择允许。粘贴 Token 时屏幕不会显示内容，这是正常的。</span></div></div>
-      <div class="step"><div class="num">3</div><div><strong>选择模型和保存位置</strong><span>不确定就一直按回车使用推荐选项，剩下的交给安装器。</span></div></div>
-      <div class="step"><div class="num">4</div><div><strong>等待自动完成</strong><span>Obsidian、Claude Code、Codex 和 FDE365 知识库都会自动安装并连接好。</span></div></div>
-    </div>
-
-    <h2>装好以后，从桌面进入</h2>
-    <p>桌面会出现一个 <strong>FDE365 工具</strong> 文件夹。</p>
-    <div class="tools">
-      <div class="tool"><strong>FDE365 知识库</strong><span>打开 Obsidian 工作台，整理和使用六类资产。</span></div>
-      <div class="tool"><strong>FDE365 Claude</strong><span>选择任意文件夹，让 Claude Code 在那里工作。</span></div>
-      <div class="tool"><strong>FDE365 Codex</strong><span>选择任意文件夹，让 Codex 在那里工作。</span></div>
-    </div>
-
-    <div class="notice">
-      <strong>更新与遇到问题</strong>
-      <p>收到新版时双击“更新 FDE365.command”。遇到问题时双击“检查安装.command”，把检查结果截图发给服务人员。</p>
-    </div>
-
-    <footer>你的笔记和 Token 不会因为更新被删除；原客户端设置会先备份，再替换为固定 FDE365 服务。</footer>
-  </main>
-</body>
-</html>
+<body><main><h1>FDE365 一键安装</h1><p class="lead">只要双击“开始安装 FDE365.command”。</p><h2>安装与登录</h2><p>选择模型和新工作台。安装 Obsidian 与隔离的 Codex 引擎，不连接本机 Claude Code 或 Codex 配置。</p><p>在插件设置 → 账号与额度，用邮箱验证码登录，刷新余额、价格表或兑换 credits。固定服务：https://api.ipzsk.com/v1。</p><h2>开始使用</h2><p>桌面 FDE365 工具只保留知识库入口。34 个 FDE Skills 已放在当前知识库内。</p><h2>遇到问题</h2><p>运行“检查安装”。账号功能须后端接口已部署并可访问；当前接口仍待联调。更新会保留账号配置和知识材料，不自动删除旧版全局配置或快捷方式。</p></main></body></html>

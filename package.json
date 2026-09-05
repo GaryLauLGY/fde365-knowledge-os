@@ -1,6 +1,6 @@
 {
   "name": "fde365-knowledge-os",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "private": true,
   "description": "The FDE365 six-asset knowledge cockpit for Obsidian.",
   "license": "SEE LICENSES.md",
@@ -16,8 +16,8 @@
     "simulate:mac": "node scripts/simulate-mac-install.mjs",
     "package:release": "node scripts/package-release.mjs",
     "package:dev": "npm run build:dev && node scripts/dev-channel-tests.cjs && node scripts/package-dev-release.mjs",
-    "test": "node scripts/blueprint-tests.mjs && node scripts/fde-workspace-tests.cjs && node scripts/inbox-drop-tests.cjs && node scripts/provider-tests.cjs && node scripts/fde-agent-runtime-tests.cjs && node scripts/github-updater-tests.cjs && node --test infra/cloudflare-update-proxy/test/worker.test.mjs",
-    "lint": "node --check source.js && node --check fde-workspace.js && node --check fde-workspace-view-base.js && node --check fde-workspace-views.js && node --check fde-agent-runtime.js && node --check github-updater.js && node --check infra/cloudflare-update-proxy/src/worker.mjs && node --check scripts/build-plugin.mjs && node --check scripts/build-blueprint.mjs && node --check scripts/blueprint-tests.mjs && node --check scripts/fde-workspace-tests.cjs && node --check scripts/inbox-drop-tests.cjs && node --check scripts/fde-agent-runtime-tests.cjs && node --check scripts/dev-channel-tests.cjs && node --check scripts/check-release.mjs && node --check scripts/check-mac-installer.mjs && node --check scripts/check-windows-installer.mjs && node --check scripts/package-release.mjs && node --check scripts/package-dev-release.mjs && node --check scripts/package-mac-installer.mjs && node --check scripts/package-windows-installer.mjs && node --check scripts/simulate-mac-install.mjs && node --check scripts/github-updater-tests.cjs",
+    "test": "node scripts/blueprint-tests.mjs && node scripts/fde-workspace-tests.cjs && node scripts/inbox-drop-tests.cjs && node scripts/provider-tests.cjs && node scripts/fde-agent-runtime-tests.cjs && node scripts/github-updater-tests.cjs && node --test infra/cloudflare-update-proxy/test/worker.test.mjs && node --test scripts/fde-account-tests.cjs",
+    "lint": "node --check source.js && node --check fde-workspace.js && node --check fde-workspace-view-base.js && node --check fde-workspace-views.js && node --check fde-agent-runtime.js && node --check github-updater.js && node --check infra/cloudflare-update-proxy/src/worker.mjs && node --check scripts/build-plugin.mjs && node --check scripts/build-blueprint.mjs && node --check scripts/blueprint-tests.mjs && node --check scripts/fde-workspace-tests.cjs && node --check scripts/inbox-drop-tests.cjs && node --check scripts/fde-agent-runtime-tests.cjs && node --check scripts/dev-channel-tests.cjs && node --check scripts/check-release.mjs && node --check scripts/check-mac-installer.mjs && node --check scripts/check-windows-installer.mjs && node --check scripts/package-release.mjs && node --check scripts/package-dev-release.mjs && node --check scripts/package-mac-installer.mjs && node --check scripts/package-windows-installer.mjs && node --check scripts/simulate-mac-install.mjs && node --check scripts/github-updater-tests.cjs && node --check fde-account.js && node --check fde-account-settings.js",
     "verify": "npm run lint && npm run check && npm test && npm run build && git diff --exit-code -- main.js"
   },
   "devDependencies": {

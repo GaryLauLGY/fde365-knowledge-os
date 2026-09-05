@@ -19,7 +19,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $source "assets\fde365-logo-source.svg") -Destination (Join-Path $assetTarget "fde365-logo-source.svg") -Force
     Copy-FdeCreateOnly (Join-Path $components "FDE365知识库模板") (Join-Path $vault "FDE365知识库")
     Enable-FdePlugin $vault
-    Write-Host "更新完成：程序文件已替换，原 Token 和用户数据已保留。" -ForegroundColor Green
+    Write-Host "更新完成：程序文件已替换，原账号配置和用户数据已保留；旧 Token 不自动发送到新服务，请在插件内登录。" -ForegroundColor Green
     if ($env:FDE365_NONINTERACTIVE -ne "1") { Read-Host "按回车键关闭窗口" | Out-Null }
 } catch {
     Write-Host "更新失败：$($_.Exception.Message)" -ForegroundColor Red

@@ -57,7 +57,7 @@ for (const forbidden of ["Claude CLI", "选择 AI Provider", "自定义 API（Op
 if (!main.includes('var FDE365_BUILD_CHANNEL = true ? "user" : "user";')) {
   throw new Error("Stable runtime was not built for the user channel");
 }
-for (const required of ["https://api.fde365.ai/v1", "claude-fable-5", "claude-opus-4-8", "gpt-5.6-sol", "gpt-5.6-luna", "Token", "FDE365知识库", "fde365-six-assets"]) {
+for (const required of ["https://api.ipzsk.com/v1", "claude-fable-5", "claude-opus-4-8", "gpt-5.6-sol", "gpt-5.6-luna", "Token", "FDE365知识库", "fde365-six-assets"]) {
   if (!main.includes(required)) throw new Error(`Built runtime is missing: ${required}`);
 }
 for (const required of ["codex-app-server-responses", "thread/start", "turn/start", "FDE365 Codex Agent"]) {

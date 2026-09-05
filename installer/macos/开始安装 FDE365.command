@@ -10,9 +10,7 @@ VAULT_TEMPLATE="$COMPONENTS_DIR/FDE365知识库模板"
 HELPERS_DIR="$COMPONENTS_DIR/helpers"
 RELEASE_CONFIG="$COMPONENTS_DIR/obsidian-release.env"
 DEFAULT_VAULT="$HOME/Documents/FDE365工作台"
-FDE365_SERVICE_URL="https://api.fde365.ai/v1"
-FDE365_PURCHASE_URL="https://api.fde365.ai/"
-CLAUDE_INSTALLER_URL="https://claude.ai/install.sh"
+FDE365_SERVICE_URL="https://api.ipzsk.com/v1"
 CODEX_INSTALLER_URL="https://chatgpt.com/codex/install.sh"
 DOWNLOAD_TEMP=""
 DOWNLOAD_MOUNT=""
@@ -112,13 +110,6 @@ install_obsidian() {
   printf "%sObsidian 已安装：%s%s\n" "$GREEN" "$OBSIDIAN_APP" "$RESET"
 }
 
-find_claude() {
-  for candidate in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null || true)"; do
-    if [ -n "$candidate" ] && [ -x "$candidate" ]; then return 0; fi
-  done
-  return 1
-}
-
 find_codex() {
   for candidate in "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null || true)"; do
     if [ -n "$candidate" ] && [ -x "$candidate" ]; then return 0; fi
@@ -130,25 +121,13 @@ install_ai_clients() {
   step "第 3 步 / 共 6 步：安装 AI 助手"
   if [ "$FDE365_SIMULATION" = "1" ]; then
     /bin/mkdir -p "$HOME/.local/bin"
-    printf '#!/bin/bash\nprintf "FDE365 simulated Claude Code\\n"\n' > "$HOME/.local/bin/claude"
     printf '#!/bin/bash\nprintf "FDE365 simulated Codex CLI\\n"\n' > "$HOME/.local/bin/codex"
-    /bin/chmod 755 "$HOME/.local/bin/claude" "$HOME/.local/bin/codex"
-    printf "%s[模拟] 已创建假的 Claude Code 和 Codex，不访问官方下载地址。%s\n" "$GREEN" "$RESET"
+    /bin/chmod 755 "$HOME/.local/bin/codex"
+    printf "%s[模拟] 已创建假的 Codex 引擎，不访问官方下载地址。%s\n" "$GREEN" "$RESET"
     return
   fi
 
   CLI_TEMP="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/fde365-clients.XXXXXX")" || die "无法创建 AI 助手下载目录"
-
-  if find_claude; then
-    printf "%s已检测到 Claude Code。%s\n" "$GREEN" "$RESET"
-  else
-    printf "正在从 Claude Code 官方地址下载安装…\n"
-    /usr/bin/curl --fail --location --retry 3 --connect-timeout 20 --progress-bar \
-      "$CLAUDE_INSTALLER_URL" -o "$CLI_TEMP/claude-install.sh" \
-      || die "无法下载 Claude Code，请检查网络后重试"
-    /bin/bash "$CLI_TEMP/claude-install.sh" || die "Claude Code 官方安装程序执行失败"
-    find_claude || die "Claude Code 安装完成后仍未找到程序"
-  fi
 
   if find_codex; then
     printf "%s已检测到 Codex CLI。%s\n" "$GREEN" "$RESET"
@@ -164,7 +143,7 @@ install_ai_clients() {
 
 printf "\n%sFDE365 Knowledge OS · Mac 一键安装%s\n" "$BLUE" "$RESET"
 printf "AI 服务固定为：%s\n" "$FDE365_SERVICE_URL"
-printf "一次安装即可在 Obsidian、Claude Code 和 Codex 中使用 FDE365。\n"
+printf "安装 Obsidian 与隔离运行的 Codex 引擎，不连接本机客户端。\n"
 if [ "$FDE365_SIMULATION" = "1" ]; then
   printf "%s模拟模式：所有内容只写入隔离 HOME，不下载或打开真实应用。%s\n" "$BLUE" "$RESET"
 fi
@@ -174,7 +153,6 @@ fi
 [ -f "$RELEASE_CONFIG" ] || die "安装包缺少 Obsidian 官方下载配置"
 [ -f "$HELPERS_DIR/write-plugin-settings.jxa" ] || die "安装包缺少配置助手"
 [ -f "$HELPERS_DIR/configure-user-environment.sh" ] || die "安装包缺少 AI 客户端配置助手"
-[ -f "$SCRIPT_DIR/打开 FDE365 Claude.command" ] || die "安装包缺少 FDE365 启动工具"
 
 # 此文件只包含公开版本号和官方地址。
 # shellcheck disable=SC1090
@@ -183,13 +161,7 @@ source "$RELEASE_CONFIG"
 [ -n "${OBSIDIAN_DMG_URL:-}" ] || die "Obsidian 官方下载地址为空"
 [ "${OBSIDIAN_BUNDLE_ID:-}" = "md.obsidian" ] || die "Obsidian Bundle ID 配置错误"
 
-step "第 1 步 / 共 6 步：填写 FDE365 Token"
-printf "请先前往 %s 购买或创建 Token。\n" "$FDE365_PURCHASE_URL"
-TOKEN=""
-while [ -z "$TOKEN" ]; do
-  read -r -s -p "粘贴 Token（输入内容不会显示）并按回车：" TOKEN
-  echo ""
-done
+step "第 1 步 / 共 6 步：选择默认模型（安装后在插件内邮箱登录）"
 
 echo "选择模型："
 echo "  1) claude-fable-5"
@@ -226,17 +198,15 @@ COMMUNITY_PLUGINS="$VAULT_DIR/.obsidian/community-plugins.json"
   || die "无法启用 FDE365 插件"
 
 DATA_JSON="$VAULT_DIR/.obsidian/plugins/$PLUGIN_ID/data.json"
-printf '%s' "$TOKEN" | /usr/bin/osascript -l JavaScript \
+/usr/bin/osascript -l JavaScript \
   "$HELPERS_DIR/write-plugin-settings.jxa" "$DATA_JSON" "$MODEL" >/dev/null \
-  || die "无法保存 Token"
-TOKEN=""
-unset TOKEN
+  || die "无法保存插件设置"
 /bin/chmod 600 "$DATA_JSON" 2>/dev/null || true
 
-step "第 5 步 / 共 6 步：连接三个 FDE365 入口"
+step "第 5 步 / 共 6 步：创建知识库入口"
 GLOBAL_BACKUP="$(/bin/bash "$HELPERS_DIR/configure-user-environment.sh" \
   "$VAULT_DIR" "$MODEL" "$HELPERS_DIR" "$SCRIPT_DIR")" \
-  || die "无法配置 Claude Code、Codex 和终端环境"
+  || die "无法创建知识库入口"
 
 step "第 6 步 / 共 6 步：启动 FDE365"
 OBSIDIAN_CONFIG_DIR="$HOME/Library/Application Support/obsidian"
@@ -262,7 +232,7 @@ fi
 printf "\n%s安装完成。%s\n" "$GREEN" "$RESET"
 printf "工作台位置：%s\n" "$VAULT_DIR"
 printf "模型：%s\n" "$MODEL"
-printf "桌面已创建“FDE365 工具”，可以从任意文件夹启动 Claude Code 或 Codex。\n"
-printf "原有客户端配置已备份到：%s\n" "$GLOBAL_BACKUP"
+printf "桌面已创建知识库入口。请打开插件设置 → 账号与额度，用邮箱验证码登录。\n"
+printf "未修改本机 Claude Code、Codex 或 Shell 配置。\n"
 printf "首次打开若出现安全确认，请选择信任当前知识库并启用第三方插件。\n"
 pause_exit 0

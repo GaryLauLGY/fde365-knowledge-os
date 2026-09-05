@@ -6,7 +6,7 @@
     "审计 Agent 规则文件和技能目录",
     "确定规则真源和 Skill 真源",
     "统一名称和入口",
-    "覆盖 Claude Code、Codex、Grok 和通用 Agents",
+    "仅处理当前 Vault 内的 FDE 规则与技能",
     "先预览再迁移"
   ],
   "tests": [

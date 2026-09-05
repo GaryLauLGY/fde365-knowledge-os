@@ -114,6 +114,7 @@ rl.on("line", (line) => {
     fs.chmodSync(fakeCodex, 0o755);
 
     const plugin = {
+      accountClient: { getAccessToken: async () => "test-token" },
       app: { vault: { adapter: { getBasePath: () => home } } },
       manifest: { id: "fde365-knowledge-os", version: "1.1.0" },
       knowledgeRoot: "FDE365知识库",

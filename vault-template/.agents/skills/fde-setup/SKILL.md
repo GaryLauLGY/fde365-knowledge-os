@@ -1,7 +1,7 @@
 ---
 name: fde-setup
 description: |
-  把一个知识库项目整理成 Claude Code、Codex 和其他 Agent 都能识别的本地工作目录。保留一个真源，其他入口只做连接。触发方式：/fde-setup、「整理 Agent 工作台」「统一项目规则」。
+  审计当前 FDE 知识库的规则与技能真源，整理项目内目录；不连接本机 Claude Code 或 Codex。触发方式：/fde-setup、「整理 Agent 工作台」「统一项目规则」。
 ---
 
 # Agent 工作目录
@@ -19,7 +19,7 @@ description: |
 
 - 项目根目录
 - 现有 AGENTS.md、CLAUDE.md 和 skills
-- 目标 Agent
+- 当前 FDE 工作台
 - 真源位置
 
 ## 必须保留的能力
@@ -27,14 +27,14 @@ description: |
 - 审计 Agent 规则文件和技能目录
 - 确定规则真源和 Skill 真源
 - 统一名称和入口
-- 覆盖 Claude Code、Codex、Grok 和通用 Agents
+- 仅处理当前 Vault 内的 FDE 规则与技能
 - 先预览再迁移
 
 ## 执行
 
 1. 盘点现有规则、技能和重复副本。
 2. 选择一个规则真源和一个 Skill 真源。
-3. 生成各宿主需要的最小入口文件或连接方案。
+3. 生成当前 Vault 内的规则与技能目录整理方案，不创建跨客户端连接。
 4. 先预览新增、修改和冲突，确认后执行。
 
 ## 交付
@@ -50,7 +50,7 @@ description: |
 ## 写回
 
 - 只在当前项目内写入口文件
-- 全局安装必须单独确认
+- 不写入全局客户端配置、全局技能目录或 Shell 环境变量
 
 ## 停止条件
 
@@ -60,7 +60,6 @@ description: |
 
 ## 接续
 
-- 只连接一个 Skill 用 fde-connect
 - 完成后用 fde-health
 
 来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。

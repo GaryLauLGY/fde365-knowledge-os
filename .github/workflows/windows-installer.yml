@@ -37,18 +37,28 @@ jobs:
           $root = Join-Path $bundle "FDE365-Knowledge-OS-Windows-v$version"
           $env:FDE365_SIMULATION = "1"
           $env:FDE365_NONINTERACTIVE = "1"
-          $env:FDE365_TOKEN_INPUT = "windows-ci-placeholder-token"
           $env:FDE365_MODEL = "gpt-5.6-luna"
           $env:FDE365_HOME_OVERRIDE = Join-Path $qa "home"
           $env:FDE365_APPDATA_OVERRIDE = Join-Path $qa "appdata"
           $env:FDE365_LOCALAPPDATA_OVERRIDE = Join-Path $qa "localappdata"
           $env:FDE365_DESKTOP_OVERRIDE = Join-Path $qa "desktop"
           $env:FDE365_VAULT_PATH = Join-Path $qa "vault"
+          $globalCodex = Join-Path $qa "home/.codex/config.toml"
+          $globalClaude = Join-Path $qa "home/.claude/settings.json"
+          New-Item -ItemType Directory -Path (Split-Path $globalCodex), (Split-Path $globalClaude) -Force | Out-Null
+          [IO.File]::WriteAllText($globalCodex, 'model = "keep-original"')
+          [IO.File]::WriteAllText($globalClaude, '{"keep":"original"}')
           & (Join-Path $root "开始安装 FDE365.ps1")
           if (-not $?) { throw "Windows simulation installer failed" }
           & (Join-Path $root "检查安装.ps1")
           if (-not $?) { throw "Windows simulation diagnostics failed" }
           $data = Get-Content -LiteralPath (Join-Path $qa "vault/.obsidian/plugins/fde365-knowledge-os/data.json") -Raw | ConvertFrom-Json
-          if ($data.ai.fde365.token -ne "windows-ci-placeholder-token") { throw "Simulation Token mismatch" }
-          if ((Get-Content -LiteralPath (Join-Path $qa "home/.codex/config.toml") -Raw) -notmatch "https://api.fde365.ai/v1") { throw "Codex Base URL mismatch" }
-          if ((Get-Content -LiteralPath (Join-Path $qa "home/.claude/settings.json") -Raw) -notmatch "https://api.fde365.ai") { throw "Claude Base URL mismatch" }
+          if ($data.schemaVersion -ne 5 -or $data.ai.fde365.token) { throw "Installer must not collect credentials" }
+          if ((Get-Content -LiteralPath $globalCodex -Raw) -ne 'model = "keep-original"') { throw "Global Codex was modified" }
+          if ((Get-Content -LiteralPath $globalClaude -Raw) -ne '{"keep":"original"}') { throw "Global Claude was modified" }
+          if (Test-Path -LiteralPath (Join-Path $qa "vault/FDE365知识库/.agents/skills/fde-connect")) { throw "Retired skill installed" }
+          $dataPath = Join-Path $qa "vault/.obsidian/plugins/fde365-knowledge-os/data.json"
+          $before = Get-Content -LiteralPath $dataPath -Raw
+          & (Join-Path $root "更新 FDE365.ps1")
+          if (-not $?) { throw "Update failed" }
+          if ((Get-Content -LiteralPath $dataPath -Raw) -ne $before) { throw "Update changed user settings" }

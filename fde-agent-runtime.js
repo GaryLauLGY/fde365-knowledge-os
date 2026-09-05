@@ -69,7 +69,7 @@ function buildIsolatedCodexConfig(model) {
     "",
     "[model_providers.fde365]",
     'name = "FDE365"',
-    'base_url = "https://api.fde365.ai/v1"',
+    'base_url = "https://api.ipzsk.com/v1"',
     'wire_api = "responses"',
     'env_key = "FDE365_TOKEN"',
     "",
@@ -91,7 +91,7 @@ function hasManagedCodexConfig(codexHome) {
   try {
     const config = fs.readFileSync(codexConfigPath(codexHome), "utf8");
     return config.includes('model_provider = "fde365"')
-      && config.includes('base_url = "https://api.fde365.ai/v1"')
+      && config.includes('base_url = "https://api.ipzsk.com/v1"')
       && config.includes('wire_api = "responses"')
       && config.includes('env_key = "FDE365_TOKEN"');
   } catch {
@@ -297,6 +297,7 @@ function buildBaseInstructions(request, vaultPath, knowledgeRoot) {
     `- FDE365 知识库根目录：${knowledgeRoot}`,
     "- 只读取完成当前任务所需的文件；不得读取 Vault 外的文件、凭据、浏览器数据或其他项目。",
     "- 不得读取或输出 .obsidian/plugins/fde365-knowledge-os/data.json、Token、密钥或任何凭据。",
+    "- 仅使用当前 FDE 技能目录列出的启用技能；旧 Vault 中残留的 fde-connect 已停用，不得调用，也不得连接或改写本机 Claude Code/Codex 配置。",
     "- 禁止删除、清空或覆盖原始材料；写入必须优先新建草稿。",
     "- 禁止网络访问、安装软件、修改 Obsidian 插件配置或修改 .fde/.agents 运行合同。",
     "- 当用户调用 /fde-* 时，先读取知识库内对应 .agents/skills/<skill>/SKILL.md，再按合同执行。",
@@ -368,19 +369,19 @@ class FdeCodexAgentRuntime {
   }
 
   async ensureReady() {
-    const token = String(this.plugin.settings?.ai?.fde365?.token || "").trim();
+    const token = this.usesLocalCli ? "" : await this.plugin.accountClient.getAccessToken();
     const model = String(this.plugin.settings?.ai?.fde365?.model || "gpt-5.6-luna").trim();
     const binary = this.options.codexPath || locateCodexBinary();
     if (!binary) throw new FdeAgentRuntimeError("AGENT_RUNTIME_MISSING", "未找到 Codex 运行组件；请先安装官方 Codex 应用或命令行组件");
     if (!this.usesLocalCli) {
-      if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+      if (!token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先登录 FDE365 账号");
       try {
         ensureIsolatedCodexConfig(this.codexHome, model);
       } catch (error) {
         throw new FdeAgentRuntimeError("AGENT_CONFIG_FAILED", `无法创建当前 Vault 的独立 Agent 配置：${error instanceof Error ? error.message : String(error)}`);
       }
     }
-    if (this.transport && !this.transport.disposed && this.proc && !this.proc.killed && this.runtimeBinary === binary) return;
+    if (this.transport && !this.transport.disposed && this.proc && !this.proc.killed && this.runtimeBinary === binary && (this.usesLocalCli || this.runtimeToken === token)) return;
     await this.shutdown();
     const spec = buildSpawnSpec(binary);
     const proc = spawn(spec.command, spec.args, {
@@ -408,6 +409,7 @@ class FdeCodexAgentRuntime {
       });
       this.transport.notify("initialized");
       this.runtimeBinary = binary;
+      this.runtimeToken = token;
     } catch (error) {
       await this.shutdown();
       throw new FdeAgentRuntimeError("AGENT_START_FAILED", redact(error instanceof Error ? error.message : error, token));
@@ -417,9 +419,9 @@ class FdeCodexAgentRuntime {
   async complete(request) {
     if (this.active) throw new FdeAgentRuntimeError("AGENT_BUSY", "本地 Agent 正在执行另一个任务，请等待完成或先停止");
     const settings = this.plugin.settings.ai.fde365;
-    const token = String(settings.token || "").trim();
+    const token = this.usesLocalCli ? "" : await this.plugin.accountClient.getAccessToken();
     const model = this.usesLocalCli ? "" : String(settings.model || "").trim();
-    if (!this.usesLocalCli && !token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先填写 Token");
+    if (!this.usesLocalCli && !token) throw new FdeAgentRuntimeError("PROVIDER_NOT_CONFIGURED", "请先登录 FDE365 账号");
     await this.ensureReady();
 
     const execution = executionPolicy(this.plugin.settings?.ai?.assistant?.executionMode, this.vaultPath);
@@ -498,6 +500,7 @@ class FdeCodexAgentRuntime {
     } finally {
       this.active = null;
       this.pendingNotifications = [];
+      if (!this.usesLocalCli && this.plugin.accountClient?.isLoggedIn?.()) void this.plugin.accountClient.sync({ quiet: true }).catch(() => undefined);
     }
   }
 
@@ -638,6 +641,7 @@ class FdeCodexAgentRuntime {
     this.pendingNotifications = [];
     this.loadedThreads.clear();
     this.runtimeBinary = "";
+    this.runtimeToken = "";
     this.transport?.dispose();
     this.transport = null;
     if (this.proc && !this.proc.killed) {

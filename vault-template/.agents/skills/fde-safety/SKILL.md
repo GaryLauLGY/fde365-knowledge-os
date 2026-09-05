@@ -61,7 +61,7 @@ description: |
 
 ## 接续
 
-- 需要连接时用 fde-connect
+- 不提供连接本机 Claude Code 或 Codex 的功能；不要修改全局客户端配置
 - 整体工作台用 fde-setup
 
 来源沿革只用于追溯，不作为运行指令。需要追溯时读取 `references/source-map.md`。

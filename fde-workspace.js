@@ -114,7 +114,6 @@ const SKILLS = Object.freeze([
   { id: "fde-benchmark", group: "content", name: "研究对标", description: "围绕业务目标比较可观察做法并安排小实验，不复制人设。", output: "对标观察与实验", icon: "telescope" },
   { id: "fde-library", group: "library", name: "查库与维护", description: "查找、收录、纠错和维护六类资产，每个结论返回来源。", output: "答案、来源与版本", icon: "library" },
   { id: "fde-organize", group: "library", name: "整理资产", description: "检查重复、错库、来源和跨库关系，并用真实 Obsidian 双链连接已确认的资产。", output: "资产清单、关联预览与双链写入记录", icon: "list-tree" },
-  { id: "fde-connect", group: "library", name: "连接 Skill", description: "把 Skill 真源连接到指定 Agent 技能目录并检查状态。", output: "连接状态", icon: "link" },
   { id: "fde-setup", group: "library", name: "整理 Agent 项目", description: "整理规则真源和 Skill 真源，让多个本地 Agent 识别项目。", output: "项目设置预览", icon: "wrench" },
   { id: "fde-safety", group: "library", name: "Skill 安全检查", description: "只读检查外部命令、网络、敏感读取、隐藏指令和删除行为。", output: "安全报告", icon: "shield-check" },
   { id: "fde-save", group: "state", name: "保存进度", description: "保存目标、来源、完成项、未知项和下一步。", output: "任务状态", icon: "save" },
@@ -210,7 +209,7 @@ const NAV_ITEMS = Object.freeze([
   { key: "libraries", label: "六类资产", note: "真源与版本", icon: "library" },
   { key: "network", label: "资产网络", note: "跨库关系", icon: "network" },
   { key: "content", label: "内容生产", note: "五阶段发布闭环", icon: "panels-top-left" },
-  { key: "skills", label: "FDE Skills", note: "35 项工作流", icon: "blocks" },
+  { key: "skills", label: "FDE Skills", note: "34 项工作流", icon: "blocks" },
   { key: "health", label: "知识体检", note: "来源与冲突", icon: "activity" },
 ]);
 
@@ -1216,7 +1215,7 @@ class FDEWorkspaceService {
         });
         return { status: "awaiting-confirmation", task, outputPath };
       }
-      const failure = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 Token 配置");
+      const failure = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 账号登录");
       this.setInboxProcessing(selected, "failed", `处理失败 · ${failure}`);
       return { status: "failed", task };
     } catch (error) {

@@ -23,7 +23,7 @@ const requiredFolders = [
 
 assert.equal(blueprint.id, "fde365-six-assets");
 assert.equal(blueprint.root, "FDE365知识库");
-assert.equal(blueprint.version, 6);
+assert.equal(blueprint.version, 7);
 for (const path of requiredFolders) assert.ok(blueprint.folders.includes(path), `missing blueprint folder: ${path}`);
 assert.ok(!blueprint.folders.some((path) => path === "0-录音处理" || path.startsWith("0-录音处理/")), "recordings must live under the generic pending-material inbox");
 assert.ok(!Object.keys(blueprint.files).some((path) => path === "0-录音处理" || path.startsWith("0-录音处理/")), "blueprint files must not recreate the legacy recording tree");
@@ -36,7 +36,7 @@ assert.ok(!blueprint.folders.includes("6-内容生产/数据复盘"), "published
 assert.match(blueprint.files["6-内容生产/README.md"], /已发布.*流程终点/s, "content README must explain the terminal published stage");
 assert.equal(new Set(blueprint.folders).size, blueprint.folders.length);
 const skillPaths = Object.keys(blueprint.files).filter((path) => /^\.agents\/skills\/[^/]+\/SKILL\.md$/.test(path));
-assert.equal(skillPaths.length, 35);
+assert.equal(skillPaths.length, 34);
 assert.ok(skillPaths.every((path) => /^\.agents\/skills\/fde-[^/]+\/SKILL\.md$/.test(path)), "all Skill directories must use the fde- namespace");
 for (const path of skillPaths) {
   const id = path.split("/")[2];

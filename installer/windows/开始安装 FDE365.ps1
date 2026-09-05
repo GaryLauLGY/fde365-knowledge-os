@@ -22,13 +22,11 @@ try {
 
     Write-Host ""
     Write-Host "FDE365 Knowledge OS · Windows 一键安装" -ForegroundColor Cyan
-    Write-Host "一次安装即可使用 Obsidian、Claude Code 和 Codex。"
-    Write-Host "AI 服务地址已固定，不需要填写 Base URL。"
+    Write-Host "安装 Obsidian 与 Codex 引擎，不连接本机客户端。"
+    Write-Host "AI 服务固定为 https://api.ipzsk.com/v1；安装后在插件内邮箱登录。"
     if ($context.Simulation) { Write-Host "模拟模式：所有写入都位于隔离目录。" -ForegroundColor Cyan }
 
-    Write-Host "`n第 1 步 / 共 6 步：填写 FDE365 Token" -ForegroundColor Cyan
-    $token = Get-FdeTokenFromPrompt
-    if ([string]::IsNullOrWhiteSpace($token)) { throw "Token 不能为空。" }
+    Write-Host "`n第 1 步 / 共 6 步：选择默认模型" -ForegroundColor Cyan
     $model = Get-FdeSelectedModel
 
     Write-Host "`n第 2 步 / 共 6 步：安装官方应用" -ForegroundColor Cyan
@@ -51,12 +49,10 @@ try {
     Copy-FdeCreateOnly $templateSource $knowledge
     Copy-FdeCreateOnly $pluginSource $pluginTarget
     Enable-FdePlugin $vault
-    Write-FdePluginSettings (Join-Path $pluginTarget "data.json") $token $model
-    $token = $null
-    [Environment]::SetEnvironmentVariable("FDE365_TOKEN_INPUT", $null, "Process")
+    Write-FdePluginSettings (Join-Path $pluginTarget "data.json") $model
 
-    Write-Host "`n第 4 步 / 共 6 步：连接 Claude Code 和 Codex" -ForegroundColor Cyan
-    $backup = Write-FdeClientConfig $context $vault $model $helpers
+    Write-Host "`n第 4 步 / 共 6 步：登记知识库入口" -ForegroundColor Cyan
+    Write-FdeVaultPointer $context $vault
 
     Write-Host "`n第 5 步 / 共 6 步：创建桌面入口" -ForegroundColor Cyan
     Install-FdeDesktopTools $context $scriptRoot
@@ -70,7 +66,7 @@ try {
     Write-Host "安装完成。" -ForegroundColor Green
     Write-Host "工作台：$vault"
     Write-Host "模型：$model"
-    Write-Host "原配置备份：$backup"
+    Write-Host "请在插件设置中用邮箱验证码登录；未修改本机客户端配置。"
     Write-Host "桌面已创建“FDE365 工具”。"
     if ($env:FDE365_NONINTERACTIVE -ne "1") { Read-Host "按回车键关闭窗口" | Out-Null }
 } catch {

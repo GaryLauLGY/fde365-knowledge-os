@@ -71,16 +71,6 @@ function Backup-FdeFile([string]$Path, [string]$BackupDirectory) {
     Copy-Item -LiteralPath $Path -Destination (Join-Path $BackupDirectory $safeName) -Force
 }
 
-function Get-FdeTokenFromPrompt {
-    $provided = [Environment]::GetEnvironmentVariable("FDE365_TOKEN_INPUT", "Process")
-    if (-not [string]::IsNullOrWhiteSpace($provided)) { return $provided.Trim() }
-    Write-Host "请先前往 https://api.fde365.ai/ 购买或创建 Token。"
-    $secure = Read-Host "粘贴 Token（输入内容不会显示）" -AsSecureString
-    $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer).Trim() }
-    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
-}
-
 function Get-FdeSelectedModel {
     $requested = [Environment]::GetEnvironmentVariable("FDE365_MODEL", "Process")
     if ($script:FdeAllowedModels -contains $requested) { return $requested }
@@ -97,11 +87,10 @@ function Get-FdeSelectedModel {
     return $script:FdeAllowedModels[$number - 1]
 }
 
-function Write-FdePluginSettings([string]$DataPath, [string]$Token, [string]$Model) {
-    if ([string]::IsNullOrWhiteSpace($Token)) { throw "Token 不能为空。" }
+function Write-FdePluginSettings([string]$DataPath, [string]$Model) {
     if ($script:FdeAllowedModels -notcontains $Model) { throw "模型不在允许列表中。" }
     $settings = Read-FdeJson $DataPath
-    Set-FdeProperty $settings "schemaVersion" 4
+    Set-FdeProperty $settings "schemaVersion" 5
     if ($null -eq $settings.PSObject.Properties["onboardingVersion"]) { Set-FdeProperty $settings "onboardingVersion" 0 }
     if ($null -eq $settings.PSObject.Properties["ai"] -or $null -eq $settings.ai) {
         Set-FdeProperty $settings "ai" ([pscustomobject]@{})
@@ -110,7 +99,6 @@ function Write-FdePluginSettings([string]$DataPath, [string]$Token, [string]$Mod
     if ($null -eq $settings.ai.PSObject.Properties["fde365"] -or $null -eq $settings.ai.fde365) {
         Set-FdeProperty $settings.ai "fde365" ([pscustomobject]@{})
     }
-    Set-FdeProperty $settings.ai.fde365 "token" $Token
     Set-FdeProperty $settings.ai.fde365 "model" $Model
     Set-FdeProperty $settings.ai.fde365 "temperature" 0.3
     Set-FdeProperty $settings.ai.fde365 "timeoutMs" 120000
@@ -144,68 +132,15 @@ function Register-FdeVault([object]$Context, [string]$VaultPath) {
     Write-FdeJson $configPath $config
 }
 
-function Get-FdeTokenCommand([string]$TokenHelper) {
-    return 'powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "' + $TokenHelper + '"'
-}
-
-function Write-FdeClientConfig([object]$Context, [string]$VaultPath, [string]$Model, [string]$HelpersPath) {
-    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $backup = Join-Path $Context.Support ("backups\global-" + $timestamp)
-    $bin = Join-Path $Context.Support "bin"
-    Ensure-FdeDirectory $backup
-    Ensure-FdeDirectory $bin
-    Ensure-FdeDirectory (Join-Path $Context.Home ".claude")
-    Ensure-FdeDirectory (Join-Path $Context.Home ".codex")
-    $claudePath = Join-Path $Context.Home ".claude\settings.json"
-    $codexPath = Join-Path $Context.Home ".codex\config.toml"
-    Backup-FdeFile $claudePath $backup
-    Backup-FdeFile $codexPath $backup
-    Copy-Item -LiteralPath (Join-Path $HelpersPath "fde365-token.ps1") -Destination (Join-Path $bin "fde365-token.ps1") -Force
+function Write-FdeVaultPointer([object]$Context, [string]$VaultPath) {
+    Ensure-FdeDirectory $Context.Support
     [IO.File]::WriteAllText((Join-Path $Context.Support "vault-path.txt"), $VaultPath + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
-    [IO.File]::WriteAllText((Join-Path $Context.Support "model.txt"), $Model + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
-    $tokenCommand = Get-FdeTokenCommand (Join-Path $bin "fde365-token.ps1")
-
-    $claude = [pscustomobject]@{
-        apiKeyHelper = $tokenCommand
-        env = [pscustomobject]@{
-            ANTHROPIC_BASE_URL = "https://api.fde365.ai"
-            ANTHROPIC_MODEL = $Model
-            ANTHROPIC_DEFAULT_OPUS_MODEL = $Model
-            ANTHROPIC_DEFAULT_SONNET_MODEL = $Model
-            ANTHROPIC_DEFAULT_HAIKU_MODEL = $Model
-            CLAUDE_CODE_API_KEY_HELPER_TTL_MS = "300000"
-            CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
-        }
-    }
-    Write-FdeJson $claudePath $claude
-
-    $escapedCommand = $tokenCommand.Replace("'", "''")
-    $codex = @(
-        'model = "' + $Model + '"',
-        'model_provider = "fde365"',
-        'model_reasoning_effort = "medium"',
-        'check_for_update_on_startup = false',
-        'web_search = "disabled"',
-        '',
-        '[model_providers.fde365]',
-        'name = "FDE365"',
-        'base_url = "https://api.fde365.ai/v1"',
-        'wire_api = "responses"',
-        '',
-        '[model_providers.fde365.auth]',
-        "command = '" + $escapedCommand + "'",
-        'timeout_ms = 5000',
-        'refresh_interval_ms = 0',
-        ''
-    ) -join [Environment]::NewLine
-    [IO.File]::WriteAllText($codexPath, $codex, (New-Object Text.UTF8Encoding($false)))
-    return $backup
 }
 
 function Install-FdeDesktopTools([object]$Context, [string]$LaunchersPath) {
     $tools = Join-Path $Context.Desktop "FDE365 工具"
     Ensure-FdeDirectory $tools
-    foreach ($name in @("打开 FDE365 Claude.cmd", "打开 FDE365 Codex.cmd", "打开 FDE365 知识库.cmd")) {
+    foreach ($name in @("打开 FDE365 知识库.cmd")) {
         Copy-Item -LiteralPath (Join-Path $LaunchersPath $name) -Destination (Join-Path $tools $name) -Force
     }
 }
@@ -224,12 +159,11 @@ function Install-FdeOfficialApplications([object]$Context, [string]$ReleaseConfi
     if ($Context.Simulation) {
         $fakeBin = Join-Path $Context.Home ".local\bin"
         Ensure-FdeDirectory $fakeBin
-        Set-Content -LiteralPath (Join-Path $fakeBin "claude.cmd") -Value "@echo off`r`necho FDE365 simulated Claude Code" -Encoding ASCII
         Set-Content -LiteralPath (Join-Path $fakeBin "codex.cmd") -Value "@echo off`r`necho FDE365 simulated Codex CLI" -Encoding ASCII
         $fakeObsidian = Join-Path $Context.LocalAppData "Obsidian\Obsidian.exe"
         Ensure-FdeDirectory (Split-Path -Parent $fakeObsidian)
         Set-Content -LiteralPath $fakeObsidian -Value "simulation" -Encoding ASCII
-        Write-Host "[模拟] 已创建隔离的 Obsidian、Claude Code 和 Codex 占位程序。" -ForegroundColor Cyan
+        Write-Host "[模拟] 已创建隔离的 Obsidian 和 Codex 引擎占位程序。" -ForegroundColor Cyan
         return
     }
 
@@ -247,22 +181,6 @@ function Install-FdeOfficialApplications([object]$Context, [string]$ReleaseConfi
             if ($process.ExitCode -ne 0) { throw "Obsidian 安装程序退出码：$($process.ExitCode)" }
             if ($null -eq (Get-FdeObsidianPath $Context)) { throw "Obsidian 安装完成后仍未找到程序。" }
         } else { Write-Host "已检测到 Obsidian。" -ForegroundColor Green }
-
-        if ($null -eq (Get-Command claude -ErrorAction SilentlyContinue)) {
-            Write-Host "正在从 Claude Code 官方地址安装…"
-            try {
-                $claudeScript = Join-Path $temp "claude-install.ps1"
-                Invoke-WebRequest -UseBasicParsing -Uri "https://claude.ai/install.ps1" -OutFile $claudeScript
-                & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $claudeScript
-                if ($LASTEXITCODE -ne 0) { throw "Claude Code 官方安装程序退出码：$LASTEXITCODE" }
-            } catch {
-                $npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
-                if ($null -eq $npm) { throw "Claude Code 官方安装地址无法访问，且本机没有 npm 兜底环境。" }
-                Write-Host "官方脚本无法访问，改用 npm 官方 Registry 的 Claude Code 包…" -ForegroundColor Yellow
-                & $npm.Source install --global "@anthropic-ai/claude-code" --registry="https://registry.npmjs.org"
-                if ($LASTEXITCODE -ne 0) { throw "Claude Code 官方 npm 包安装失败。" }
-            }
-        } else { Write-Host "已检测到 Claude Code。" -ForegroundColor Green }
 
         if ($null -eq (Get-Command codex -ErrorAction SilentlyContinue)) {
             Write-Host "正在从 Codex 官方地址安装…"

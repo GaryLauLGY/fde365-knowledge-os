@@ -14,7 +14,7 @@
 - 有录音、聊天记录或旧文档：使用 `/fde-ingest`。
 - 已经有六类资产：根据任务进入诊断、选题、写作或审核。
 
-## 35 个 Skill
+## 34 个 Skill
 
 ### 建库和维护
 
@@ -26,7 +26,6 @@
 - `/fde-health`：检查目录、来源、索引和运行状态。
 - `/fde-organize`：整理已有资产；“整理关联”会在确认依据后，把跨库关系写入两端真实 Obsidian 双链。
 - `/fde-setup`：建立 Agent 工作目录。
-- `/fde-connect`：把 Skill 真源连接到指定 Agent 技能目录。
 - `/fde-update`：检查或更新这一套 `fde-*`。
 - `/fde-safety`：检查 Skill 中的可疑行为。
 

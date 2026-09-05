@@ -19,8 +19,6 @@ const topLevelFiles = [
   "开始安装 FDE365.command",
   "更新 FDE365.command",
   "检查安装.command",
-  "打开 FDE365 Claude.command",
-  "打开 FDE365 Codex.command",
   "打开 FDE365 知识库.command",
   "⭐ 先看我.html",
 ];
@@ -28,13 +26,6 @@ const helperFiles = [
   "write-plugin-settings.jxa",
   "enable-plugin.jxa",
   "register-vault.jxa",
-  "check-token.jxa",
-  "read-plugin-token.jxa",
-  "read-plugin-model.jxa",
-  "write-client-config.jxa",
-  "fde365-token",
-  "fde365-claude",
-  "fde365-codex",
   "configure-user-environment.sh",
 ];
 const pluginFiles = [
@@ -106,6 +97,8 @@ for (const name of helperFiles) {
 
 await cp(join(root, "vault-template"), templateRoot, { recursive: true });
 for (const name of pluginFiles) await cp(join(root, name), join(pluginRoot, name));
+await mkdir(join(pluginRoot, "docs"), { recursive: true });
+await cp(join(root, "docs", "billing-backend.md"), join(pluginRoot, "docs", "billing-backend.md"));
 await mkdir(join(pluginRoot, "assets"), { recursive: true });
 await cp(join(root, "assets", "fde365-logo.png"), join(pluginRoot, "assets", "fde365-logo.png"));
 await cp(join(root, "assets", "fde365-logo-source.svg"), join(pluginRoot, "assets", "fde365-logo-source.svg"));

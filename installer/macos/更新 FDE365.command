@@ -22,9 +22,8 @@ die() {
 }
 
 printf "\nFDE365 Knowledge OS · Mac 更新\n"
-printf "更新插件，并重新同步 Obsidian、Claude Code 与 Codex 的 FDE365 配置。\n\n"
+printf "仅更新插件，不连接本机 Claude Code 或 Codex。\n\n"
 [ -d "$PLUGIN_SOURCE" ] || die "更新包缺少 FDE365 插件组件"
-[ -f "$HELPERS_DIR/read-plugin-model.jxa" ] || die "更新包缺少模型配置助手"
 [ -f "$HELPERS_DIR/configure-user-environment.sh" ] || die "更新包缺少客户端配置助手"
 
 read -r -p "工作台路径【直接回车使用 ${DEFAULT_VAULT}】：" VAULT_DIR
@@ -50,18 +49,11 @@ done
   "$VAULT_DIR/.obsidian/community-plugins.json" "$PLUGIN_ID" >/dev/null \
   || die "无法确认插件启用状态"
 
-DATA_JSON="$PLUGIN_TARGET/data.json"
-[ -f "$DATA_JSON" ] || die "未找到原 Token，请先运行首次安装"
-MODEL="$(/usr/bin/osascript -l JavaScript "$HELPERS_DIR/read-plugin-model.jxa" "$DATA_JSON" 2>/dev/null)" \
-  || die "无法读取当前模型"
-GLOBAL_BACKUP="$(/bin/bash "$HELPERS_DIR/configure-user-environment.sh" \
-  "$VAULT_DIR" "$MODEL" "$HELPERS_DIR" "$SCRIPT_DIR")" \
-  || die "无法同步 Claude Code 和 Codex 配置"
+/bin/bash "$HELPERS_DIR/configure-user-environment.sh" "$VAULT_DIR" "" "$HELPERS_DIR" "$SCRIPT_DIR" >/dev/null
 
 VERSION="$(/usr/bin/plutil -extract version raw "$PLUGIN_TARGET/manifest.json" 2>/dev/null || true)"
 printf "\n更新完成：FDE365 Knowledge OS %s\n" "${VERSION:-未知版本}"
-printf "原 Token 和用户数据已保留。\n"
+printf "原账号配置和用户数据已保留；旧 Token 不自动发送到新服务，请在插件内登录。\n"
 printf "旧程序备份：%s\n" "$BACKUP_DIR"
-printf "原客户端配置备份：%s\n" "$GLOBAL_BACKUP"
-printf "请彻底退出 Obsidian、Claude Code 和 Codex 后重新打开。\n"
+printf "请在方便时重新加载 Obsidian 插件。\n"
 pause_exit 0

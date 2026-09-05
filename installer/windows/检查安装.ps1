@@ -7,20 +7,9 @@ $context = Get-FdeContext
 $vault = Get-FdeInstalledVault $context
 $results = [ordered]@{
     Obsidian = ($null -ne (Get-FdeObsidianPath $context))
-    ClaudeCode = ($context.Simulation -or $null -ne (Get-Command claude -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath (Join-Path $context.Home ".local\bin\claude.cmd")))
-    Codex = ($context.Simulation -or $null -ne (Get-Command codex -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath (Join-Path $context.Home ".local\bin\codex.cmd")))
+    Codex = ($context.Simulation -or $null -ne (Get-Command codex -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath (Join-Path $context.Home ".local\bin\codex.cmd")) -or (Test-Path -LiteralPath (Join-Path $context.Home ".local\bin\codex.exe")))
     Vault = (-not [string]::IsNullOrWhiteSpace($vault) -and (Test-Path -LiteralPath $vault))
     Plugin = (-not [string]::IsNullOrWhiteSpace($vault) -and (Test-Path -LiteralPath (Join-Path $vault ".obsidian\plugins\fde365-knowledge-os\main.js")))
-    Token = $false
-    ClaudeConfig = (Test-Path -LiteralPath (Join-Path $context.Home ".claude\settings.json"))
-    CodexConfig = (Test-Path -LiteralPath (Join-Path $context.Home ".codex\config.toml"))
-}
-if ($results.Plugin) {
-    $dataPath = Join-Path $vault ".obsidian\plugins\fde365-knowledge-os\data.json"
-    if (Test-Path -LiteralPath $dataPath) {
-        $data = Read-FdeJson $dataPath
-        $results.Token = (-not [string]::IsNullOrWhiteSpace([string]$data.ai.fde365.token))
-    }
 }
 Write-Host "FDE365 Windows 安装检查" -ForegroundColor Cyan
 $failed = $false
@@ -34,5 +23,5 @@ if ($failed) {
     Read-Host "按回车键关闭窗口" | Out-Null
     exit 1
 }
-Write-Host "全部检查通过，Token 内容未显示。" -ForegroundColor Green
+Write-Host "安装文件检查通过；账号需在插件内邮箱登录。" -ForegroundColor Green
 if ($env:FDE365_NONINTERACTIVE -ne "1") { Read-Host "按回车键关闭窗口" | Out-Null }

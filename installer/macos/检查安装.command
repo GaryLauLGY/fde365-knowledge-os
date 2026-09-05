@@ -5,7 +5,6 @@ IFS=$'\n\t'
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ID="fde365-knowledge-os"
 DEFAULT_VAULT="$HOME/Documents/FDE365工作台"
-CHECK_TOKEN_HELPER="$SCRIPT_DIR/组件/helpers/check-token.jxa"
 FDE365_SUPPORT="$HOME/Library/Application Support/FDE365 Knowledge OS"
 VAULT_POINTER="$FDE365_SUPPORT/vault-path.txt"
 
@@ -63,16 +62,7 @@ if [ -f "$PLUGIN_DIR/manifest.json" ]; then
   fi
 fi
 
-if [ -f "$PLUGIN_DIR/data.json" ]; then
-  TOKEN_STATE="$(/usr/bin/osascript -l JavaScript "$CHECK_TOKEN_HELPER" "$PLUGIN_DIR/data.json" 2>/dev/null || true)"
-  if [ "$TOKEN_STATE" = "configured" ]; then
-    ok "Token 已配置（不会显示内容）"
-  else
-    bad "Token 尚未配置"
-  fi
-else
-  bad "插件 data.json 尚未创建"
-fi
+printf "账号需在插件内邮箱登录；未登录不影响安装完整性检查。\n"
 
 if /usr/bin/grep -Fq '"fde365-knowledge-os"' "$VAULT_DIR/.obsidian/community-plugins.json" 2>/dev/null; then
   ok "插件已加入启用列表"
@@ -86,32 +76,13 @@ else
   bad "FDE365知识库目录不存在"
 fi
 
-if [ -x "$HOME/.local/bin/claude" ] || [ -x "$HOME/.claude/local/claude" ] || command -v claude >/dev/null 2>&1; then
-  ok "Claude Code 已安装"
-else
-  bad "Claude Code 尚未安装"
-fi
-
 if [ -x "$HOME/.local/bin/codex" ] || command -v codex >/dev/null 2>&1; then
   ok "Codex CLI 已安装"
 else
   bad "Codex CLI 尚未安装"
 fi
 
-if /usr/bin/grep -Fq 'https://api.fde365.ai' "$HOME/.claude/settings.json" 2>/dev/null; then
-  ok "Claude Code 已连接 FDE365"
-else
-  bad "Claude Code 尚未连接 FDE365"
-fi
-
-if /usr/bin/grep -Fq 'model_provider = "fde365"' "$HOME/.codex/config.toml" 2>/dev/null \
-  && /usr/bin/grep -Fq 'https://api.fde365.ai/v1' "$HOME/.codex/config.toml" 2>/dev/null; then
-  ok "Codex 已连接 FDE365"
-else
-  bad "Codex 尚未连接 FDE365"
-fi
-
-for launcher in "打开 FDE365 Claude.command" "打开 FDE365 Codex.command" "打开 FDE365 知识库.command"; do
+for launcher in "打开 FDE365 知识库.command"; do
   if [ -x "$HOME/Desktop/FDE365 工具/$launcher" ]; then
     ok "桌面入口已就绪：$launcher"
   else

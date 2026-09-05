@@ -57,8 +57,8 @@ assert.equal(CONTENT_STAGE_GATES.待审核.skill, "fde-review");
 assert.equal(CONTENT_STAGE_GATES.待发布.next, "已发布");
 assert.equal(CONTENT_STAGE_GATES.待发布.skill, "");
 assert.equal(CONTENT_STAGE_GATES.已发布, undefined, "published content must be the terminal workflow stage");
-assert.equal(SKILLS.length, 35);
-assert.equal(new Set(SKILLS.map((item) => item.id)).size, 35);
+assert.equal(SKILLS.length, 34);
+assert.equal(new Set(SKILLS.map((item) => item.id)).size, 34);
 assert.ok(SKILLS.every((skill) => skill.id.startsWith("fde-")), "all runtime Skill IDs must use the fde- namespace");
 for (const required of ["fde-start", "fde-interview", "fde-ingest", "fde-library", "fde-write", "fde-review", "fde-health"]) {
   assert.ok(SKILLS.some((skill) => skill.id === required), `missing skill: ${required}`);
@@ -148,7 +148,7 @@ for (const feature of ["AssistantNotePickerModal", "ContentStageGateModal", "ren
   assert.match(workspaceSource, new RegExp(feature), `unified assistant must include ${feature}`);
 }
 assert.doesNotMatch(workspaceSource, /AssistantProviderModal|codex-cli|claude-cli|openai-compatible/, "workspace must not expose alternative provider switching");
-assert.match(workspaceSource, /配置 Token/, "assistant must route unconfigured users to Token settings");
+assert.match(workspaceSource, /登录账号/, "assistant must route unconfigured users to account settings");
 assert.match(workspaceSource, /selectedNotes\.length \? `已选 \$\{selectedNotes\.length\} 篇` : "选择笔记"/, "note control must expose the number of selected context notes");
 assert.match(workspaceSource, /this\.selectedPaths = new Set[\s\S]*?this\.selectedPaths\.has\(file\.path\)[\s\S]*?this\.selectedPaths\.delete\(file\.path\)[\s\S]*?this\.selectedPaths\.add\(file\.path\)/, "note picker rows must toggle multiple selections without closing the modal");
 assert.match(workspaceSource, /makeButton\(actions, "完成选择"[\s\S]*?await this\.onConfirm\(\[\.\.\.this\.selectedPaths\]\)/, "note picker must confirm all selected note paths together");
@@ -342,4 +342,4 @@ assert.match(styles, /\.wis-brand-logo\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?fle
 
 assert.doesNotMatch(workspaceSource, /(?:\/kb-|\.kb(?:\/|\b)|wis-kb-|对话 · KB|\["kb", "KB"\])/, "workspace must not retain the legacy KB product namespace");
 
-console.log("PASS FDE workspace uses six libraries, five gated content stages, optional published-data analysis, 35 skills, persistent assistant state, overflow-safe controls and source-aware quality rules");
+console.log("PASS FDE workspace uses six libraries, five gated content stages, optional published-data analysis, 34 skills, persistent assistant state, overflow-safe controls and source-aware quality rules");

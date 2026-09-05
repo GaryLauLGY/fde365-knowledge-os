@@ -212,7 +212,7 @@ module.exports = function createFDEBaseView({
         const latest = this.plugin.lastAgentResult;
         const succeeded = Boolean(task && latest?.task?.taskId === task.taskId && latest.result?.content?.trim());
         if (!succeeded) {
-          const message = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 Token 配置");
+          const message = task?.error || task?.message || (task ? `任务状态：${task.status || "unknown"}` : "Agent 未启动，请检查本地 Codex 或 账号登录");
           throw new Error(message);
         }
         this.assistantSessionId = latest.result.conversationId || "";
@@ -880,7 +880,7 @@ module.exports = function createFDEBaseView({
       });
       provider.createSpan({ text: isDeveloperRuntime
         ? agentCapability.available ? "DEV · 本地 Codex CLI" : "缺少 Codex CLI"
-        : !capability.configured ? "配置 Token" : agentCapability.available ? capability.model : "缺少 Codex 组件" });
+        : !capability.configured ? "登录账号" : agentCapability.available ? capability.model : "缺少 Codex 组件" });
       provider.addEventListener("click", () => this.plugin.openSettings("ai"));
       const body = panel.createDiv({ cls: "wis-assistant-body" });
       body.dataset.assistantMode = this.assistantMode;

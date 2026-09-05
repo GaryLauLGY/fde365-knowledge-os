@@ -1,12 +1,12 @@
 # FDE365 Knowledge OS
 
-一个可直接安装的 Obsidian 桌面插件：启用后会在当前 Vault 内初始化“FDE365知识库”，并提供六类资产驾驶舱、原始收集箱、资产网络、内容生产流水线、35 个项目内 FDE Skills 和知识体检。
+一个可直接安装的 Obsidian 桌面插件：启用后会在当前 Vault 内初始化“FDE365知识库”，并提供六类资产驾驶舱、原始收集箱、资产网络、内容生产流水线、34 个项目内 FDE Skills 和知识体检。
 
 ## 安装
 
 1. 解压发布包，将整个 `fde365-knowledge-os` 目录放到当前 Vault 的 `.obsidian/plugins/`。
 2. 在 Obsidian 设置 → 第三方插件中启用“FDE365 Knowledge OS”。
-3. 插件会自动补齐 `FDE365知识库/`。蓝图 v3 包含 143 个目录、500 个文件和完整的 35 个 FDE Skills；已有同名文件不会被覆盖。可在命令面板运行“检查并修复知识库模板”。
+3. 插件会自动补齐 `FDE365知识库/`。蓝图 v7 包含 139 个目录、487 个文件和 34 个 FDE Skills；已有同名文件不会被覆盖。可在命令面板运行“检查并修复知识库模板”。
 
 ## 自动更新
 
@@ -14,17 +14,19 @@
 - 更新文件下载后会先校验固定仓库、插件 ID、版本、文件白名单和 SHA-256，再替换插件运行文件；`data.json`、Token、知识笔记与其他 Vault 数据不在更新范围内。
 - 安装完成后重启 Obsidian 即可启用新版本。也可在“设置 → FDE365 Knowledge OS → 插件更新”手动检查。
 - 官方发布仓库：<https://github.com/GaryLauLGY/fde365-knowledge-os>
-4. 首次启用会出现五步新人指引悬浮窗；最后一步包含购买 Token、填写位置和模型选择教程。可跳过，也可在命令面板或插件设置中选择“重新打开新人指引”。
+4. 首次启用会出现五步新人指引悬浮窗；最后一步包含邮箱登录、兑换额度和模型选择教程。可跳过，也可在命令面板或插件设置中选择“重新打开新人指引”。
 
 ## AI 配置
 
-插件只连接FDE365 AI 服务，服务地址已经内置且不会在设置页显示：
+服务固定为 `https://api.ipzsk.com/v1`，不读取用户全局环境变量来改变服务地址。
 
-1. 前往 [api.fde365.ai](https://api.fde365.ai/) 购买或创建 Token。
-2. 打开 Obsidian 设置 → FDE365 Knowledge OS → AI 服务，在 **Token** 一栏填写。
-3. 从 `claude-fable-5`、`claude-opus-4-8`、`gpt-5.6-sol`、`gpt-5.6-luna` 中选择模型并点击“测试连接”。
+1. 打开 Obsidian 设置 → FDE365 Knowledge OS → 账号与额度，输入邮箱并验证登录。
+2. 刷新余额、使用记录与价格表；有兑换码时在插件内兑换。
+3. 选择服务端模型后测试连接（会产生真实用量）。
 
-Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记或发布包。首次运行右侧 Agent 时，插件会在当前 Vault 的插件目录内自动创建独立 Codex 配置，并只向该 Agent 子进程临时传入 Token；不会修改 `~/.codex`、本机 Codex App、Shell 或系统环境变量。独立插件更新后无需重新运行安装器。
+登录凭证只保存在当前 Vault 的插件 `data.json`。Agent 使用 Vault 内隔离配置，凭证仅临时传入子进程；不修改本机 Claude Code、Codex App、Shell 或系统环境变量。安装器不再收集 Token，也不创建本机客户端连接。旧 Token 不自动发送到新站，升级后请重新登录。
+
+计费界面已接入接口合同，但本仓库和上游都没有可部署的服务端实现。后台接口尚待真实联调，不能将本地测试视为已上线计费。后端要求和验收见 [后台开发说明](docs/billing-backend.md)。
 
 ## 知识库结构
 
@@ -36,7 +38,7 @@ Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记�
 - `5-方法论库`
 - `6-内容生产`
 - `.fde/config.yaml`（六库路径和行为配置的事实来源）
-- `.agents/skills`（35 个项目内 FDE Skills）
+- `.agents/skills`（34 个项目内 FDE Skills）
 - `VERSION`、`fde-manifest.json`（FDE Skills 版本与能力清单）
 - `7-系统`（插件运行记录、模板、AI 输出；不属于业务资产分类）
 
@@ -48,7 +50,7 @@ Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记�
 - **六类资产**：个人说明书、产品、客户需求、素材案例、方法论和内容生产是唯一正式分类，不再额外发明 AI 主题分类。
 - **资产网络**：按 Obsidian 真实链接计算六库之间的连接矩阵；点击“整理关联”后，`/fde-organize` 会先确认关系依据，再把已确认关系写入两端资产的真实 Wikilink，不以 Canvas 预览代替。
 - **内容生产**：选题、草稿、待审核、待发布、已发布五阶段；每次推进先确认当前环节完成，已发布即结束。CSV、Excel、TSV 或 JSON 发布数据可单独上传给 `/fde-spread` 分析。
-- **FDE Skills**：展示并运行全部 35 个本地 Skill；执行时要求 Provider 先读取对应 `SKILL.md` 合同。
+- **FDE Skills**：展示并运行全部 34 个本地 Skill；执行时要求 Provider 先读取对应 `SKILL.md` 合同。
 - **知识体检**：检查来源覆盖、未知项、版本、阶段冲突、路径边界和 Skill 部署完整性。
 
 统计与体检全部在本地完成。只有用户主动发起 Agent 请求时，当前任务和所需上下文才会通过 FDE365 服务发送给模型；本地文件工具由 Codex app-server 执行，Token 不会写进会话或笔记。
@@ -57,4 +59,6 @@ Token 仅保存在当前 Vault 的插件 `data.json`，不会写入知识笔记�
 
 开发、构建、Provider 参数和初始化机制见 [DEVELOPMENT.md](./DEVELOPMENT.md)。
 
-开发者可运行 `npm run package:dev` 生成独立的 DEV ZIP。该构建不要求 Vault Token，右侧 Agent 直接使用本机 Codex CLI 的登录、Provider 和默认模型，同时关闭正式版自动更新。
+本次只维护正式用户版交付，不发布 DEV 安装包。源码供协作开发，构建说明见 DEVELOPMENT.md。
+
+移除的连接技能不再出现在目录或新模板中。升级严格保留用户文件，因此旧 Vault 中已有的 fde-connect 文件不会自动删除；FDE Agent 已明确禁止调用该退役技能。

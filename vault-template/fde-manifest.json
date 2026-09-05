@@ -10,7 +10,7 @@
   "implementation": "fde365-six-library-workflows-v4",
   "skill_namespace": "fde",
   "source_role": "historical-reference-and-attribution-only",
-  "similarity_threshold": 0.30,
+  "similarity_threshold": 0.3,
   "success_definition": [
     "目录名与 SKILL.md name 一致",
     "SKILL.md 只含 name 和 description 两个 frontmatter 字段",
@@ -18,9 +18,9 @@
     "产品目录不包含上游知识包和原样执行资源",
     "旧 dbs 名称和 ~/.dbs 状态路径已清理",
     "包含六类资产库读取和写入边界",
-    "35 个能力合同全部通过",
+    "34 个能力合同全部通过",
     "原套件不作为运行依赖",
-    "导出、排版、连接、安全和盘点使用当前项目脚本",
+    "导出、排版、安全和盘点使用当前项目脚本",
     "quick_validate.py 通过",
     "正常案例和停止条件反例存在"
   ],
@@ -49,11 +49,6 @@
       "source": "dbs-benchmark",
       "target": "fde-benchmark",
       "profile": "strategy"
-    },
-    {
-      "source": "dbs-bridge",
-      "target": "fde-connect",
-      "profile": "system"
     },
     {
       "source": "dbs-chatroom-austrian",
@@ -202,5 +197,15 @@
       "profile": "review",
       "source_folder": "内容诊断"
     }
-  ]
+  ],
+  "integration": {
+    "owner": "ozrwayne",
+    "repository": "kb-suite",
+    "commit": "b010603c5047bd8c7ef87ea9f34b6e6a888b5f64",
+    "skills": 34,
+    "excluded": [
+      "kb-connect"
+    ],
+    "policy": "preserve-newer-FDE-contracts"
+  }
 }

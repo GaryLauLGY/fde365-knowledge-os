@@ -32,7 +32,7 @@ await walk(sourceRoot);
 
 const blueprint = {
   id: "fde365-six-assets",
-  version: 6,
+  version: 7,
   root: "FDE365知识库",
   folders: [...folders].sort((a, b) => a.localeCompare(b, "zh-CN")),
   files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b, "zh-CN"))),

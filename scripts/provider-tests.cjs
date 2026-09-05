@@ -77,6 +77,7 @@ async function test(name, fn) {
 
 function apiPlugin(overrides = {}) {
   return {
+    accountClient: { isLoggedIn: () => overrides.token !== "", getAccessToken: async () => "test-token" },
     settings: mergeSettings({
       ai: {
         fde365: {
@@ -99,7 +100,7 @@ function apiPlugin(overrides = {}) {
 
   await test("settings enforce the single fixed provider", async () => {
     const settings = mergeSettings({ ai: { provider: "codex-cli" } });
-    assert.equal(settings.schemaVersion, 4);
+    assert.equal(settings.schemaVersion, 5);
     assert.equal(settings.ai.provider, "fde365");
     assert.equal(settings.ai.fde365.model, "gpt-5.6-luna");
     assert.equal(settings.ai.assistant.contextScope, "active-note");
@@ -141,18 +142,18 @@ function apiPlugin(overrides = {}) {
     assert.equal(settings.ai.fde365.apiKey, undefined);
   });
 
-  await test("onboarding v3 includes the Token purchase and settings tutorial", async () => {
-    assert.equal(ONBOARDING_VERSION, 3);
+  await test("onboarding v4 includes account login and credits", async () => {
+    assert.equal(ONBOARDING_VERSION, 4);
     assert.equal(ONBOARDING_STEPS.length, 5);
     assert.ok(ONBOARDING_STEPS.every((step) => step.title && step.description && step.highlights.length === 3));
     const setupStep = ONBOARDING_STEPS.at(-1);
-    assert.equal(setupStep.highlights[0].action, "purchase-token");
+    assert.equal(setupStep.highlights[0].action, "open-token-settings");
     assert.equal(setupStep.highlights[1].action, "open-token-settings");
   });
 
   await test("service URL and model allowlist are fixed", async () => {
-    assert.equal(FDE365_BASE_URL, "https://api.fde365.ai/v1");
-    assert.equal(FDE365_CHAT_ENDPOINT, "https://api.fde365.ai/v1/chat/completions");
+    assert.equal(FDE365_BASE_URL, "https://api.ipzsk.com/v1");
+    assert.equal(FDE365_CHAT_ENDPOINT, "https://api.ipzsk.com/v1/chat/completions");
     assert.deepEqual([...FDE365_MODELS], ["claude-fable-5", "claude-opus-4-8", "gpt-5.6-sol", "gpt-5.6-luna"]);
   });
 
@@ -425,7 +426,7 @@ function apiPlugin(overrides = {}) {
     assert.equal(result.model, "gpt-5.6-luna");
   });
 
-  for (const [status, code] of [[401, "AUTH_FAILED"], [404, "MODEL_NOT_FOUND"], [429, "RATE_LIMITED"]]) {
+  for (const [status, code] of [[401, "AUTH_FAILED"], [402, "INSUFFICIENT_CREDITS"], [404, "MODEL_NOT_FOUND"], [429, "RATE_LIMITED"]]) {
     await test(`HTTP ${status} maps to ${code}`, async () => {
       global.__akosRequestHandler = async () => ({ status, json: { error: { message: "remote" } } });
       const provider = new Fde365Provider(apiPlugin());

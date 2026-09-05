@@ -1,9 +1,9 @@
 {
   "id": "fde365-knowledge-os",
   "name": "FDE365 Knowledge OS",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "minAppVersion": "1.8.0",
-  "description": "FDE365六类资产与本地 Agent 工作台，自动初始化知识库和 35 个 FDE Skills，内置 Token 模型服务。",
+  "description": "FDE365 六类资产工作台，34 个项目内 FDE Skills，邮箱登录、兑换码与服务端 credits。",
   "author": "FDE365",
   "isDesktopOnly": true
 }

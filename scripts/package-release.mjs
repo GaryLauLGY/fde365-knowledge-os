@@ -69,6 +69,8 @@ async function sha256(file) {
 await rm(releaseRoot, { recursive: true, force: true });
 await mkdir(pluginDir, { recursive: true });
 for (const name of runtimeFiles) await cp(join(root, name), join(pluginDir, name));
+await mkdir(join(pluginDir, "docs"), { recursive: true });
+await cp(join(root, "docs", "billing-backend.md"), join(pluginDir, "docs", "billing-backend.md"));
 await mkdir(join(pluginDir, "assets"), { recursive: true });
 await cp(join(root, "assets", "fde365-logo.png"), join(pluginDir, "assets", "fde365-logo.png"));
 await cp(join(root, "assets", "fde365-logo-source.svg"), join(pluginDir, "assets", "fde365-logo-source.svg"));

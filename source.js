@@ -15,6 +15,8 @@ const KNOWLEDGE_BLUEPRINT = require("./blueprint.json");
 const FDEWorkspace = require("./fde-workspace.js");
 const GitHubUpdater = require("./github-updater.js");
 const { FdeCodexAgentRuntime } = require("./fde-agent-runtime.js");
+const Account = require("./fde-account.js");
+const { renderAccountSettings } = require("./fde-account-settings.js");
 
 const FDE365_BUILD_CHANNEL = typeof __FDE365_BUILD_CHANNEL__ === "string" ? __FDE365_BUILD_CHANNEL__ : "user";
 const IS_DEVELOPER_BUILD = FDE365_BUILD_CHANNEL === "dev";
@@ -142,9 +144,8 @@ async function listAdapterFiles(adapter, root) {
   }
   return [...new Set(files)];
 }
-const FDE365_BASE_URL = "https://api.fde365.ai/v1";
+const FDE365_BASE_URL = "https://api.ipzsk.com/v1";
 const FDE365_CHAT_ENDPOINT = `${FDE365_BASE_URL}/chat/completions`;
-const FDE365_PURCHASE_URL = "https://api.fde365.ai/";
 const FDE365_MODELS = Object.freeze([
   "claude-fable-5",
   "claude-opus-4-8",
@@ -152,7 +153,7 @@ const FDE365_MODELS = Object.freeze([
   "gpt-5.6-luna",
 ]);
 const DEFAULT_FDE365_MODEL = "gpt-5.6-luna";
-const ONBOARDING_VERSION = 3;
+const ONBOARDING_VERSION = 4;
 const FDE365_RELEASE_REPOSITORY = "GaryLauLGY/fde365-knowledge-os";
 const FDE365_UPDATE_ORIGIN = "https://fdekb.garylau.ai";
 const FDE365_RELEASE_API = `${FDE365_UPDATE_ORIGIN}/plugin/latest.json`;
@@ -198,13 +199,13 @@ const ONBOARDING_STEPS = Object.freeze([
     title: "让 AI 在你选定的范围内工作",
     description: IS_DEVELOPER_BUILD
       ? "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容，并使用本机 Codex CLI 的登录和配置。"
-      : "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。Token 只保存在当前 Vault。",
+      : "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。登录凭证只保存在当前 Vault。",
     highlights: [
       { icon: "bot", title: "FDE365 Agent", text: "可读取 Vault、运行 Skills，需要写入时向你确认。" },
-      { icon: "wand-sparkles", title: "35 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
+      { icon: "wand-sparkles", title: "34 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
       IS_DEVELOPER_BUILD
         ? { icon: "shield-check", title: "不覆盖本机配置", text: "开发版不注入 Token，不改写 CODEX_HOME 或 Shell 环境变量。" }
-        : { icon: "shield-check", title: "Token 本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" },
+        : { icon: "shield-check", title: "凭证本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" },
     ],
   },
   {
@@ -213,15 +214,15 @@ const ONBOARDING_STEPS = Object.freeze([
     title: IS_DEVELOPER_BUILD ? "使用本机 Codex CLI" : "两步连接FDE365 AI",
     description: IS_DEVELOPER_BUILD
       ? "开发版使用本机 Codex CLI 已有的登录、Provider 和默认模型，不需在 Obsidian 内填写 Token。"
-      : "先购买 Token，再回到插件设置填写 Token 并选择模型。服务地址已经内置，无需手动配置。",
+      : "先用邮箱登录，再兑换额度并选择模型。服务地址已经内置，无需手动配置。",
     highlights: IS_DEVELOPER_BUILD ? [
       { icon: "terminal", title: "1. 本机登录", text: "先在终端确认 Codex CLI 已经可用并完成登录。" },
       { icon: "settings", title: "2. 原样继承", text: "插件不传入模型或 Provider，使用本机 Codex 默认配置。" },
       { icon: "refresh-cw-off", title: "3. 开发通道", text: "自动更新已关闭，需要新版时重新构建 DEV ZIP。" },
     ] : [
-      { icon: "shopping-bag", title: "1. 购买 Token", text: "前往 api.fde365.ai 购买或创建你的 Token。", action: "purchase-token" },
-      { icon: "settings", title: "2. 填写 Token", text: "打开 Obsidian 设置 → FDE365 Knowledge OS → AI 服务，在 Token 一栏填写。", action: "open-token-settings" },
-      { icon: "cpu", title: "3. 选择模型", text: "从四个可用模型中选择一个，然后点击“测试连接”。" },
+      { icon: "mail", title: "1. 邮箱登录", text: "打开账号与额度，用邮箱验证码登录。", action: "open-token-settings" },
+      { icon: "ticket", title: "2. 兑换额度", text: "在账号与额度中输入兑换码，余额以服务端返回为准。", action: "open-token-settings" },
+      { icon: "cpu", title: "3. 选择模型", text: "同步服务端价格表并选择模型，然后点击“测试连接”（会产生用量）。" },
     ],
   },
 ]);
@@ -249,7 +250,9 @@ const AGENT_STATUS_TRANSITIONS = Object.freeze({
 });
 
 const DEFAULT_SETTINGS = {
-  schemaVersion: 4,
+  schemaVersion: 5,
+  account: Account.normalizeAccount(),
+  billing: Account.normalizeBilling(),
   terminologyVersion: 0,
   inboxLayoutVersion: 0,
   knowledgeContractVersion: 0,
@@ -295,11 +298,14 @@ function mergeSettings(raw = {}) {
   const currentApi = raw.ai?.fde365 || {};
   const token = String(currentApi.token || legacyApi.token || legacyApi.apiKey || "").trim();
   const requestedModel = String(currentApi.model || legacyApi.model || "").trim();
-  const model = FDE365_MODELS.includes(requestedModel) ? requestedModel : DEFAULT_FDE365_MODEL;
+  const models = Account.modelIds(raw, FDE365_MODELS);
+  const model = models.includes(requestedModel) ? requestedModel : models.includes(DEFAULT_FDE365_MODEL) ? DEFAULT_FDE365_MODEL : models[0];
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
-    schemaVersion: 4,
+    schemaVersion: 5,
+    account: Account.normalizeAccount(raw.account),
+    billing: Account.normalizeBilling(raw.billing),
     terminologyVersion: Math.max(0, Number(raw.terminologyVersion) || 0),
     inboxLayoutVersion: Math.max(0, Number(raw.inboxLayoutVersion) || 0),
     knowledgeContractVersion: Math.max(0, Number(raw.knowledgeContractVersion) || 0),
@@ -469,17 +475,9 @@ class KnowledgeOSOnboardingModal extends Modal {
       const cardCopy = card.createDiv();
       cardCopy.createEl("strong", { text: item.title });
       cardCopy.createEl("p", { text: item.text });
-      if (item.action === "purchase-token") {
-        const link = cardCopy.createEl("a", {
-          text: "前往购买 Token",
-          cls: "fde365-onboarding-card-action",
-          href: FDE365_PURCHASE_URL,
-          attr: { target: "_blank", rel: "noopener noreferrer" },
-        });
-        link.addEventListener("click", (event) => event.stopPropagation());
-      } else if (item.action === "open-token-settings") {
+      if (item.action === "open-token-settings") {
         const button = cardCopy.createEl("button", {
-          text: "打开 Token 设置",
+          text: "打开账号设置",
           cls: "fde365-onboarding-card-action",
           attr: { type: "button" },
         });
@@ -645,7 +643,8 @@ function buildOpenAIMessages(request) {
 
 function mapHttpProviderError(status, payload) {
   const remoteMessage = String(payload?.error?.message || payload?.message || "").trim();
-  if (status === 401 || status === 403) return new AIProviderError("AUTH_FAILED", "Token 无效或无权访问该服务");
+  if (status === 401 || status === 403) return new AIProviderError("AUTH_FAILED", "登录已失效，请重新登录");
+  if (status === 402) return new AIProviderError("INSUFFICIENT_CREDITS", "credits 不足，请兑换后再试");
   if (status === 404) return new AIProviderError("MODEL_NOT_FOUND", remoteMessage || "所选模型不存在");
   if (status === 429) return new AIProviderError("RATE_LIMITED", "API 请求受到限流，请稍后重试");
   return new AIProviderError("NETWORK_ERROR", remoteMessage || `API 返回 HTTP ${status}`);
@@ -665,9 +664,9 @@ class Fde365Provider {
   }
 
   detect() {
-    const token = String(this.settings.token || "").trim();
+    const token = this.plugin.accountClient?.isLoggedIn() || false;
     const model = String(this.settings.model || "").trim();
-    const configured = Boolean(token && FDE365_MODELS.includes(model));
+    const configured = Boolean(token && Account.modelIds(this.plugin.settings, FDE365_MODELS).includes(model));
     return {
       available: true,
       configured,
@@ -675,7 +674,7 @@ class Fde365Provider {
       version: "chat-completions",
       model,
       endpoint: FDE365_CHAT_ENDPOINT,
-      error: configured ? null : "请填写 Token 并选择可用模型",
+      error: configured ? null : "请先登录账号并选择可用模型",
     };
   }
 
@@ -700,6 +699,7 @@ class Fde365Provider {
       this.cancelledRequests.delete(request.requestId);
       throw new AIProviderError("CANCELLED", "任务已取消");
     }
+    const accessToken = await this.plugin.accountClient.getAccessToken();
     const timeoutMs = Math.max(10000, Number(this.settings.timeoutMs) || 120000);
     let timer = null;
     const timeout = new Promise((_, reject) => {
@@ -716,7 +716,7 @@ class Fde365Provider {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${String(this.settings.token).trim()}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             model: capability.model,
@@ -1387,77 +1387,7 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           ? `使用本机 Codex CLI 的登录、Provider、默认模型和 CODEX_HOME${localRuntime.ready ? " · 运行中" : ""}。插件不会写入或覆盖任何环境变量。`
           : localRuntime.error);
     } else {
-    new Setting(containerEl)
-      .setName("FDE365 AI")
-      .setDesc("服务地址已经内置，无需填写或切换。Token 仅保存在当前 Vault 的插件 data.json。")
-      .addButton((button) => button
-        .setButtonText("购买 Token")
-        .onClick(() => window.open(FDE365_PURCHASE_URL, "_blank", "noopener,noreferrer")));
-
-    const selected = this.plugin.providerManager?.describeSelected?.() || { label: "尚未配置", configured: false, compatible: false, error: "尚未配置 AI 服务" };
-    new Setting(containerEl)
-      .setName("当前状态")
-      .setDesc(selected.configured && selected.compatible
-        ? `${selected.label} 已就绪${selected.model ? ` · ${selected.model}` : ""}${selected.version ? ` · ${selected.version}` : ""}`
-        : `${selected.label}：${selected.error || "当前不可用"}`)
-      .addButton((button) => button
-        .setButtonText("测试连接")
-        .setDisabled(!selected.configured)
-        .onClick(async () => {
-          button.setDisabled(true).setButtonText("测试中…");
-          try {
-            const provider = this.plugin.providerManager.getSelected();
-            const result = await provider.testConnection();
-            new Notice(`连接成功：${result.model || result.version || provider.label}`);
-          } catch (error) {
-            new Notice(`连接失败：${error instanceof Error ? error.message : String(error)}`);
-          } finally {
-            button.setDisabled(false).setButtonText("测试连接");
-            this.display();
-          }
-        }));
-
-    const agentRuntime = this.plugin.agentRuntime?.describe?.() || { available: false, ready: false, error: "本地 Agent 尚未初始化" };
-    new Setting(containerEl)
-      .setName("本地 Agent")
-      .setDesc(agentRuntime.available
-        ? `Codex app-server 已就绪${agentRuntime.ready ? " · 运行中" : ""}；配置隔离在当前 Vault，不修改本机 Codex App，也无需重新运行安装器。`
-        : agentRuntime.error);
-
-    const api = this.plugin.settings.ai.fde365;
-    new Setting(containerEl)
-      .setName("Token")
-      .setDesc(api.token ? "Token 已保存在当前 Vault；输入新值可替换，发布包不会包含该配置。" : "填写购买后获得的 Token；它只保存在当前 Vault。")
-      .addText((text) => {
-        text.inputEl.type = "password";
-        text.setPlaceholder(api.token ? "已配置；输入新 Token 可替换" : "粘贴 Token")
-          .onChange(async (value) => {
-            if (!value.trim()) return;
-            api.token = value.trim();
-            await this.plugin.saveSettings();
-          });
-      })
-      .addButton((button) => button
-        .setButtonText("清除 Token")
-        .setWarning()
-        .setDisabled(!api.token)
-        .onClick(async () => {
-          api.token = "";
-          await this.plugin.saveSettings();
-          new Notice("Token 已从当前 Vault 清除");
-          this.display();
-        }));
-    new Setting(containerEl)
-      .setName("模型")
-      .setDesc("选择当前 Token 可使用的模型。")
-      .addDropdown((dropdown) => {
-        for (const model of FDE365_MODELS) dropdown.addOption(model, model);
-        dropdown.setValue(api.model).onChange(async (value) => {
-          api.model = FDE365_MODELS.includes(value) ? value : DEFAULT_FDE365_MODEL;
-          await this.plugin.saveSettings();
-          this.plugin.refreshDashboard();
-        });
-      });
+    renderAccountSettings(this, containerEl, FDE365_MODELS);
     }
     const assistant = this.plugin.settings.ai.assistant;
     new Setting(containerEl)
@@ -1494,7 +1424,7 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
     containerEl.createEl("h3", { text: "FDE Skills", attr: { id: "fde365-settings-agents" } });
     new Setting(containerEl)
       .setName("Skill 执行规则")
-      .setDesc("35 个项目 Skill 位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。");
+      .setDesc("34 个项目 Skill 位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。");
     containerEl.createEl("h3", { text: "内容生产", attr: { id: "fde365-settings-projects" } });
     new Setting(containerEl)
       .setName("五阶段内容来源")
@@ -1523,6 +1453,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fdeWorkspace = new FDEWorkspace.FDEWorkspaceService(this);
     this.agentTaskStore = new AgentTaskStore(this);
     this.providerManager = new AIProviderManager(this);
+    this.accountClient = new Account.FdeAccountClient(this, requestUrl);
     this.agentRuntime = new FdeCodexAgentRuntime(this, { mode: IS_DEVELOPER_BUILD ? "local-cli" : "isolated-fde365" });
     this.updateService = new Fde365UpdateService(this);
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
@@ -1693,7 +1624,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
   async loadSettings() {
     const raw = await this.loadData();
     this.needsProviderMigration = Boolean(raw && (
-      Number(raw.schemaVersion || 0) < 4
+      Number(raw.schemaVersion || 0) < 5
       || raw.ai?.provider !== "fde365"
       || !raw.ai?.fde365
       || raw.ai?.openaiCompatible
@@ -1945,7 +1876,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
   async migrateProviderSettings() {
     if (!this.needsProviderMigration) return;
     this.settings.ai.provider = "fde365";
-    this.settings.schemaVersion = 4;
+    this.settings.schemaVersion = 5;
     this.needsProviderMigration = false;
     await this.saveSettings();
   }
