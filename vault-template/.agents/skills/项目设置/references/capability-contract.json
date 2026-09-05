@@ -1,0 +1,17 @@
+{
+  "skill": "项目设置",
+  "implementation": "fde365-owned-workflows",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "审计 Agent 规则文件和技能目录",
+    "确定规则真源和技能真源",
+    "统一名称和入口",
+    "仅处理当前 Vault 内的 FDE 规则与技能",
+    "先预览再迁移"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

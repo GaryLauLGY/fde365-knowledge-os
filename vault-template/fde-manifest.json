@@ -1,5 +1,5 @@
 {
-  "suite": "fde-skills",
+  "suite": "FDE365中文技能",
   "source": {
     "repository": "https://github.com/dontbesilent2025/dbskill",
     "version": "v2.17.15",
@@ -8,7 +8,7 @@
   },
   "knowledge_base": "六类资产库目录模板",
   "implementation": "fde365-six-library-workflows-v4",
-  "skill_namespace": "fde",
+  "skill_namespace": "zh-CN",
   "source_role": "historical-reference-and-attribution-only",
   "similarity_threshold": 0.3,
   "success_definition": [
@@ -21,179 +21,179 @@
     "34 个能力合同全部通过",
     "原套件不作为运行依赖",
     "导出、排版、安全和盘点使用当前项目脚本",
-    "quick_validate.py 通过",
+    "中文技能名称、入口和本地发现校验通过",
     "正常案例和停止条件反例存在"
   ],
   "skills": [
     {
       "source": "dbs",
-      "target": "fde-start",
+      "target": "开始使用",
       "profile": "router"
     },
     {
       "source": "dbs-action",
-      "target": "fde-action",
+      "target": "推进一步",
       "profile": "decision"
     },
     {
       "source": "dbs-agent-migration",
-      "target": "fde-setup",
+      "target": "项目设置",
       "profile": "system"
     },
     {
       "source": "dbs-ai-check",
-      "target": "fde-check",
+      "target": "检查表达",
       "profile": "review"
     },
     {
       "source": "dbs-benchmark",
-      "target": "fde-benchmark",
+      "target": "研究对标",
       "profile": "strategy"
     },
     {
       "source": "dbs-chatroom-austrian",
-      "target": "fde-economy",
+      "target": "交易分析",
       "profile": "method"
     },
     {
       "source": "dbs-chatroom",
-      "target": "fde-discuss",
+      "target": "多角度讨论",
       "profile": "method"
     },
     {
       "source": "dbs-content-system",
-      "target": "fde-organize",
+      "target": "整理资产",
       "profile": "all"
     },
     {
       "source": "dbs-content",
-      "target": "fde-write",
+      "target": "内容写作",
       "profile": "content"
     },
     {
       "source": "dbs-decision",
-      "target": "fde-decide",
+      "target": "记录决定",
       "profile": "decision"
     },
     {
       "source": "dbs-deconstruct",
-      "target": "fde-define",
+      "target": "定义概念",
       "profile": "method"
     },
     {
       "source": "dbs-diagnosis",
-      "target": "fde-diagnose",
+      "target": "商业诊断",
       "profile": "business"
     },
     {
       "source": "dbs-goal",
-      "target": "fde-goal",
+      "target": "明确目标",
       "profile": "decision"
     },
     {
       "source": "dbs-good-question",
-      "target": "fde-question",
+      "target": "整理问题",
       "profile": "method"
     },
     {
       "source": "dbs-hook",
-      "target": "fde-hook",
+      "target": "设计开头",
       "profile": "review"
     },
     {
       "source": "dbs-knowledge",
-      "target": "fde-library",
+      "target": "查询知识",
       "profile": "all"
     },
     {
       "source": "dbs-learning",
-      "target": "fde-learn",
+      "target": "边做边学",
       "profile": "method"
     },
     {
       "source": "dbs-report",
-      "target": "fde-report",
+      "target": "整理报告",
       "profile": "state"
     },
     {
       "source": "dbs-resonate",
-      "target": "fde-impact",
+      "target": "读者匹配",
       "profile": "review"
     },
     {
       "source": "dbs-restore",
-      "target": "fde-resume",
+      "target": "恢复进度",
       "profile": "state"
     },
     {
       "source": "dbs-save",
-      "target": "fde-save",
+      "target": "保存进度",
       "profile": "state"
     },
     {
       "source": "dbs-script-flow",
-      "target": "fde-flow",
+      "target": "检查段落",
       "profile": "review"
     },
     {
       "source": "dbs-skill-cleaner",
-      "target": "fde-safety",
+      "target": "安全检查",
       "profile": "system"
     },
     {
       "source": "dbs-slowisfast",
-      "target": "fde-focus",
+      "target": "确定焦点",
       "profile": "method"
     },
     {
       "source": "dbs-spread",
-      "target": "fde-spread",
+      "target": "传播复盘",
       "profile": "strategy"
     },
     {
       "source": "dbs-update",
-      "target": "fde-update",
+      "target": "检查更新",
       "profile": "system"
     },
     {
       "source": "dbs-wechat-html",
-      "target": "fde-format",
+      "target": "公众号排版",
       "profile": "output"
     },
     {
       "source": "dbs-xhs-title",
-      "target": "fde-title",
+      "target": "生成标题",
       "profile": "strategy"
     }
   ],
   "new_skills": [
     {
-      "target": "fde-interview",
+      "target": "建库采访",
       "profile": "ingest",
       "source_folder": "知识库采访机器人"
     },
     {
-      "target": "fde-ingest",
+      "target": "材料入库",
       "profile": "ingest",
       "source_folder": "录音处理"
     },
     {
-      "target": "fde-export",
+      "target": "导出会话",
       "profile": "ingest",
       "source_folder": "导出聊天记录"
     },
     {
-      "target": "fde-health",
+      "target": "知识体检",
       "profile": "system",
       "source_folder": "CLAUDE体检"
     },
     {
-      "target": "fde-topics",
+      "target": "生成选题",
       "profile": "strategy",
       "source_folder": "小红书选题挖掘"
     },
     {
-      "target": "fde-review",
+      "target": "内容审核",
       "profile": "review",
       "source_folder": "内容诊断"
     }

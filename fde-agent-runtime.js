@@ -286,6 +286,7 @@ function buildTurnPrompt(request) {
 }
 
 function buildBaseInstructions(request, vaultPath, knowledgeRoot) {
+  const { SKILL_NAMES } = require("./skill-names.js");
   const system = (Array.isArray(request.messages) ? request.messages : []).find((message) => message?.role === "system")?.content || "";
   const executionMode = normalizeExecutionMode(request.executionMode);
   const executionRule = executionMode === "yolo"
@@ -297,10 +298,10 @@ function buildBaseInstructions(request, vaultPath, knowledgeRoot) {
     `- FDE365 知识库根目录：${knowledgeRoot}`,
     "- 只读取完成当前任务所需的文件；不得读取 Vault 外的文件、凭据、浏览器数据或其他项目。",
     "- 不得读取或输出 .obsidian/plugins/fde365-knowledge-os/data.json、Token、密钥或任何凭据。",
-    "- 仅使用当前 FDE 技能目录列出的启用技能；旧 Vault 中残留的 fde-connect 已停用，不得调用，也不得连接或改写本机 Claude Code/Codex 配置。",
+    `- 仅使用当前启用的中文技能：${SKILL_NAMES.join("、")}。旧目录中的技能只作历史记录，不得调用。不得连接或改写本机 Claude Code/Codex 配置。`,
     "- 禁止删除、清空或覆盖原始材料；写入必须优先新建草稿。",
     "- 禁止网络访问、安装软件、修改 Obsidian 插件配置或修改 .fde/.agents 运行合同。",
-    "- 当用户调用 /fde-* 时，先读取知识库内对应 .agents/skills/<skill>/SKILL.md，再按合同执行。",
+    "- 当用户调用 /中文技能名 时，先读取知识库内对应 .agents/skills/中文技能名/SKILL.md，再按合同执行。",
     executionRule,
     system,
   ].filter(Boolean).join("\n");

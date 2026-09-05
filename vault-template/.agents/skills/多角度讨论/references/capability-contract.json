@@ -1,0 +1,17 @@
+{
+  "skill": "多角度讨论",
+  "implementation": "fde365-owned-workflows",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "根据问题推荐职责或接受用户指定角色",
+    "角色依据可验证理论和知识库事实发言",
+    "支持连续多轮使用同一组角色",
+    "输出共识、分歧和缺失证据",
+    "支持明确结束讨论"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

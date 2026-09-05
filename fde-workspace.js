@@ -7,6 +7,7 @@ const {
 } = require("obsidian");
 
 let ROOT = "FDE365知识库";
+const { canonicalSkillName, normalizeSkillMentions } = require("./skill-names.js");
 
 function configureKnowledgeRoot(root) {
   ROOT = String(root || "FDE365知识库");
@@ -24,7 +25,7 @@ const VIEW_TYPES = Object.freeze({
 });
 
 const LIBRARIES = Object.freeze([
-  { id: "owner", order: "01", key: "owner", name: "个人说明书", short: "说明书", path: "1-个人说明书", icon: "fingerprint", color: "indigo", description: "身份、判断、表达习惯和不能公开的边界", emptyAction: "用 /fde-interview 补齐本人原话与判断" },
+  { id: "owner", order: "01", key: "owner", name: "个人说明书", short: "说明书", path: "1-个人说明书", icon: "fingerprint", color: "indigo", description: "身份、判断、表达习惯和不能公开的边界", emptyAction: "用 /建库采访 补齐本人原话与判断" },
   { id: "product", order: "02", key: "product", name: "产品库", short: "产品", path: "2-产品库", icon: "package-check", color: "blue", description: "产品、价格、承诺、交付内容和常见异议", emptyAction: "创建第一个产品事实文件" },
   { id: "customer", order: "03", key: "customer", name: "客户需求库", short: "客户", path: "3-客户需求库", icon: "messages-square", color: "cyan", description: "客户原话、问题、成交与未成交记录", emptyAction: "导入一次真实客户沟通" },
   { id: "case", order: "04", key: "case", name: "素材案例库", short: "案例", path: "4-素材案例库", icon: "archive", color: "orange", description: "事件、案例、数据、对话、动作和结果", emptyAction: "把一段经历整理成可追溯案例" },
@@ -46,7 +47,7 @@ const CONTENT_STAGE_GATES = Object.freeze({
     title: "草稿内容已经补全了吗？",
     description: "进入“草稿”前，请确认目标读者、目标平台、核心问题、来源和正文草稿已经补全。",
     requirements: ["目标读者与发布平台明确", "核心问题和来源已补全", "已经形成可继续修改的正文草稿"],
-    skill: "fde-write",
+    skill: "内容写作",
     prompt: "请根据当前选题补全目标读者、平台、核心问题、来源与正文草稿。完成后先留在当前阶段，等我确认再推进。",
     incompleteLabel: "还没有，去对话补全",
   }),
@@ -55,7 +56,7 @@ const CONTENT_STAGE_GATES = Object.freeze({
     title: "草稿已经完成了吗？",
     description: "进入“待审核”前，请确认正文结构完整，必要素材已经写入，未核实项保持明确。",
     requirements: ["正文内容完整", "来源和引用已经补充", "未核实内容已经单独标记"],
-    skill: "fde-write",
+    skill: "内容写作",
     prompt: "请继续补全当前草稿，检查正文完整度、来源和未核实项。完成后不要自动推进，等我确认再进入待审核。",
     incompleteLabel: "还没有，继续写作",
   }),
@@ -64,7 +65,7 @@ const CONTENT_STAGE_GATES = Object.freeze({
     title: "内容审核已经完成了吗？",
     description: "进入“待发布”前，请确认事实、表达和平台适配已经审核，并且阻塞发布的问题已经处理。",
     requirements: ["事实与来源已经核对", "表达和平台适配已经检查", "没有未处理的发布阻塞项"],
-    skill: "fde-review",
+    skill: "内容审核",
     prompt: "请审核当前稿件的事实、来源、表达和平台适配，列出必须修改项。先给诊断，不要自动推进阶段。",
     incompleteLabel: "还没有，去对话审核",
   }),
@@ -89,47 +90,47 @@ const SKILL_GROUPS = Object.freeze([
 ]);
 
 const SKILLS = Object.freeze([
-  { id: "fde-start", group: "entry", name: "从这里开始", description: "读取六库状态，只选择一个当前入口并直接继续。", output: "任务路由", icon: "compass" },
-  { id: "fde-interview", group: "entry", name: "建库采访", description: "一次只问一个问题，保留原话、事实、推断和未知项。", output: "采访记录与分流建议", icon: "mic-2" },
-  { id: "fde-ingest", group: "entry", name: "材料入库", description: "通读录音、聊天和旧文档，先出分流预览，确认后入库。", output: "分流预览", icon: "inbox" },
-  { id: "fde-export", group: "entry", name: "导出会话", description: "导出用户明确选择的本地 Agent 会话并保留时间和来源。", output: "Markdown 会话", icon: "download" },
-  { id: "fde-health", group: "entry", name: "知识库体检", description: "检查配置、来源、收件箱、内容阶段和运行状态，默认只报告。", output: "体检报告", icon: "activity" },
-  { id: "fde-update", group: "entry", name: "检查更新", description: "展示 FDE Skills 差异，确认后只更新 Skill，不改业务资产。", output: "更新差异", icon: "refresh-cw" },
-  { id: "fde-diagnose", group: "business", name: "商业诊断", description: "用客户、产品、案例和交付记录诊断生意问题。", output: "事实、假设与验证项", icon: "stethoscope" },
-  { id: "fde-define", group: "business", name: "定义概念", description: "把模糊词换成当前业务中可观察、可检查的定义。", output: "可观察定义", icon: "brackets" },
-  { id: "fde-goal", group: "business", name: "明确目标", description: "把愿望改成有对象、结果、边界、证据和时间的目标。", output: "目标合同", icon: "goal" },
-  { id: "fde-question", group: "business", name: "整理问题", description: "把困惑整理成 Agent、员工或顾问可以处理的问题说明书。", output: "问题说明书", icon: "circle-help" },
-  { id: "fde-focus", group: "business", name: "确定焦点", description: "识别当前约束，决定主动作、暂停项和观察项。", output: "焦点与暂停清单", icon: "focus" },
-  { id: "fde-action", group: "business", name: "推进一步", description: "把推不动的任务缩成一个能产生真实反馈的动作。", output: "下一步动作", icon: "move-right" },
-  { id: "fde-write", group: "content", name: "内容写作", description: "根据六类资产列证据和写作合同，再生成带来源草稿。", output: "草稿、来源与未核实项", icon: "pen-line" },
-  { id: "fde-topics", group: "content", name: "生成选题", description: "从客户原话、产品问题、案例、判断和方法中生成可追溯选题。", output: "选题清单", icon: "lightbulb" },
-  { id: "fde-review", group: "content", name: "内容审核", description: "先核对事实和定位，再检查内容质量；默认只诊断不改稿。", output: "发布判断与修改顺序", icon: "scan-search" },
-  { id: "fde-hook", group: "content", name: "设计开头", description: "根据选题、读者和真实材料诊断并设计少量可用开头。", output: "开头方案", icon: "magnet" },
-  { id: "fde-title", group: "content", name: "生成标题", description: "生成正文证据能够支持的标题，不扩大承诺。", output: "标题候选", icon: "heading" },
-  { id: "fde-check", group: "content", name: "检查表达", description: "标记空泛判断、整齐模板、无来源事实和语气偏差。", output: "问题标记", icon: "spell-check-2" },
-  { id: "fde-flow", group: "content", name: "检查段落", description: "检查段间承接、跳步、重复和信息拥堵。", output: "段落诊断", icon: "git-branch" },
-  { id: "fde-impact", group: "content", name: "检查读者匹配", description: "检查内容是否准确指向目标读者的处境、判断和行动。", output: "读者匹配诊断", icon: "target" },
-  { id: "fde-format", group: "content", name: "公众号排版", description: "把已确认 Markdown 转成公众号可粘贴 HTML，保持正文不变。", output: "微信公众号 HTML", icon: "code-xml" },
-  { id: "fde-spread", group: "content", name: "传播复盘", description: "根据真实发布数据、评论和转发语境分析传播结果。", output: "传播复盘", icon: "radio-tower" },
-  { id: "fde-benchmark", group: "content", name: "研究对标", description: "围绕业务目标比较可观察做法并安排小实验，不复制人设。", output: "对标观察与实验", icon: "telescope" },
-  { id: "fde-library", group: "library", name: "查库与维护", description: "查找、收录、纠错和维护六类资产，每个结论返回来源。", output: "答案、来源与版本", icon: "library" },
-  { id: "fde-organize", group: "library", name: "整理资产", description: "检查重复、错库、来源和跨库关系，并用真实 Obsidian 双链连接已确认的资产。", output: "资产清单、关联预览与双链写入记录", icon: "list-tree" },
-  { id: "fde-setup", group: "library", name: "整理 Agent 项目", description: "整理规则真源和 Skill 真源，让多个本地 Agent 识别项目。", output: "项目设置预览", icon: "wrench" },
-  { id: "fde-safety", group: "library", name: "Skill 安全检查", description: "只读检查外部命令、网络、敏感读取、隐藏指令和删除行为。", output: "安全报告", icon: "shield-check" },
-  { id: "fde-save", group: "state", name: "保存进度", description: "保存目标、来源、完成项、未知项和下一步。", output: "任务状态", icon: "save" },
-  { id: "fde-resume", group: "state", name: "恢复进度", description: "核对文件和事实变化后，恢复最近或指定任务。", output: "恢复检查与下一步", icon: "history" },
-  { id: "fde-report", group: "state", name: "整理报告", description: "把同一任务的多次状态、决定和结果整理成带来源报告。", output: "Markdown 报告", icon: "file-chart-column" },
-  { id: "fde-decide", group: "state", name: "记录决定", description: "保存选项、证据、假设、风险、回填日期和真实结果。", output: "决策记录", icon: "scale" },
-  { id: "fde-discuss", group: "method", name: "多角度讨论", description: "按职责组织 3—5 个视角，只使用库内事实和公开方法。", output: "多视角讨论", icon: "users" },
-  { id: "fde-economy", group: "method", name: "交易视角", description: "从价格、成本、选择、激励和信息差检查商业判断。", output: "交易结构分析", icon: "badge-dollar-sign" },
-  { id: "fde-learn", group: "method", name: "短学习循环", description: "围绕工作问题先做、记录反馈、补一个知识点再继续。", output: "学习与反馈计划", icon: "graduation-cap" },
+  { id: "开始使用", group: "entry", name: "开始使用", description: "读取六库状态，只选择一个当前入口并直接继续。", output: "任务路由", icon: "compass" },
+  { id: "建库采访", group: "entry", name: "建库采访", description: "一次只问一个问题，保留原话、事实、推断和未知项。", output: "采访记录与分流建议", icon: "mic-2" },
+  { id: "材料入库", group: "entry", name: "材料入库", description: "通读录音、聊天和旧文档，先出分流预览，确认后入库。", output: "分流预览", icon: "inbox" },
+  { id: "导出会话", group: "entry", name: "导出会话", description: "导出用户明确选择的本地 Agent 会话并保留时间和来源。", output: "Markdown 会话", icon: "download" },
+  { id: "知识体检", group: "entry", name: "知识体检", description: "检查配置、来源、收件箱、内容阶段和运行状态，默认只报告。", output: "体检报告", icon: "activity" },
+  { id: "检查更新", group: "entry", name: "检查更新", description: "展示技能差异，确认后只更新技能，不改业务资产。", output: "更新差异", icon: "refresh-cw" },
+  { id: "商业诊断", group: "business", name: "商业诊断", description: "用客户、产品、案例和交付记录诊断生意问题。", output: "事实、假设与验证项", icon: "stethoscope" },
+  { id: "定义概念", group: "business", name: "定义概念", description: "把模糊词换成当前业务中可观察、可检查的定义。", output: "可观察定义", icon: "brackets" },
+  { id: "明确目标", group: "business", name: "明确目标", description: "把愿望改成有对象、结果、边界、证据和时间的目标。", output: "目标合同", icon: "goal" },
+  { id: "整理问题", group: "business", name: "整理问题", description: "把困惑整理成 Agent、员工或顾问可以处理的问题说明书。", output: "问题说明书", icon: "circle-help" },
+  { id: "确定焦点", group: "business", name: "确定焦点", description: "识别当前约束，决定主动作、暂停项和观察项。", output: "焦点与暂停清单", icon: "focus" },
+  { id: "推进一步", group: "business", name: "推进一步", description: "把推不动的任务缩成一个能产生真实反馈的动作。", output: "下一步动作", icon: "move-right" },
+  { id: "内容写作", group: "content", name: "内容写作", description: "根据六类资产列证据和写作合同，再生成带来源草稿。", output: "草稿、来源与未核实项", icon: "pen-line" },
+  { id: "生成选题", group: "content", name: "生成选题", description: "从客户原话、产品问题、案例、判断和方法中生成可追溯选题。", output: "选题清单", icon: "lightbulb" },
+  { id: "内容审核", group: "content", name: "内容审核", description: "先核对事实和定位，再检查内容质量；默认只诊断不改稿。", output: "发布判断与修改顺序", icon: "scan-search" },
+  { id: "设计开头", group: "content", name: "设计开头", description: "根据选题、读者和真实材料诊断并设计少量可用开头。", output: "开头方案", icon: "magnet" },
+  { id: "生成标题", group: "content", name: "生成标题", description: "生成正文证据能够支持的标题，不扩大承诺。", output: "标题候选", icon: "heading" },
+  { id: "检查表达", group: "content", name: "检查表达", description: "标记空泛判断、整齐模板、无来源事实和语气偏差。", output: "问题标记", icon: "spell-check-2" },
+  { id: "检查段落", group: "content", name: "检查段落", description: "检查段间承接、跳步、重复和信息拥堵。", output: "段落诊断", icon: "git-branch" },
+  { id: "读者匹配", group: "content", name: "读者匹配", description: "检查内容是否准确指向目标读者的处境、判断和行动。", output: "读者匹配诊断", icon: "target" },
+  { id: "公众号排版", group: "content", name: "公众号排版", description: "把已确认 Markdown 转成公众号可粘贴 HTML，保持正文不变。", output: "微信公众号 HTML", icon: "code-xml" },
+  { id: "传播复盘", group: "content", name: "传播复盘", description: "根据真实发布数据、评论和转发语境分析传播结果。", output: "传播复盘", icon: "radio-tower" },
+  { id: "研究对标", group: "content", name: "研究对标", description: "围绕业务目标比较可观察做法并安排小实验，不复制人设。", output: "对标观察与实验", icon: "telescope" },
+  { id: "查询知识", group: "library", name: "查询知识", description: "查找、收录、纠错和维护六类资产，每个结论返回来源。", output: "答案、来源与版本", icon: "library" },
+  { id: "整理资产", group: "library", name: "整理资产", description: "检查重复、错库、来源和跨库关系，并用真实 Obsidian 双链连接已确认的资产。", output: "资产清单、关联预览与双链写入记录", icon: "list-tree" },
+  { id: "项目设置", group: "library", name: "项目设置", description: "审计当前 Vault 的规则与技能真源，不连接本机客户端或改写全局配置。", output: "项目设置预览", icon: "wrench" },
+  { id: "安全检查", group: "library", name: "安全检查", description: "只读检查外部命令、网络、敏感读取、隐藏指令和删除行为。", output: "安全报告", icon: "shield-check" },
+  { id: "保存进度", group: "state", name: "保存进度", description: "保存目标、来源、完成项、未知项和下一步。", output: "任务状态", icon: "save" },
+  { id: "恢复进度", group: "state", name: "恢复进度", description: "核对文件和事实变化后，恢复最近或指定任务。", output: "恢复检查与下一步", icon: "history" },
+  { id: "整理报告", group: "state", name: "整理报告", description: "把同一任务的多次状态、决定和结果整理成带来源报告。", output: "Markdown 报告", icon: "file-chart-column" },
+  { id: "记录决定", group: "state", name: "记录决定", description: "保存选项、证据、假设、风险、回填日期和真实结果。", output: "决策记录", icon: "scale" },
+  { id: "多角度讨论", group: "method", name: "多角度讨论", description: "按职责组织 3—5 个视角，只使用库内事实和公开方法。", output: "多视角讨论", icon: "users" },
+  { id: "交易分析", group: "method", name: "交易分析", description: "从价格、成本、选择、激励和信息差检查商业判断。", output: "交易结构分析", icon: "badge-dollar-sign" },
+  { id: "边做边学", group: "method", name: "边做边学", description: "围绕工作问题先做、记录反馈、补一个知识点再继续。", output: "学习与反馈计划", icon: "graduation-cap" },
 ]);
 
 function commandCompletionState(value, caret = String(value || "").length, limit = 8) {
   const text = String(value || "");
   const safeCaret = Math.max(0, Math.min(text.length, Number(caret) || 0));
   const beforeCaret = text.slice(0, safeCaret);
-  const match = beforeCaret.match(/(?:^|\n)\s*(\/[a-z0-9-]*)$/i);
+  const match = beforeCaret.match(/(?:^|\s)([/／][\p{L}\p{N}-]*)$/u);
   if (!match) return null;
   const token = match[1];
   const query = token.slice(1).toLowerCase();
@@ -145,9 +146,10 @@ function commandCompletionState(value, caret = String(value || "").length, limit
 }
 
 function appendAssistantSkillCommand(draft, skillId) {
-  const command = `/${String(skillId || "").replace(/^\/+/, "")}`;
-  if (command === "/") return String(draft || "");
-  const current = String(draft || "").replace(/\s+$/, "");
+  const name = canonicalSkillName(skillId);
+  if (!name) return String(draft || "");
+  const command = `/${name}`;
+  const current = normalizeSkillMentions(draft).replace(/\s+$/, "");
   return `${current}${current ? " " : ""}${command} `;
 }
 
@@ -209,7 +211,7 @@ const NAV_ITEMS = Object.freeze([
   { key: "libraries", label: "六类资产", note: "真源与版本", icon: "library" },
   { key: "network", label: "资产网络", note: "跨库关系", icon: "network" },
   { key: "content", label: "内容生产", note: "五阶段发布闭环", icon: "panels-top-left" },
-  { key: "skills", label: "FDE Skills", note: "34 项工作流", icon: "blocks" },
+  { key: "skills", label: "技能", note: `${SKILLS.length} 项工作流`, icon: "blocks" },
   { key: "health", label: "知识体检", note: "来源与冲突", icon: "activity" },
 ]);
 
@@ -244,14 +246,14 @@ function formatRelativeTime(timestamp) {
 }
 
 function assistantHistoryTopic(frontmatter = {}) {
-  const prompt = String(frontmatter.user_prompt || frontmatter.task || "").trim();
+  const prompt = normalizeSkillMentions(frontmatter.user_prompt || frontmatter.task || "").trim();
   const sources = frontmatterPaths(frontmatter.source_files);
   if (/用户已明确选择以下[\s\S]*原始材料进行处理/.test(prompt) && sources.length) {
     const names = sources.slice(0, 2).map((path) => String(path).split("/").pop().replace(/\.md$/i, ""));
     return `处理 ${names.join("、")}${sources.length > 2 ? ` 等 ${sources.length} 份材料` : ""}`;
   }
   const normalized = prompt
-    .replace(/^\s*\/fde-[a-z0-9-]+\s*/i, "")
+    .replace(/^\s*[/／]([^\s]+)\s*/u, (match, name) => canonicalSkillName(name) ? "" : match)
     .replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, "$1")
     .replace(/[`*_>#-]+/g, " ")
     .replace(/\s+/g, " ")
@@ -260,7 +262,7 @@ function assistantHistoryTopic(frontmatter = {}) {
     const characters = Array.from(normalized);
     return characters.length > 34 ? `${characters.slice(0, 34).join("")}…` : normalized;
   }
-  const skill = SKILLS.find((item) => item.id === String(frontmatter.agent_id || ""));
+  const skill = SKILLS.find((item) => item.id === canonicalSkillName(frontmatter.agent_id));
   return skill ? skill.name : "FDE365 协作对话";
 }
 
@@ -686,37 +688,40 @@ class FDEWorkspaceService {
   skillCatalogContext() {
     return {
       path: this.path(".agents/skills"),
-      title: "FDE Skills 能力目录",
+      title: "技能能力目录",
       excerpt: SKILLS.map((skill) => `- /${skill.id} · ${skill.name}: ${skill.description} 交付：${skill.output}`).join("\n"),
     };
   }
 
   matchingSkillIds(prompt) {
-    const text = String(prompt || "");
+    const text = normalizeSkillMentions(prompt);
     const lower = text.toLowerCase();
     const matches = SKILLS.filter((skill) => lower.includes(skill.id)).map((skill) => skill.id);
-    if (/(?:一键.*(?:出内容|成稿|写稿)|(?:出内容|成稿|写稿|写内容).*(?:skill|技能|工作流)|根据知识库写)/i.test(text)) matches.push("fde-write");
+    if (/(?:一键.*(?:出内容|成稿|写稿)|(?:出内容|成稿|写稿|写内容).*(?:skill|技能|工作流)|根据知识库写)/i.test(text)) matches.push("内容写作");
     return [...new Set(matches)];
   }
 
   async readSkillContract(skillId) {
-    const path = this.skillPath(skillId);
+    const name = canonicalSkillName(skillId);
+    if (!name) return null;
+    const path = this.skillPath(name);
     if (!await this.app.vault.adapter.exists(path)) return null;
     const raw = await this.app.vault.adapter.read(path);
     return {
       path,
-      title: `/${skillId} 本地 Skill 合同`,
+      title: `${name} · 技能说明`,
       excerpt: String(raw || "").slice(0, 16000),
     };
   }
 
   async assistantRuntimeContext(prompt) {
     const text = String(prompt || "");
-    const needsSkills = /(?:skill|技能|工作流|一键|出内容|成稿|写稿|写内容|\/fde-|fde-)/i.test(text);
+    const matchedSkills = this.matchingSkillIds(text);
+    const needsSkills = matchedSkills.length > 0 || /(?:skill|技能|工作流|一键|出内容|成稿|写稿|写内容)/i.test(text);
     if (!needsSkills) return [];
     await this.reloadConfig();
     const context = [this.resolvedConfigContext()];
-    for (const skillId of this.matchingSkillIds(text)) {
+    for (const skillId of matchedSkills) {
       const contract = await this.readSkillContract(skillId);
       if (contract) context.push(contract);
     }
@@ -863,7 +868,7 @@ class FDEWorkspaceService {
           else updated = `---\nstatus: processed\nprocessed_at: ${processedAt}\n---\n\n${updated}`;
           if (/^processed_at:\s*.*$/mi.test(updated)) updated = updated.replace(/^processed_at:\s*.*$/mi, `processed_at: ${processedAt}`);
           else if (/^---\s*\n/.test(updated)) updated = updated.replace(/^---\s*\n/, `---\nprocessed_at: ${processedAt}\n`);
-          updated = updated.replace(/^-\s*尚未运行 \/fde-ingest\s*$/mi, "- /fde-ingest 已处理完成");
+          updated = updated.replace(/^-\s*尚未运行 \/材料入库\s*$/mi, "- /材料入库 已处理完成");
           updated = updated.replace(/^-\s*是否处理[：:]\s*.*$/mi, "- 是否处理：已处理完成");
           return updated;
         });
@@ -1065,7 +1070,7 @@ class FDEWorkspaceService {
       const notePath = await uniquePath(this.app, `${root}/${title}.md`);
       const canEmbed = /^(?:image|audio|video)\//i.test(String(sourceFile.type || ""));
       const reference = canEmbed ? `![[${attachment.path}]]` : `[[${attachment.path}|打开原始文件]]`;
-      const content = `---\ntype: inbox\nstatus: pending\nsource: dragged-file\noriginal_file: ${yamlValue(attachment.path)}\noriginal_name: ${yamlValue(sourceFile.name)}\nfile_type: ${yamlValue(sourceFile.type || "unknown")}\nfile_size: ${Number(sourceFile.size) || 0}\ncreated_at: ${createdAt}\nallowed_to_write: pending\n---\n\n# ${title}\n\n## 原始文件\n\n${reference}\n\n## 处理状态\n\n- 已收录到待处理\n- 尚未运行 /fde-ingest\n- 是否处理：等待用户决定\n\n## 待确认\n\n- 是否允许生成分流预览\n- 是否允许写入正式资产库\n`;
+      const content = `---\ntype: inbox\nstatus: pending\nsource: dragged-file\noriginal_file: ${yamlValue(attachment.path)}\noriginal_name: ${yamlValue(sourceFile.name)}\nfile_type: ${yamlValue(sourceFile.type || "unknown")}\nfile_size: ${Number(sourceFile.size) || 0}\ncreated_at: ${createdAt}\nallowed_to_write: pending\n---\n\n# ${title}\n\n## 原始文件\n\n${reference}\n\n## 处理状态\n\n- 已收录到待处理\n- 尚未运行 /材料入库\n- 是否处理：等待用户决定\n\n## 待确认\n\n- 是否允许生成分流预览\n- 是否允许写入正式资产库\n`;
       const note = await this.app.vault.create(notePath, content);
       imported.push({ note, attachment });
     }
@@ -1131,7 +1136,7 @@ class FDEWorkspaceService {
   }
 
   skillSystemPrompt(skill) {
-    return `你正在执行项目本地 Skill /${skill.id}（${skill.name}）。\n\n${BASE_SKILL_RULES}\n${executionModeRule(this.plugin)}\n\n本 Skill 的职责：${skill.description}\n要求交付：${skill.output}。\n插件已在请求前读取并附加解析后的 .fde/config.yaml、FDE Skills 能力目录和 /${skill.id} 的本地 SKILL.md 合同。直接使用这些“本地运行上下文”，不要声称自己无法访问或尚未读取这些文件。`;
+    return `你正在执行项目本地技能 /${skill.id}（${skill.name}）。\n\n${BASE_SKILL_RULES}\n${executionModeRule(this.plugin)}\n\n本技能的职责：${skill.description}\n要求交付：${skill.output}。\n插件已在请求前读取并附加解析后的 .fde/config.yaml、技能能力目录和 /${skill.id} 的本地 SKILL.md 合同。直接使用这些“本地运行上下文”，不要声称自己无法访问或尚未读取这些文件。`;
   }
 
   inboxProcessingState(fileOrPath) {
@@ -1163,17 +1168,17 @@ class FDEWorkspaceService {
       : null;
     const messages = Array.isArray(options.messages) ? options.messages : previousConversation?.messages || [];
     const sourcePaths = selected.map((file) => file.path);
-    const displayPrompt = `/fde-ingest\n\n处理待处理材料：${selected.map((file) => file.basename).join("、")}`;
+    const displayPrompt = `/材料入库\n\n处理待处理材料：${selected.map((file) => file.basename).join("、")}`;
     const fileList = selected.map((file) => `- ${file.path}`).join("\n");
     const agentPrompt = `用户已明确选择以下 ${selected.length} 份原始材料进行处理：\n${fileList}\n\n请先生成分流预览，保留原文，不要在未经确认时写入正式资产库。先单独标记录音、聊天、图片或文档等“材料形式”，再按证据建议一个或多个六类资产去向；归属不确定的内容留在待确认。`;
-    this.setInboxProcessing(selected, "running", `正在用 /fde-ingest 处理 ${selected.length} 份材料`, {
+    this.setInboxProcessing(selected, "running", `正在用 /材料入库 处理 ${selected.length} 份材料`, {
       conversationId,
       sourcePaths,
       messages,
     });
     try {
       const task = await this.runSkill(
-        "fde-ingest",
+        "材料入库",
         agentPrompt,
         selected,
         {
@@ -1226,15 +1231,15 @@ class FDEWorkspaceService {
   }
 
   async runSkill(skillId, prompt, sourceFiles = [], options = {}) {
-    const skill = SKILLS.find((item) => item.id === skillId);
-    if (!skill) throw new Error(`未知 Skill：${skillId}`);
+    const skill = SKILLS.find((item) => item.id === canonicalSkillName(skillId));
+    if (!skill) throw new Error(`未知技能：${skillId}`);
     const active = this.app.workspace.getActiveFile();
     const sources = [...sourceFiles];
     if (options.includeActive !== false && active instanceof TFile && !sources.some((item) => item.path === active.path)) sources.push(active);
     const localContext = await this.skillRuntimeContext(skill);
     return this.plugin.executeAgent({
       id: skill.id,
-      name: `/${skill.id}`,
+      name: skill.name,
       description: skill.description,
       output: skill.output,
       systemPrompt: this.skillSystemPrompt(skill),
@@ -1250,6 +1255,7 @@ class FDEWorkspaceService {
 
 const createWorkspaceViews = require("./fde-workspace-views.js");
 const {
+  FDEWorkspaceView,
   FDEDashboardView,
   FDEInboxView,
   FDELibrariesView,
@@ -1304,6 +1310,7 @@ module.exports = {
   SKILLS,
   SKILL_GROUPS,
   FDEWorkspaceService,
+  FDEWorkspaceView,
   FDEDashboardView,
   FDEInboxView,
   FDELibrariesView,

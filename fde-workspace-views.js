@@ -1,6 +1,54 @@
 const { Notice } = require("obsidian");
 const createFDEBaseView = require("./fde-workspace-view-base.js");
 
+// These six spokes show the library layout, not additional Wikilink relations.
+function connectNetworkNodes(map, center, nodes) {
+  const doc = map.ownerDocument;
+  const win = doc.defaultView;
+  const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "wis-network-connections");
+  svg.setAttribute("aria-hidden", "true");
+  map.prepend(svg);
+  const lines = nodes.map(() => {
+    const line = doc.createElementNS(svg.namespaceURI, "line");
+    svg.appendChild(line);
+    return line;
+  });
+  const update = () => {
+    const bounds = svg.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    const hub = center.getBoundingClientRect();
+    nodes.forEach((node, index) => {
+      const target = node.getBoundingClientRect();
+      const coordinates = {
+        x1: hub.x + hub.width / 2 - bounds.x,
+        y1: hub.y + hub.height / 2 - bounds.y,
+        x2: target.x + target.width / 2 - bounds.x,
+        y2: target.y + target.height / 2 - bounds.y,
+      };
+      for (const [key, value] of Object.entries(coordinates)) lines[index].setAttribute(key, String(value));
+    });
+  };
+  let frame = null;
+  const scheduleUpdate = () => {
+    if (frame !== null) win.cancelAnimationFrame(frame);
+    frame = win.requestAnimationFrame(() => { frame = null; update(); });
+  };
+  const observer = new win.ResizeObserver(scheduleUpdate);
+  [map, center, ...nodes].forEach((element) => observer.observe(element));
+  win.addEventListener("resize", scheduleUpdate);
+  // A breakpoint can move nodes without resizing the map or the buttons.
+  const compactLayout = win.matchMedia("(max-width: 720px)");
+  compactLayout.addEventListener("change", scheduleUpdate);
+  update();
+  return () => {
+    observer.disconnect();
+    win.removeEventListener("resize", scheduleUpdate);
+    compactLayout.removeEventListener("change", scheduleUpdate);
+    if (frame !== null) win.cancelAnimationFrame(frame);
+  };
+}
+
 module.exports = function createWorkspaceViews(deps) {
   const {
     getRoot,
@@ -34,12 +82,12 @@ module.exports = function createWorkspaceViews(deps) {
       const signalCopy = signal.createDiv();
       signalCopy.createSpan({ text: "当前入口" });
       signalCopy.createEl("strong", { text: data.pending.length ? `先处理 ${data.pending.length} 份原始材料` : data.unknown ? `先确认 ${data.unknown} 个未知项` : "六库状态可以继续推进" });
-      makeButton(signal, "运行 /fde-start", "arrow-right", "is-secondary", () => void this.runSkillInAssistant("fde-start", "请读取当前六类资产库状态，为我选择并执行一个最值得推进的入口。"));
+      makeButton(signal, "运行 /开始使用", "arrow-right", "is-secondary", () => void this.runSkillInAssistant("开始使用", "请读取当前六类资产库状态，为我选择并执行一个最值得推进的入口。"));
 
       const head = main.createDiv({ cls: "wis-section-head" });
       const headCopy = head.createDiv();
       headCopy.createEl("h2", { text: "六类资产" });
-      headCopy.createSpan({ text: "目录就是业务边界；数字只统计正式资产，不包含系统文件和 Skill。" });
+      headCopy.createSpan({ text: "目录就是业务边界；数字只统计正式资产，不包含系统文件和技能。" });
       const grid = main.createDiv({ cls: "wis-library-grid" });
       data.libraries.forEach((library) => {
         const card = grid.createEl("button", { cls: `wis-library-card is-${library.color}` });
@@ -97,7 +145,7 @@ module.exports = function createWorkspaceViews(deps) {
       const recentTitle = recentHead.createDiv();
       recentTitle.createEl("h2", { text: "最近资产" });
       recentTitle.createSpan({ text: "来自六个正式资产库" });
-      if (!data.recent.length) recent.createDiv({ text: "六类资产还是空的。运行 /fde-interview，或先把材料放入待处理。", cls: "wis-empty" });
+      if (!data.recent.length) recent.createDiv({ text: "六类资产还是空的。运行 /建库采访，或先把材料放入待处理。", cls: "wis-empty" });
       data.recent.forEach((note) => {
         const row = recent.createEl("button", { cls: "wis-note-row" });
         row.createSpan({ text: note.library?.order || "--", cls: `wis-library-code is-${note.library?.color || "blue"}` });
@@ -129,7 +177,7 @@ module.exports = function createWorkspaceViews(deps) {
       const messages = conversationId && conversationId === this.assistantSessionId
         ? this.assistantMessages
         : storedConversation?.messages || [];
-      const displayPrompt = `/fde-ingest\n\n处理待处理材料：${selected.map((file) => file.basename).join("、")}`;
+      const displayPrompt = `/材料入库\n\n处理待处理材料：${selected.map((file) => file.basename).join("、")}`;
       this.assistantMode = "chat";
       this.assistantSessionId = conversationId;
       this.assistantPrimaryPath = selected[0].path;
@@ -261,7 +309,7 @@ module.exports = function createWorkspaceViews(deps) {
     createQuickNote() {
       new TextPromptModal(this.app, {
         title: "快速记录原始材料",
-        description: "先完整保留原始表达，之后再运行 /fde-ingest 分流。",
+        description: "先完整保留原始表达，之后再运行 /材料入库 分流。",
         placeholder: "给这份材料起一个可识别的标题…",
         onSubmit: async (value) => this.service.createQuickNote(value),
       }).open();
@@ -287,7 +335,7 @@ module.exports = function createWorkspaceViews(deps) {
       makeIcon(dropIcon, "cloud-upload");
       const dropCopy = dropZone.createDiv({ cls: "wis-inbox-drop-copy" });
       const dropTitle = dropCopy.createEl("strong", { text: "把文件拖到这里" });
-      dropCopy.createSpan({ text: "只收录并保留原文，不会自动运行 Skill" });
+      dropCopy.createSpan({ text: "只收录并保留原文，不会自动运行技能" });
       dropZone.createSpan({ text: "选择文件", cls: "wis-inbox-drop-action" });
       const picker = dropZone.createEl("input", { attr: { type: "file", multiple: "", tabindex: "-1", "aria-hidden": "true" } });
       picker.addClass("wis-inbox-file-picker");
@@ -301,7 +349,7 @@ module.exports = function createWorkspaceViews(deps) {
         dropTitle.setText(`正在收录 ${files.length} 个文件…`);
         try {
           const imported = await this.service.importInboxFiles(files);
-          new Notice(`已收录 ${imported.length} 个文件；等待你决定是否运行 /fde-ingest`);
+          new Notice(`已收录 ${imported.length} 个文件；等待你决定是否运行 /材料入库`);
           await this.render();
         } catch (error) {
           dropZone.removeClass("is-importing");
@@ -447,7 +495,7 @@ module.exports = function createWorkspaceViews(deps) {
           } else {
             const processButton = makeButton(
               actions,
-              state.status === "running" ? "处理中…" : state.status === "failed" ? "重试处理" : "用 /fde-ingest 处理",
+              state.status === "running" ? "处理中…" : state.status === "failed" ? "重试处理" : "用 /材料入库 处理",
               state.status === "running" ? "loader-circle" : "sparkles",
               "is-secondary",
               () => void this.processFiles([file]),
@@ -508,7 +556,7 @@ module.exports = function createWorkspaceViews(deps) {
         this.query = search.value.trim().toLowerCase();
         main.querySelectorAll(".wis-asset-card").forEach((card) => card.toggleClass("is-hidden", !card.dataset.search.includes(this.query)));
       });
-      makeButton(toolbar, "查库 /fde-library", "sparkles", "is-secondary", () => void this.prefillAssistantCommand("fde-library"));
+      makeButton(toolbar, "查库 /查询知识", "sparkles", "is-secondary", () => void this.prefillAssistantCommand("查询知识"));
       const notes = data.notes.filter((note) => this.selectedLibrary === "all" || note.library?.id === this.selectedLibrary);
       const grid = main.createDiv({ cls: "wis-asset-grid" });
       if (!notes.length) grid.createDiv({ text: selected?.emptyAction || "六类资产还是空的。", cls: "wis-empty" });
@@ -538,20 +586,22 @@ module.exports = function createWorkspaceViews(deps) {
       copy.createSpan({ text: "FDE365 · 资产连接", cls: "wis-eyebrow" });
       copy.createEl("h1", { text: "资产网络" });
       copy.createEl("p", { text: "关系不是装饰：产品要连接客户需求，方法要连接真实案例，内容要能回到来源。" });
-      makeButton(header, "整理关联", "sparkles", "is-primary", () => void this.runSkillInAssistant("fde-organize", "请执行资产网络的‘整理关联’模式：读取六类资产中的真实 Markdown 和现有 Wikilink，识别有证据的支持、冲突、例子与版本关系。需要批准模式下，先列出待建立的双向链接对、关系类型和依据，等我确认后再写；YOLO 模式下可直接写入。写入时必须在关系两端笔记的‘关联资产’章节加入真实 Obsidian [[双链]]，使用完整 Vault 相对路径避免同名歧义，并在完成后重新统计跨库连接。不要创建 Canvas 或 Canva 预览，除非我明确要求。"));
+      makeButton(header, "整理关联", "sparkles", "is-primary", () => void this.runSkillInAssistant("整理资产", "请执行资产网络的‘整理关联’模式：读取六类资产中的真实 Markdown 和现有 Wikilink，识别有证据的支持、冲突、例子与版本关系。需要批准模式下，先列出待建立的双向链接对、关系类型和依据，等我确认后再写；YOLO 模式下可直接写入。写入时必须在关系两端笔记的‘关联资产’章节加入真实 Obsidian [[双链]]，使用完整 Vault 相对路径避免同名歧义，并在完成后重新统计跨库连接。不要创建 Canvas 或 Canva 预览，除非我明确要求。"));
       const map = main.createEl("section", { cls: "wis-network-map" });
       const center = map.createDiv({ cls: "wis-network-center" });
       center.createSpan({ text: "FDE365" });
       center.createEl("strong", { text: `${data.relations.edges.length}` });
       center.createSpan({ text: "跨库连接" });
-      data.libraries.forEach((library, index) => {
+      const nodes = data.libraries.map((library, index) => {
         const node = map.createEl("button", { cls: `wis-network-node is-${library.color} at-${index + 1}` });
         node.createSpan({ text: library.order });
         makeIcon(node, library.icon);
         node.createEl("strong", { text: library.short });
         node.createSpan({ text: `${library.count} 项` });
         node.addEventListener("click", () => this.service.openLibrary(library.id));
+        return node;
       });
+      this.networkConnectionsCleanup = connectNetworkNodes(map, center, nodes);
       const matrixPanel = main.createEl("section", { cls: "wis-panel wis-relation-matrix" });
       const matrixHead = matrixPanel.createDiv({ cls: "wis-panel-head" });
       const title = matrixHead.createDiv();
@@ -604,7 +654,7 @@ module.exports = function createWorkspaceViews(deps) {
         placeholder: "选题标题…",
         onSubmit: async (value) => this.service.createContent(value, "选题"),
       }).open());
-      makeButton(actions, "从六库找选题", "sparkles", "is-secondary", () => void this.runSkillInAssistant("fde-topics", "请从客户原话、产品问题、案例结果、个人判断和方法资产中生成可追溯选题。"));
+      makeButton(actions, "从六库找选题", "sparkles", "is-secondary", () => void this.runSkillInAssistant("生成选题", "请从客户原话、产品问题、案例结果、个人判断和方法资产中生成可追溯选题。"));
       const summary = main.createDiv({ cls: "wis-content-summary" });
       data.stages.forEach((stage, index) => {
         const item = summary.createDiv({ cls: `wis-content-summary-item is-${stage.color}` });
@@ -634,7 +684,7 @@ module.exports = function createWorkspaceViews(deps) {
           if (CONTENT_STAGE_GATES[stage.id]) makeButton(cardActions, "确认推进", "arrow-right", "is-text", () => this.service.advanceContent(note, {
             onIncomplete: (gate, currentNote) => this.prefillContentStageSkill(currentNote, gate),
           }));
-          if (stage.id === "待审核") makeButton(cardActions, "审核", "sparkles", "is-text", () => void this.runSkillInAssistant("fde-review", `请审核稿件 ${note.file.path}，默认只诊断，不直接改稿。`, [note.file]));
+          if (stage.id === "待审核") makeButton(cardActions, "审核", "sparkles", "is-text", () => void this.runSkillInAssistant("内容审核", `请审核稿件 ${note.file.path}，默认只诊断，不直接改稿。`, [note.file]));
           if (stage.id === "已发布") makeButton(cardActions, "上传数据分析", "file-up", "is-text", () => this.openAnalyticsUpload(note));
         });
       });
@@ -646,7 +696,7 @@ module.exports = function createWorkspaceViews(deps) {
       makeButton(analyticsHead, "上传发布数据", "file-up", "is-secondary", () => this.openAnalyticsUpload());
       const analyticsBody = analytics.createDiv({ cls: "wis-content-analytics-body" });
       if (!data.analyticsFiles.length) {
-        analyticsBody.createDiv({ text: "发布后可以上传抖音、小红书、公众号等平台导出的数据，再在右侧对话运行 /fde-spread。", cls: "wis-empty" });
+        analyticsBody.createDiv({ text: "发布后可以上传抖音、小红书、公众号等平台导出的数据，再在右侧对话运行 /传播复盘。", cls: "wis-empty" });
       } else {
         analyticsBody.createDiv({ text: `${data.analyticsFiles.length} 份数据或历史分析记录`, cls: "wis-content-analytics-count" });
         data.analyticsFiles.slice(0, 8).forEach((file) => {
@@ -663,8 +713,8 @@ module.exports = function createWorkspaceViews(deps) {
         makeIcon(conflict, "triangle-alert");
         const text = conflict.createDiv();
         text.createEl("strong", { text: `${data.stageConflicts.length} 个阶段冲突` });
-        text.createSpan({ text: "文件所在目录与“当前阶段”字段不一致。运行 /fde-health 查看路径证据，插件不会自动选边。" });
-        makeButton(conflict, "运行体检", "activity", "is-secondary", () => void this.runSkillInAssistant("fde-health", "请检查内容文件目录与当前阶段字段冲突，只报告，不自动移动。", data.stageConflicts.map((note) => note.file)));
+        text.createSpan({ text: "文件所在目录与“当前阶段”字段不一致。运行 /知识体检 查看路径证据，插件不会自动选边。" });
+        makeButton(conflict, "运行体检", "activity", "is-secondary", () => void this.runSkillInAssistant("知识体检", "请检查内容文件目录与当前阶段字段冲突，只报告，不自动移动。", data.stageConflicts.map((note) => note.file)));
       }
     }
   }
@@ -672,7 +722,7 @@ module.exports = function createWorkspaceViews(deps) {
   class FDESkillsView extends FDEBaseView {
     constructor(leaf, plugin) {
       super(leaf, plugin, "skills");
-      this.selectedSkill = "fde-start";
+      this.selectedSkill = "开始使用";
       this.selectedGroup = "entry";
     }
 
@@ -680,8 +730,8 @@ module.exports = function createWorkspaceViews(deps) {
       const header = main.createDiv({ cls: "wis-page-header" });
       const copy = header.createDiv();
       copy.createSpan({ text: "FDE365 · 本地工作流", cls: "wis-eyebrow" });
-      copy.createEl("h1", { text: "FDE Skills" });
-      copy.createEl("p", { text: "35 项能力随知识库部署在 .agents/skills。它们共享六库边界、来源规则、未知项和确认机制。" });
+      copy.createEl("h1", { text: "技能" });
+      copy.createEl("p", { text: `${SKILLS.length} 项能力随知识库部署在 .agents/skills。它们共享六库边界、来源规则、未知项和确认机制。` });
       const capability = this.plugin.providerManager.describeSelected();
       const agentCapability = this.plugin.agentRuntime?.describe?.() || { available: false };
       const isDeveloperRuntime = agentCapability.mode === "local-cli";
@@ -694,8 +744,8 @@ module.exports = function createWorkspaceViews(deps) {
       const overview = main.createDiv({ cls: "wis-skill-overview" });
       overview.createDiv({ text: String(data.installedSkills.length), cls: "wis-skill-big-number" });
       const overviewCopy = overview.createDiv();
-      overviewCopy.createEl("strong", { text: `已部署 / ${SKILLS.length} Skills` });
-      overviewCopy.createSpan({ text: "create-only 安装，不覆盖已有 Skill；Codex 从知识库根目录发现本地能力。" });
+      overviewCopy.createEl("strong", { text: `已部署 / ${SKILLS.length} 技能` });
+      overviewCopy.createSpan({ text: "create-only 安装，不覆盖已有技能；Codex 从知识库根目录发现本地能力。" });
       const meter = overview.createDiv({ cls: "wis-skill-meter" });
       meter.createDiv({ cls: "wis-skill-meter-fill", attr: { style: `width:${Math.round(data.installedSkills.length / SKILLS.length * 100)}%` } });
       const tabs = main.createDiv({ cls: "wis-skill-groups" });
@@ -712,8 +762,8 @@ module.exports = function createWorkspaceViews(deps) {
         const button = catalog.createEl("button", { cls: `wis-skill-card${this.selectedSkill === skill.id ? " is-selected" : ""}` });
         makeIcon(button, skill.icon);
         const text = button.createDiv();
-        text.createEl("strong", { text: `/${skill.id}` });
-        text.createSpan({ text: skill.name });
+        text.createEl("strong", { text: skill.name });
+        text.createSpan({ text: skill.output });
         button.createSpan({ text: installed ? "已部署" : "缺失", cls: installed ? "is-installed" : "is-missing" });
         button.addEventListener("click", () => { this.selectedSkill = skill.id; void this.render(); });
       });
@@ -749,9 +799,9 @@ module.exports = function createWorkspaceViews(deps) {
       const copy = header.createDiv();
       copy.createSpan({ text: "FDE365 · 知识质量", cls: "wis-eyebrow" });
       copy.createEl("h1", { text: "知识体检" });
-      copy.createEl("p", { text: "检查六库配置、来源、未知项、收件箱、内容阶段和本地 Skill。默认只报告，不替你选择业务事实。" });
+      copy.createEl("p", { text: "检查六库配置、来源、未知项、收件箱、内容阶段和本地技能。默认只报告，不替你选择业务事实。" });
       const actions = header.createDiv({ cls: "wis-header-actions" });
-      makeButton(actions, "运行 /fde-health", "activity", "is-primary", () => void this.runSkillInAssistant("fde-health", "请对当前六类资产知识库做完整只读体检，按阻塞、要处理、提醒给出路径和证据。"));
+      makeButton(actions, "运行 /知识体检", "activity", "is-primary", () => void this.runSkillInAssistant("知识体检", "请对当前六类资产知识库做完整只读体检，按阻塞、要处理、提醒给出路径和证据。"));
       makeButton(actions, "补齐缺失模板", "folder-plus", "is-secondary", () => this.plugin.bootstrapService.ensure({ notify: true }));
       const score = Math.max(0, Math.round(100 - (1 - data.sourceCoverage) * 45 - Math.min(25, data.unknown * 3) - Math.min(15, data.stageConflicts.length * 5) - Math.min(15, data.missingPaths.length * 8)));
       const hero = main.createDiv({ cls: "wis-health-hero" });
@@ -765,14 +815,14 @@ module.exports = function createWorkspaceViews(deps) {
       heroMetrics.createSpan({ text: `来源覆盖 ${percent(data.sourceCoverage)}` });
       heroMetrics.createSpan({ text: `${data.unknown} 个待确认` });
       heroMetrics.createSpan({ text: `${data.pending.length} 份待处理` });
-      heroMetrics.createSpan({ text: `${data.installedSkills.length}/${SKILLS.length} Skills` });
+      heroMetrics.createSpan({ text: `${data.installedSkills.length}/${SKILLS.length} 技能` });
       const issues = main.createDiv({ cls: "wis-health-issues" });
       [
         { level: data.missingPaths.length ? "block" : "ok", title: "六库路径", value: data.missingPaths.length ? `${data.missingPaths.length} 个缺失` : "配置与目录存在", note: data.missingPaths[0] || `${getRoot()}/.fde/config.yaml` },
         { level: data.sourceCoverage < 0.8 ? "warn" : "ok", title: "来源覆盖", value: percent(data.sourceCoverage), note: `${data.total - data.notes.filter((note) => note.source).length} 项资产没有可识别来源` },
         { level: data.unknown ? "warn" : "ok", title: "事实边界", value: `${data.unknown} 个待确认`, note: "待确认、待验证、未核实和当前推断保持显式分开" },
         { level: data.stageConflicts.length ? "block" : "ok", title: "内容阶段", value: data.stageConflicts.length ? `${data.stageConflicts.length} 个冲突` : "目录与字段一致", note: "一个文件同时只处于一个阶段" },
-        { level: data.installedSkills.length < SKILLS.length ? "warn" : "ok", title: "项目 Skills", value: `${data.installedSkills.length}/${SKILLS.length}`, note: `${getRoot()}/.agents/skills` },
+        { level: data.installedSkills.length < SKILLS.length ? "warn" : "ok", title: "项目技能", value: `${data.installedSkills.length}/${SKILLS.length}`, note: `${getRoot()}/.agents/skills` },
       ].forEach((item) => {
         const card = issues.createDiv({ cls: `wis-health-issue is-${item.level}` });
         makeIcon(card, item.level === "ok" ? "circle-check-big" : item.level === "block" ? "octagon-alert" : "triangle-alert");
@@ -799,7 +849,63 @@ module.exports = function createWorkspaceViews(deps) {
     }
   }
 
+  // Page renderers share one ItemView; inbox actions remain available to commands.
+  const PAGE_RENDERERS = {
+    dashboard: FDEDashboardView,
+    inbox: FDEInboxView,
+    libraries: FDELibrariesView,
+    network: FDENetworkView,
+    content: FDEContentView,
+    skills: FDESkillsView,
+    health: FDEHealthView,
+  };
+
+  class FDEWorkspaceView extends FDEInboxView {
+    constructor(leaf, plugin, page = "dashboard", viewType = VIEW_TYPES.dashboard) {
+      super(leaf, plugin);
+      this.pageKey = Object.hasOwn(PAGE_RENDERERS, page) ? page : "dashboard";
+      this.workspaceViewType = viewType;
+      this.selectedLibrary = "all";
+      this.query = "";
+      this.selectedSkill = "开始使用";
+      this.selectedGroup = "entry";
+      this.pageScrollPositions = {};
+    }
+
+    getViewType() { return this.workspaceViewType; }
+    getDisplayText() { return "FDE365 工作台"; }
+    getIcon() { return "panels-top-left"; }
+    getState() { return { page: this.pageKey }; }
+
+    async setState(state, result) {
+      await this.switchPage(Object.hasOwn(PAGE_RENDERERS, state?.page) ? state.page : this.pageKey);
+      if (super.setState) await super.setState(state, result);
+    }
+
+    captureMainScroll() {
+      const main = this.contentEl.querySelector(".wis-main");
+      if (!main || main.dataset.pageKey !== this.pageKey) return;
+      this.mainScrollTop = main.scrollTop;
+      this.pageScrollPositions[this.pageKey] = main.scrollTop;
+    }
+
+    async switchPage(page) {
+      if (!Object.hasOwn(PAGE_RENDERERS, page)) throw new Error("未知工作台页面");
+      this.captureMainScroll();
+      this.pageKey = page;
+      this.mainScrollTop = this.pageScrollPositions[page] || 0;
+      await this.render();
+      this.app.workspace.requestSaveLayout?.();
+    }
+
+    async renderMain(main, data) {
+      main.dataset.pageKey = this.pageKey;
+      return PAGE_RENDERERS[this.pageKey].prototype.renderMain.call(this, main, data);
+    }
+  }
+
   return {
+    FDEWorkspaceView,
     FDEBaseView,
     FDEDashboardView,
     FDEInboxView,

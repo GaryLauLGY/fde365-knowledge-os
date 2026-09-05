@@ -1,0 +1,4 @@
+interface:
+  display_name: "查询知识"
+  short_description: "读取当前六类资产知识库，执行查库与维护并返回来源、结果和未确认项。"
+  default_prompt: "请使用 $查询知识 处理当前知识库里的真实任务，并说明来源和未确认项。"

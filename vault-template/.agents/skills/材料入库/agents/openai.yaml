@@ -1,0 +1,4 @@
+interface:
+  display_name: "材料入库"
+  short_description: "区分材料形式与六类资产归属，先生成可多选的入库预览。"
+  default_prompt: "请使用 $材料入库 处理当前知识库里的真实任务，并说明来源和未确认项。"

@@ -39,6 +39,7 @@ const pluginFiles = [
   "KB-SUITE-LICENSE.txt",
   "KB-SUITE-NOTICE.md",
   "DEFUDDLE-LICENSE.txt",
+  "CLAUDIAN-LICENSE.txt",
 ];
 const secretPatterns = [
   /sk-[A-Za-z0-9_-]{20,}/,
@@ -73,7 +74,8 @@ async function audit(dir) {
 }
 
 function zip(cwd, output, entry) {
-  const result = spawnSync("zip", ["-q", "-X", "-r", output, entry], { cwd, stdio: "inherit" });
+  const python = process.env.PYTHON || "python3";
+  const result = spawnSync(python, [join(root, "scripts", "create-unicode-zip.py"), cwd, output, entry], { stdio: "inherit" });
   if (result.status !== 0) throw new Error(`zip failed for ${entry}`);
 }
 

@@ -175,7 +175,7 @@ const ONBOARDING_STEPS = Object.freeze([
     icon: "inbox",
     eyebrow: "第一步 · 收集",
     title: "先放进“待处理”，不用立刻想分类",
-    description: "当信息还不完整时，先保留原始材料和来源。等你有时间，再让 FDE Skills 帮你整理。",
+    description: "当信息还不完整时，先保留原始材料和来源。等你有时间，再让技能帮你整理。",
     highlights: [
       { icon: "square-pen", title: "快速记录", text: "用命令面板新建待处理笔记。" },
       { icon: "globe", title: "收藏网页", text: "保留链接、正文和来源，方便以后追溯。" },
@@ -201,8 +201,8 @@ const ONBOARDING_STEPS = Object.freeze([
       ? "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容，并使用本机 Codex CLI 的登录和配置。"
       : "只有你主动发起任务时，本地 Agent 才会读取所需 Vault 内容并通过 FDE365 服务调用模型。登录凭证只保存在当前 Vault。",
     highlights: [
-      { icon: "bot", title: "FDE365 Agent", text: "可读取 Vault、运行 Skills，需要写入时向你确认。" },
-      { icon: "wand-sparkles", title: "34 个 FDE Skills", text: "从收集、整理、写作到体检，按合同执行。" },
+      { icon: "bot", title: "FDE365 Agent", text: "可读取 Vault、运行技能，需要写入时向你确认。" },
+      { icon: "wand-sparkles", title: `${FDEWorkspace.SKILLS.length} 个技能`, text: "从收集、整理、写作到体检，按合同执行。" },
       IS_DEVELOPER_BUILD
         ? { icon: "shield-check", title: "不覆盖本机配置", text: "开发版不注入 Token，不改写 CODEX_HOME 或 Shell 环境变量。" }
         : { icon: "shield-check", title: "凭证本地保存", text: "Token 不会写入知识笔记，也不会包含在插件发布包中。" },
@@ -259,7 +259,7 @@ const DEFAULT_SETTINGS = {
   userName: "Gary",
   openOnStartup: true,
   immersiveMode: true,
-  colorTheme: "light",
+  colorTheme: "system",
   onboardingVersion: 0,
   updates: {
     autoInstall: true,
@@ -1288,16 +1288,7 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
         }));
     new Setting(containerEl)
       .setName("界面主题")
-      .setDesc("切换FDE365工作台的浅色或深色外观，不会修改 Obsidian 的全局主题。")
-      .addDropdown((dropdown) => dropdown
-        .addOption("light", "浅色")
-        .addOption("dark", "深色")
-        .setValue(this.plugin.settings.colorTheme === "light" ? "light" : "dark")
-        .onChange(async (value) => {
-          this.plugin.settings.colorTheme = value === "light" ? "light" : "dark";
-          await this.plugin.saveSettings();
-          this.plugin.refreshDashboard();
-        }));
+      .setDesc("跟随 Obsidian 的深浅色、强调色和字体；请在 Obsidian「外观」中调整。");
     new Setting(containerEl)
       .setName("启动时打开驾驶舱")
       .setDesc("Obsidian 启动后自动进入FDE365知识驾驶舱。")
@@ -1421,10 +1412,10 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
           this.plugin.settings.graphDefaultDepth = Number(value);
           await this.plugin.saveSettings();
         }));
-    containerEl.createEl("h3", { text: "FDE Skills", attr: { id: "fde365-settings-agents" } });
+    containerEl.createEl("h3", { text: "技能", attr: { id: "fde365-settings-agents" } });
     new Setting(containerEl)
-      .setName("Skill 执行规则")
-      .setDesc("34 个项目 Skill 位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。");
+      .setName("技能执行规则")
+      .setDesc(`${FDEWorkspace.SKILLS.length} 个项目技能位于知识库 .agents/skills；执行时使用当前 Provider，并要求先读取对应 SKILL.md 合同。`);
     containerEl.createEl("h3", { text: "内容生产", attr: { id: "fde365-settings-projects" } });
     new Setting(containerEl)
       .setName("五阶段内容来源")
@@ -1432,7 +1423,7 @@ class AIKnowledgeOSSettingTab extends PluginSettingTab {
     containerEl.createEl("h3", { text: "知识体检", attr: { id: "fde365-settings-analytics" } });
     new Setting(containerEl)
       .setName("统计数据来源")
-      .setDesc("只读取六类资产的真实文件、来源字段、未知项、内容阶段、链接和项目 Skill 部署状态。");
+      .setDesc("只读取六类资产的真实文件、来源字段、未知项、内容阶段、链接和项目技能部署状态。");
   }
 }
 
@@ -1459,13 +1450,10 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     this.fde365Provider = this.providerManager.register(new Fde365Provider(this));
     await this.migrateProviderSettings();
     this.lastFile = this.app.workspace.getActiveFile();
-    this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new FDEWorkspace.FDEDashboardView(leaf, this));
-    this.registerView(INBOX_VIEW_TYPE, (leaf) => new FDEWorkspace.FDEInboxView(leaf, this));
-    this.registerView(LIBRARIES_VIEW_TYPE, (leaf) => new FDEWorkspace.FDELibrariesView(leaf, this));
-    this.registerView(NETWORK_VIEW_TYPE, (leaf) => new FDEWorkspace.FDENetworkView(leaf, this));
-    this.registerView(CONTENT_VIEW_TYPE, (leaf) => new FDEWorkspace.FDEContentView(leaf, this));
-    this.registerView(SKILLS_VIEW_TYPE, (leaf) => new FDEWorkspace.FDESkillsView(leaf, this));
-    this.registerView(HEALTH_VIEW_TYPE, (leaf) => new FDEWorkspace.FDEHealthView(leaf, this));
+    // Legacy IDs restore older layouts into the same single-page workbench.
+    for (const [page, type] of Object.entries(FDEWorkspace.VIEW_TYPES)) {
+      this.registerView(type, (leaf) => new FDEWorkspace.FDEWorkspaceView(leaf, this, page, type));
+    }
     this.addRibbonIcon("orbit", "打开FDE365 Knowledge OS", () => this.activateView());
     this.addCommand({
       id: "open-dashboard",
@@ -1522,7 +1510,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     });
     this.addCommand({
       id: "open-agent-center",
-      name: "打开 FDE Skills",
+      name: "打开技能",
       callback: () => this.activateAgents(),
     });
     this.addCommand({
@@ -1829,7 +1817,7 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     const targets = [
       { path: normalizePath(`${this.knowledgeRoot}/AGENTS.md`), kind: "agents" },
       { path: normalizePath(`${this.knowledgeRoot}/.fde/config.yaml`), kind: "config" },
-      { path: normalizePath(`${this.knowledgeRoot}/.agents/skills/fde-health/SKILL.md`), kind: "health" },
+      { path: normalizePath(`${this.knowledgeRoot}/.agents/skills/知识体检/SKILL.md`), kind: "health" },
     ];
     const conflicts = [];
     let changed = 0;
@@ -1881,56 +1869,21 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     await this.saveSettings();
   }
 
-  getDashboard() {
-    return this.app.workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE)[0]?.view || null;
+  getWorkspaceLeaves() {
+    return [...new Set(Object.values(FDEWorkspace.VIEW_TYPES).flatMap((type) => this.app.workspace.getLeavesOfType(type)))];
   }
 
-  getInbox() {
-    return this.app.workspace.getLeavesOfType(INBOX_VIEW_TYPE)[0]?.view || null;
-  }
-
-  getKnowledgeCenter() {
-    return this.app.workspace.getLeavesOfType(LIBRARIES_VIEW_TYPE)[0]?.view || null;
-  }
-
-  getGraph() {
-    return this.app.workspace.getLeavesOfType(NETWORK_VIEW_TYPE)[0]?.view || null;
-  }
-
-  getProjects() {
-    return this.app.workspace.getLeavesOfType(CONTENT_VIEW_TYPE)[0]?.view || null;
-  }
-
-  getAgents() {
-    return this.app.workspace.getLeavesOfType(SKILLS_VIEW_TYPE)[0]?.view || null;
-  }
-
-  getAnalytics() {
-    return this.app.workspace.getLeavesOfType(HEALTH_VIEW_TYPE)[0]?.view || null;
-  }
+  getWorkspaceView() { return this.getWorkspaceLeaves()[0]?.view || null; }
+  getDashboard() { return this.getWorkspaceView(); }
+  getInbox() { return this.getWorkspaceView(); }
+  getKnowledgeCenter() { return this.getWorkspaceView(); }
+  getGraph() { return this.getWorkspaceView(); }
+  getProjects() { return this.getWorkspaceView(); }
+  getAgents() { return this.getWorkspaceView(); }
+  getAnalytics() { return this.getWorkspaceView(); }
 
   refreshDashboard() {
-    const dashboard = this.getDashboard();
-    if (dashboard && typeof dashboard.render === "function") dashboard.refresh();
-    const inbox = this.getInbox();
-    if (inbox && typeof inbox.render === "function") inbox.refresh();
-    const knowledge = this.getKnowledgeCenter();
-    if (knowledge && typeof knowledge.render === "function") knowledge.refresh();
-    const graph = this.getGraph();
-    if (graph && typeof graph.render === "function") graph.refresh();
-    const projects = this.getProjects();
-    if (projects && typeof projects.render === "function") projects.refresh();
-    const agents = this.getAgents();
-    if (agents && typeof agents.render === "function") agents.refresh();
-    const analytics = this.getAnalytics();
-    if (analytics && typeof analytics.render === "function") analytics.refresh();
-  }
-
-  async toggleColorTheme() {
-    this.settings.colorTheme = this.settings.colorTheme === "light" ? "dark" : "light";
-    await this.saveSettings();
-    this.refreshDashboard();
-    new Notice(`FDE365已切换为${this.settings.colorTheme === "light" ? "浅色" : "深色"}主题`);
+    for (const leaf of this.getWorkspaceLeaves()) void leaf.view?.refresh?.();
   }
 
   async revealKnowledgeLeaf(leaf) {
@@ -1939,12 +1892,21 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     await wait(25);
   }
 
-  async activateView() {
-    let leaf = this.app.workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: DASHBOARD_VIEW_TYPE, active: true });
+  async activateWorkspace(page = "dashboard") {
+    if (!this.workspaceOpening) {
+      this.workspaceOpening = (async () => {
+        const existing = this.getWorkspaceLeaves()[0];
+        if (existing) return existing;
+        const leaf = this.app.workspace.getLeaf("tab");
+        await leaf.setViewState({ type: DASHBOARD_VIEW_TYPE, state: { page }, active: true });
+        return leaf;
+      })();
     }
+    const opening = this.workspaceOpening;
+    let leaf;
+    try { leaf = await opening; }
+    finally { if (this.workspaceOpening === opening) this.workspaceOpening = null; }
+    await leaf.view.switchPage(page);
     await this.revealKnowledgeLeaf(leaf);
     if (this.settings.immersiveMode) {
       this.app.workspace.leftSplit?.collapse();
@@ -1952,83 +1914,13 @@ module.exports = class AIKnowledgeOSPlugin extends Plugin {
     }
   }
 
-  async activateInbox() {
-    let leaf = this.app.workspace.getLeavesOfType(INBOX_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: INBOX_VIEW_TYPE, active: true });
-    }
-    await this.revealKnowledgeLeaf(leaf);
-    if (this.settings.immersiveMode) {
-      this.app.workspace.leftSplit?.collapse();
-      this.app.workspace.rightSplit?.collapse();
-    }
-  }
-
-  async activateKnowledge() {
-    let leaf = this.app.workspace.getLeavesOfType(LIBRARIES_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: LIBRARIES_VIEW_TYPE, active: true });
-    }
-    await this.revealKnowledgeLeaf(leaf);
-    if (this.settings.immersiveMode) {
-      this.app.workspace.leftSplit?.collapse();
-      this.app.workspace.rightSplit?.collapse();
-    }
-  }
-
-  async activateGraph() {
-    let leaf = this.app.workspace.getLeavesOfType(NETWORK_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: NETWORK_VIEW_TYPE, active: true });
-    }
-    await this.revealKnowledgeLeaf(leaf);
-    if (this.settings.immersiveMode) {
-      this.app.workspace.leftSplit?.collapse();
-      this.app.workspace.rightSplit?.collapse();
-    }
-  }
-
-  async activateProjects() {
-    let leaf = this.app.workspace.getLeavesOfType(CONTENT_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: CONTENT_VIEW_TYPE, active: true });
-    }
-    await this.revealKnowledgeLeaf(leaf);
-    if (this.settings.immersiveMode) {
-      this.app.workspace.leftSplit?.collapse();
-      this.app.workspace.rightSplit?.collapse();
-    }
-  }
-
-  async activateAgents() {
-    let leaf = this.app.workspace.getLeavesOfType(SKILLS_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: SKILLS_VIEW_TYPE, active: true });
-    }
-    await this.revealKnowledgeLeaf(leaf);
-    if (this.settings.immersiveMode) {
-      this.app.workspace.leftSplit?.collapse();
-      this.app.workspace.rightSplit?.collapse();
-    }
-  }
-
-  async activateAnalytics() {
-    let leaf = this.app.workspace.getLeavesOfType(HEALTH_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: HEALTH_VIEW_TYPE, active: true });
-    }
-    await this.revealKnowledgeLeaf(leaf);
-    if (this.settings.immersiveMode) {
-      this.app.workspace.leftSplit?.collapse();
-      this.app.workspace.rightSplit?.collapse();
-    }
-  }
+  async activateView() { return this.activateWorkspace("dashboard"); }
+  async activateInbox() { return this.activateWorkspace("inbox"); }
+  async activateKnowledge() { return this.activateWorkspace("libraries"); }
+  async activateGraph() { return this.activateWorkspace("network"); }
+  async activateProjects() { return this.activateWorkspace("content"); }
+  async activateAgents() { return this.activateWorkspace("skills"); }
+  async activateAnalytics() { return this.activateWorkspace("health"); }
 
   async updateGraphSnapshot(currentEdges) {
     const date = new Date().toISOString().slice(0, 10);

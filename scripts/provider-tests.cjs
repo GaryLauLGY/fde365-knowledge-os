@@ -93,6 +93,73 @@ function apiPlugin(overrides = {}) {
 }
 
 (async () => {
+  await test("workspace commands reuse one leaf including concurrent initial navigation", async () => {
+    const { VIEW_TYPES } = require("../fde-workspace.js");
+    const leaves = [{ type: "markdown", untouched: true }];
+    let created = 0;
+    let states = 0;
+    const visited = [];
+    const plugin = Object.create(PluginClass.prototype);
+    plugin.settings = { immersiveMode: false };
+    plugin.revealKnowledgeLeaf = async () => {};
+    plugin.app = { workspace: {
+      getLeavesOfType: (type) => leaves.filter((leaf) => leaf.type === type),
+      getLeaf: (kind) => {
+        assert.equal(kind, "tab");
+        created++;
+        const leaf = { view: { switchPage: async (page) => visited.push(page) }, setViewState: async (state) => {
+          await Promise.resolve();
+          states++;
+          leaf.type = state.type;
+          leaves.push(leaf);
+        } };
+        return leaf;
+      },
+    } };
+    await Promise.all([plugin.activateInbox(), plugin.activateAgents(), plugin.activateGraph()]);
+    for (const page of Object.keys(VIEW_TYPES)) await plugin.activateWorkspace(page);
+    assert.equal(created, 1);
+    assert.equal(states, 1, "switching pages must not replace the ItemView");
+    assert.equal(leaves.length, 2);
+    assert.equal(leaves[0].untouched, true, "unrelated Markdown leaves remain untouched");
+    assert.deepEqual(visited.slice(-7), Object.keys(VIEW_TYPES));
+    leaves[1].type = VIEW_TYPES.skills;
+    await plugin.activateInbox();
+    assert.equal(created, 1, "a restored legacy workspace type must also be reused");
+  });
+
+  await test("workspace host preserves page state, scroll and assistant draft", async () => {
+    const { FDEWorkspaceView, VIEW_TYPES } = require("../fde-workspace.js");
+    let saved = 0;
+    const plugin = { app: { workspace: { requestSaveLayout: () => saved++ } }, fdeWorkspace: {} };
+    const view = new FDEWorkspaceView({}, plugin);
+    let main = { dataset: { pageKey: "dashboard" }, scrollTop: 120 };
+    view.contentEl = { querySelector: () => main };
+    view.render = async () => { main = { dataset: { pageKey: view.pageKey }, scrollTop: view.mainScrollTop }; };
+    view.selectedLibrary = "product";
+    view.query = "保留搜索";
+    view.selectedPaths.add("inbox/example.md");
+    view.assistantDraft = "尚未发送";
+    const session = view.assistantSession;
+    for (const page of Object.keys(VIEW_TYPES).slice(1)) {
+      await view.switchPage(page);
+      assert.equal(view.getViewType(), VIEW_TYPES.dashboard);
+      assert.deepEqual(view.getState(), { page });
+      assert.equal(view.assistantSession, session);
+    }
+    await view.switchPage("dashboard");
+    assert.equal(main.scrollTop, 120);
+    assert.equal(view.query, "保留搜索");
+    assert.equal(view.selectedLibrary, "product");
+    assert.ok(view.selectedPaths.has("inbox/example.md"));
+    assert.equal(view.assistantDraft, "尚未发送");
+    await view.setState({ page: "skills" });
+    assert.equal(view.pageKey, "skills");
+    await view.setState({ page: "retired-page" });
+    assert.equal(view.pageKey, "skills", "invalid saved state keeps a valid page");
+    assert.ok(saved >= 9);
+  });
+
   await test("stable artifact uses the user build channel", async () => {
     assert.equal(FDE365_BUILD_CHANNEL, "user");
     assert.equal(IS_DEVELOPER_BUILD, false);
@@ -201,7 +268,7 @@ function apiPlugin(overrides = {}) {
     };
     addFile(`${oldDirectoryPath}/${retiredAudienceTerm}说明书.md`, `# ${retiredAudienceTerm}说明书\n\n${retiredAudienceTerm}判断`);
     addFile(`${DEFAULT_ROOT}/.fde/config.yaml`, `owner: 1-${retiredAudienceTerm}说明书`);
-    addFile(`${DEFAULT_ROOT}/.agents/skills/fde-write/SKILL.md`, `对照${retiredAudienceTerm}表达`);
+    addFile(`${DEFAULT_ROOT}/.agents/skills/内容写作/SKILL.md`, `对照${retiredAudienceTerm}表达`);
     const ordinary = addFile(`${DEFAULT_ROOT}/4-素材案例库/客户称呼.md`, `客户原文保留${retiredAudienceTerm}称呼`);
     const folders = new Map([[oldDirectoryPath, { path: oldDirectoryPath, kind: "folder" }]]);
     const vault = {
@@ -210,7 +277,7 @@ function apiPlugin(overrides = {}) {
         read: async (path) => files.get(path)?.content || "",
         write: async (path, content) => { files.get(path).content = content; },
         list: async (path) => path === `${DEFAULT_ROOT}/.agents/skills`
-          ? { files: [`${DEFAULT_ROOT}/.agents/skills/fde-write/SKILL.md`], folders: [] }
+          ? { files: [`${DEFAULT_ROOT}/.agents/skills/内容写作/SKILL.md`], folders: [] }
           : { files: [], folders: [] },
       },
       getAbstractFileByPath: (path) => files.get(path) || folders.get(path) || null,
@@ -251,7 +318,7 @@ function apiPlugin(overrides = {}) {
     assert.ok(folders.has(newDirectoryPath));
     assert.ok(files.has(`${newDirectoryPath}/个人说明书.md`));
     assert.equal(files.get(`${DEFAULT_ROOT}/.fde/config.yaml`).content, "owner: 1-个人说明书");
-    assert.equal(files.get(`${DEFAULT_ROOT}/.agents/skills/fde-write/SKILL.md`).content, "对照个人表达");
+    assert.equal(files.get(`${DEFAULT_ROOT}/.agents/skills/内容写作/SKILL.md`).content, "对照个人表达");
     assert.equal(ordinary.content, `客户原文保留${retiredAudienceTerm}称呼`);
   });
 
@@ -259,7 +326,7 @@ function apiPlugin(overrides = {}) {
     assert.equal(KNOWLEDGE_CONTRACT_VERSION, 2);
     const agentsPath = `${DEFAULT_ROOT}/AGENTS.md`;
     const fdeConfigPath = `${DEFAULT_ROOT}/.fde/config.yaml`;
-    const healthSkillPath = `${DEFAULT_ROOT}/.agents/skills/fde-health/SKILL.md`;
+    const healthSkillPath = `${DEFAULT_ROOT}/.agents/skills/知识体检/SKILL.md`;
     const kbConfigPath = `${DEFAULT_ROOT}/.kb/config.yaml`;
     const files = new Map([
       [agentsPath, [
@@ -277,7 +344,7 @@ function apiPlugin(overrides = {}) {
       ].join("\n")],
       [healthSkillPath, [
         "## 读取",
-        "- AGENTS.md、CLAUDE.md 和已安装 fde-* 清单",
+        "- AGENTS.md、CLAUDE.md 和已安装技能清单",
         "5. 把问题分为阻塞、要处理和提醒，只给出有证据的问题。",
         "## 写回",
         "- 默认不写；确认后只创建缺失空目录或修正明确的路径",

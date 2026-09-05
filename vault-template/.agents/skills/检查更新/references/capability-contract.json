@@ -1,0 +1,17 @@
+{
+  "skill": "检查更新",
+  "implementation": "fde365-owned-workflows",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "检查当前和候选版本",
+    "只使用配置中的更新来源",
+    "展示新增、修改、删除和本地冲突",
+    "确认后只更新技能",
+    "不修改六类资产和状态"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

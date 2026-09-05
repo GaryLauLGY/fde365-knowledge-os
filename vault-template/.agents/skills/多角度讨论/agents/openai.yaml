@@ -1,0 +1,4 @@
+interface:
+  display_name: "多角度讨论"
+  short_description: "读取当前六类资产知识库，执行多角度讨论并返回来源、结果和未确认项。"
+  default_prompt: "请使用 $多角度讨论 处理当前知识库里的真实任务，并说明来源和未确认项。"

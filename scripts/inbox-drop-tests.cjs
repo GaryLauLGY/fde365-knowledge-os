@@ -117,9 +117,9 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
   assert.equal(first[0].attachment.path, "FDE365知识库/0-待处理材料/待处理/原始文件/客户访谈.txt");
   assert.equal(first[0].note.path, "FDE365知识库/0-待处理材料/待处理/客户访谈.md");
   assert.match(first[0].note.content, /status: pending/);
-  assert.match(first[0].note.content, /尚未运行 \/fde-ingest/);
+  assert.match(first[0].note.content, /尚未运行 \/材料入库/);
   assert.match(first[0].note.content, /等待用户决定/);
-  assert.equal(agentRuns, 0, "dropping a file must never execute a Skill automatically");
+  assert.equal(agentRuns, 0, "dropping a file must never execute a 技能 automatically");
 
   const second = await service.importInboxFiles([dropped]);
   assert.equal(second[0].attachment.path, "FDE365知识库/0-待处理材料/待处理/原始文件/客户访谈-2.txt");
@@ -137,10 +137,10 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
   assert.ok(refreshes > 0, "starting a batch must refresh the inbox so its spinner is visible");
   assert.deepEqual(lastAgentSources.map((file) => file.path), [first[0].note.path, second[0].note.path], "batch processing must not attach an unrelated active note");
   assert.equal(lastAgentOptions.sessionId, "", "first processing pass must create one new Agent conversation");
-  const successTask = { taskId: "fde-ingest-test", status: "waiting-review" };
+  const successTask = { taskId: "材料入库-test", status: "waiting-review" };
   plugin.lastAgentResult = {
     task: successTask,
-    outputFile: new MockTFile("FDE365知识库/7-系统/AI协作/输出/fde-ingest-test.md"),
+    outputFile: new MockTFile("FDE365知识库/7-系统/AI协作/输出/材料入库-test.md"),
     result: {
       content: "已生成分流预览：客户需求、产品事实与待确认项。",
       conversationId: "conversation-ingest-test",
@@ -175,10 +175,10 @@ const { FDEWorkspaceService } = require("../fde-workspace.js");
   assert.ok(!service.materialFiles().includes(derivedPreview), "a derived routing preview must never become another original-material row");
 
   executeAgentImpl = async () => {
-    const continuedTask = { taskId: "fde-ingest-continued", status: "waiting-review" };
+    const continuedTask = { taskId: "材料入库-continued", status: "waiting-review" };
     plugin.lastAgentResult = {
       task: continuedTask,
-      outputFile: new MockTFile("FDE365知识库/7-系统/AI协作/输出/fde-ingest-continued.md"),
+      outputFile: new MockTFile("FDE365知识库/7-系统/AI协作/输出/材料入库-continued.md"),
       result: {
         content: "已按反馈更新分流预览。",
         conversationId: "conversation-ingest-test",
