@@ -1,0 +1,17 @@
+{
+  "skill": "交易分析",
+  "implementation": "fde365-owned-workflows",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "用分散知识视角检查信息问题",
+    "用行动与选择视角检查成本和机会",
+    "用经营者视角综合价格和激励",
+    "形成三席对话而不冒充真人",
+    "落到可观察的市场信号"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

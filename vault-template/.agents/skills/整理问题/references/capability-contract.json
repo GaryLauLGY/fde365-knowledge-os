@@ -1,0 +1,16 @@
+{
+  "skill": "整理问题",
+  "implementation": "fde365-owned-workflows",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "把模糊困惑改成问题说明书",
+    "让问题可推理、可批评和可验证",
+    "列出所缺事实和权限",
+    "判断可自动化、需人工判断和不可自动化的部分"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

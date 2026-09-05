@@ -1,0 +1,16 @@
+{
+  "skill": "导出会话",
+  "implementation": "fde365-owned-workflows",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "列出本地项目和会话",
+    "支持单选、多选、最近记录和批量选择",
+    "导出用户与助手的可读 Markdown",
+    "过滤工具日志并保留时间和源文件"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

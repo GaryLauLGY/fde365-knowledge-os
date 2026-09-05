@@ -1,0 +1,16 @@
+{
+  "skill": "建库采访",
+  "implementation": "fde365-owned-workflows",
+  "runtime_uses_historical_skill": false,
+  "must_support": [
+    "同时覆盖业务资料和个人资料",
+    "一次只问一个问题并根据回答追问",
+    "把确认结果分流到六类资产库",
+    "支持暂停、跳过、重做和恢复"
+  ],
+  "tests": [
+    "case-1",
+    "case-2",
+    "counterexample-1"
+  ]
+}

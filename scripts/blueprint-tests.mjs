@@ -23,11 +23,11 @@ const requiredFolders = [
 
 assert.equal(blueprint.id, "fde365-six-assets");
 assert.equal(blueprint.root, "FDE365知识库");
-assert.equal(blueprint.version, 7);
+assert.equal(blueprint.version, 8);
 for (const path of requiredFolders) assert.ok(blueprint.folders.includes(path), `missing blueprint folder: ${path}`);
 assert.ok(!blueprint.folders.some((path) => path === "0-录音处理" || path.startsWith("0-录音处理/")), "recordings must live under the generic pending-material inbox");
 assert.ok(!Object.keys(blueprint.files).some((path) => path === "0-录音处理" || path.startsWith("0-录音处理/")), "blueprint files must not recreate the legacy recording tree");
-for (const path of ["0-使用说明.md", "VERSION", "fde-manifest.json", ".fde/config.yaml", "AGENTS.md", "1-个人说明书/个人说明书.md", ".agents/skills/fde-start/SKILL.md", ".agents/skills/fde-ingest/SKILL.md", ".agents/skills/fde-health/SKILL.md"]) {
+for (const path of ["0-使用说明.md", "VERSION", "fde-manifest.json", ".fde/config.yaml", "AGENTS.md", "1-个人说明书/个人说明书.md", ".agents/skills/开始使用/SKILL.md", ".agents/skills/材料入库/SKILL.md", ".agents/skills/知识体检/SKILL.md"]) {
   assert.equal(typeof blueprint.files[path], "string", `missing blueprint file: ${path}`);
   assert.ok(blueprint.files[path].trim(), `empty blueprint file: ${path}`);
 }
@@ -37,10 +37,13 @@ assert.match(blueprint.files["6-内容生产/README.md"], /已发布.*流程终�
 assert.equal(new Set(blueprint.folders).size, blueprint.folders.length);
 const skillPaths = Object.keys(blueprint.files).filter((path) => /^\.agents\/skills\/[^/]+\/SKILL\.md$/.test(path));
 assert.equal(skillPaths.length, 34);
-assert.ok(skillPaths.every((path) => /^\.agents\/skills\/fde-[^/]+\/SKILL\.md$/.test(path)), "all Skill directories must use the fde- namespace");
+assert.ok(skillPaths.every((path) => /^\.agents\/skills\/[\p{Script=Han}]{2,8}\/SKILL\.md$/u.test(path)), "all skill directories must use short Chinese names");
 for (const path of skillPaths) {
   const id = path.split("/")[2];
-  assert.match(blueprint.files[path], new RegExp(`^---\\nname: ${id}\\n`), `Skill frontmatter must match directory: ${path}`);
+  assert.match(blueprint.files[path], new RegExp(`^---\\nname: ${id}\\n`), `技能 frontmatter must match directory: ${path}`);
+  const interfaceYaml = blueprint.files[path.replace("SKILL.md", "agents/openai.yaml")];
+  assert.ok(interfaceYaml.includes(`display_name: "${id}"`), `Codex display name must match directory: ${path}`);
+  assert.ok(interfaceYaml.includes(`$${id}`), `Codex invocation must use the Chinese skill name: ${path}`);
 }
 assert.ok(!Object.keys(blueprint.files).some((path) => /(?:^|\/)kb(?:-|\/|\.)/i.test(path)), "blueprint paths must not contain the legacy kb namespace");
 assert.ok(!Object.values(blueprint.files).some((content) => /(?:\/|\$|name:\s*)kb-/i.test(content)), "blueprint must not contain legacy /kb-* commands");
@@ -48,9 +51,9 @@ const legacyRuntimeMentions = Object.entries(blueprint.files)
   .filter(([, content]) => /\.kb(?:\/|\b)/i.test(content))
   .map(([path]) => path)
   .sort();
-assert.deepEqual(legacyRuntimeMentions, [".agents/skills/fde-health/SKILL.md", "AGENTS.md"], "only the root rules and health contract may mention the legacy .kb namespace");
+assert.deepEqual(legacyRuntimeMentions, [".agents/skills/知识体检/SKILL.md", "AGENTS.md"], "only the root rules and health contract may mention the legacy .kb namespace");
 assert.match(blueprint.files["AGENTS.md"], /旧 `\.kb\/` 只作历史追溯，不是运行配置或状态真源/, "root rules must make .fde the sole active truth source");
-assert.match(blueprint.files[".agents/skills/fde-health/SKILL.md"], /不要读取其中配置来决定路径/, "health checks must ignore legacy .kb paths during active-state diagnosis");
+assert.match(blueprint.files[".agents/skills/知识体检/SKILL.md"], /不要读取其中配置来决定路径/, "health checks must ignore legacy .kb paths during active-state diagnosis");
 const retiredAudienceTerm = String.fromCodePoint(0x8001, 0x677f);
 assert.ok(!JSON.stringify(blueprint).includes(retiredAudienceTerm), "blueprint must use neutral audience terminology");
 

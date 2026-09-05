@@ -6,6 +6,7 @@ const {
   TFile,
   normalizePath,
 } = require("obsidian");
+const { canonicalSkillName, normalizeSkillMentions } = require("./skill-names.js");
 
 module.exports = function createFDEBaseView({
   getRoot,
@@ -72,8 +73,11 @@ module.exports = function createFDEBaseView({
     get assistantRequestId() { return this.assistantSession.requestId; }
     set assistantRequestId(value) { this.assistantSession.requestId = value; }
     get assistantMode() { return this.assistantSession.mode; }
-    set assistantMode(value) { this.assistantSession.mode = value; }
-    get assistantDraft() { return this.assistantSession.draft; }
+    set assistantMode(value) {
+      this.assistantSession.mode = value;
+      this.assistantSession.panelOpen = true;
+    }
+    get assistantDraft() { return normalizeSkillMentions(this.assistantSession.draft); }
     set assistantDraft(value) { this.assistantSession.draft = value; }
     get assistantPrimaryPath() { return this.assistantSession.primaryPath; }
     set assistantPrimaryPath(value) { this.assistantSession.primaryPath = value; }
@@ -135,14 +139,14 @@ module.exports = function createFDEBaseView({
     async renderAssistantMessageContent(parent, message) {
       const content = parent.createDiv({ cls: "wis-message-content" });
       if (message.role !== "assistant" || message.error || !String(message.content || "").trim()) {
-        content.setText(String(message.content || ""));
+        content.setText(normalizeSkillMentions(message.content));
         return content;
       }
       content.addClass("is-markdown-rendered");
       try {
         await MarkdownRenderer.render(
           this.app,
-          String(message.content),
+          normalizeSkillMentions(message.content),
           content,
           this.assistantMarkdownSourcePath(),
           this.assistantMarkdownOwner || this,
@@ -151,7 +155,7 @@ module.exports = function createFDEBaseView({
         console.warn("[FDE365] Markdown rendering failed; falling back to plain text", error);
         content.empty();
         content.removeClass("is-markdown-rendered");
-        content.setText(String(message.content || ""));
+        content.setText(normalizeSkillMentions(message.content));
       }
       return content;
     }
@@ -166,7 +170,7 @@ module.exports = function createFDEBaseView({
     }
 
     async runSkillInAssistant(skillId, prompt, sourceFiles = []) {
-      const skill = SKILLS.find((item) => item.id === skillId);
+      const skill = SKILLS.find((item) => item.id === canonicalSkillName(skillId));
       if (!skill) return null;
       if (this.assistantLoading) {
         new Notice("Agent 正在处理当前会话，请等待完成或先停止");
@@ -291,10 +295,10 @@ module.exports = function createFDEBaseView({
             ...imported.map((file) => file.path),
           ])];
           const paths = imported.map((file) => `- ${file.path}`).join("\n");
-          this.assistantDraft = `/fde-spread 请读取以下用户回填的真实发布数据并分析，先确认指标口径和基线，不要把相关性写成因果：\n${paths}`;
+          this.assistantDraft = `/传播复盘 请读取以下用户回填的真实发布数据并分析，先确认指标口径和基线，不要把相关性写成因果：\n${paths}`;
           await this.render();
           this.focusAssistantConversation();
-          new Notice(`已导入 ${imported.length} 份发布数据，并在右侧对话填入 /fde-spread`);
+          new Notice(`已导入 ${imported.length} 份发布数据，并在右侧对话填入 /传播复盘`);
         } catch (error) {
           new Notice(`导入发布数据失败：${error instanceof Error ? error.message : String(error)}`, 8000);
         } finally {
@@ -314,6 +318,9 @@ module.exports = function createFDEBaseView({
     }
 
     async onClose() {
+      this.renderToken++;
+      this.networkConnectionsCleanup?.();
+      this.networkConnectionsCleanup = null;
       this.contentEl.removeClass("wis-view-content");
     }
 
@@ -325,9 +332,11 @@ module.exports = function createFDEBaseView({
       const token = ++this.renderToken;
       const data = await this.service.snapshot();
       if (token !== this.renderToken) return;
+      this.networkConnectionsCleanup?.();
+      this.networkConnectionsCleanup = null;
       this.resetAssistantMarkdownOwner();
       this.contentEl.empty();
-      const app = this.contentEl.createDiv({ cls: `wis-fde-app is-${this.plugin.settings.colorTheme === "dark" ? "dark" : "light"}` });
+      const app = this.contentEl.createDiv({ cls: `wis-fde-app${this.assistantSession.panelOpen ? " is-assistant-open" : ""}` });
       const assistantWidth = Math.max(280, Math.min(560, Number(this.plugin.settings.ai.assistant.panelWidth) || 336));
       app.style.setProperty("--wis-assistant-width", `${assistantWidth}px`);
       this.renderSidebar(app, data);
@@ -336,9 +345,11 @@ module.exports = function createFDEBaseView({
       const main = workspace.createEl("main", { cls: "wis-main" });
       main.addEventListener("scroll", () => { this.mainScrollTop = main.scrollTop; }, { passive: true });
       await this.renderMain(main, data);
+      if (token !== this.renderToken) return;
       this.restoreMainScroll();
       this.renderStatus(workspace, data);
       await this.renderAssistant(app, data);
+      if (token !== this.renderToken) return;
       this.restoreAssistantScroll();
     }
 
@@ -350,13 +361,16 @@ module.exports = function createFDEBaseView({
       sidebar.createDiv({ text: "FDE365", cls: "wis-nav-label" });
       const nav = sidebar.createEl("nav", { cls: "wis-nav", attr: { "aria-label": "主导航" } });
       NAV_ITEMS.forEach((item) => {
-        const button = nav.createEl("button", { cls: `wis-nav-item${item.key === this.pageKey ? " is-active" : ""}` });
+        const button = nav.createEl("button", { cls: `wis-nav-item${item.key === this.pageKey ? " is-active" : ""}`, attr: { "aria-current": item.key === this.pageKey ? "page" : "false" } });
         makeIcon(button, item.icon);
         const text = button.createDiv();
         text.createEl("strong", { text: item.label });
         text.createSpan({ text: item.note });
         if (item.key === "inbox" && data.pending.length) button.createSpan({ text: String(data.pending.length), cls: "wis-nav-count" });
-        button.addEventListener("click", () => this.plugin.router.navigate(item.key));
+        button.addEventListener("click", async () => {
+          await this.switchPage(item.key);
+          this.contentEl.querySelector('.wis-nav-item[aria-current="page"]')?.focus();
+        });
       });
       const pulse = sidebar.createDiv({ cls: "wis-library-pulse" });
       const pulseHead = pulse.createDiv({ cls: "wis-pulse-head" });
@@ -383,6 +397,13 @@ module.exports = function createFDEBaseView({
       left.createSpan({ text: "FDE365知识库", cls: "wis-eyebrow" });
       left.createEl("strong", { text: NAV_ITEMS.find((item) => item.key === this.pageKey)?.label || "总览" });
       const actions = topbar.createDiv({ cls: "wis-topbar-actions" });
+      const pagePicker = actions.createEl("select", { cls: "wis-page-picker", attr: { "aria-label": "切换工作台页面" } });
+      for (const item of NAV_ITEMS) pagePicker.createEl("option", { text: item.label, attr: { value: item.key } });
+      pagePicker.value = this.pageKey;
+      pagePicker.addEventListener("change", async () => {
+        await this.switchPage(pagePicker.value);
+        this.contentEl.querySelector(".wis-page-picker")?.focus();
+      });
       const search = actions.createEl("input", { attr: { type: "search", placeholder: "搜索六类资产…", "aria-label": "搜索六类资产" }, cls: "wis-global-search" });
       search.addEventListener("keydown", async (event) => {
         if (event.key !== "Enter" || !search.value.trim()) return;
@@ -393,6 +414,12 @@ module.exports = function createFDEBaseView({
       });
       makeButton(actions, "新建资产", "plus", "is-secondary", () => new AssetModal(this.app, "product", async (value) => this.service.createAsset(value)).open());
       makeButton(actions, "设置", "settings", "is-secondary is-settings", () => this.plugin.openSettings());
+      const agentToggle = makeButton(actions, "Agent", "messages-square", "is-secondary wis-agent-toggle", async () => {
+        this.assistantSession.panelOpen = !this.assistantSession.panelOpen;
+        await this.render();
+        this.contentEl.querySelector(this.assistantSession.panelOpen ? ".wis-agent-close" : ".wis-agent-toggle")?.focus();
+      });
+      agentToggle.setAttr("aria-expanded", String(Boolean(this.assistantSession.panelOpen)));
     }
 
     renderStatus(workspace, data) {
@@ -400,12 +427,8 @@ module.exports = function createFDEBaseView({
       status.createSpan({ text: `Vault: ${this.app.vault.getName()}` });
       status.createSpan({ text: `${data.total} 项正式资产` });
       status.createSpan({ text: `来源覆盖 ${percent(data.sourceCoverage)}` });
-      status.createSpan({ text: `${data.installedSkills.length}/${SKILLS.length} Skills` });
+      status.createSpan({ text: `${data.installedSkills.length}/${SKILLS.length} 技能` });
       status.createSpan({ text: "create-only · 不覆盖原始材料" });
-    }
-
-    pageSkills() {
-      return ["fde-start", "fde-library", "fde-write"];
     }
 
     assistantContextFiles() {
@@ -549,7 +572,7 @@ module.exports = function createFDEBaseView({
         const icon = welcome.createDiv({ cls: "wis-assistant-welcome-icon" });
         makeIcon(icon, "orbit");
         welcome.createEl("strong", { text: "在知识库里，和 AI 协作工作" });
-        welcome.createEl("p", { text: "连续对话、选取上下文、调用 FDE Skills，并把可用结果保存回本地。" });
+        welcome.createEl("p", { text: "连续对话、选取上下文、调用技能，并把可用结果保存回本地。" });
         const features = welcome.createDiv({ cls: "wis-assistant-feature-chips" });
         ["本地会话", "知识上下文", "结果留档"].forEach((label) => features.createSpan({ text: label }));
       }
@@ -573,23 +596,29 @@ module.exports = function createFDEBaseView({
         button.createSpan({ text: String(library.count) });
         button.addEventListener("click", () => this.service.openLibrary(library.id));
       });
-      makeButton(parent, "查库 /fde-library", "sparkles", "is-secondary wis-assistant-wide-action", () => void this.prefillAssistantCommand("fde-library"));
+      makeButton(parent, "查库 /查询知识", "sparkles", "is-secondary wis-assistant-wide-action", () => void this.prefillAssistantCommand("查询知识"));
     }
 
     renderAssistantSkills(parent) {
       const intro = parent.createDiv({ cls: "wis-assistant-section-head" });
-      intro.createEl("strong", { text: "当前页面工作流" });
-      intro.createSpan({ text: "运行前读取项目内 SKILL.md，结果进入本地 AI 协作记录。" });
-      const quick = parent.createDiv({ cls: "wis-skill-quick" });
-      this.pageSkills().map((id) => SKILLS.find((skill) => skill.id === id)).filter(Boolean).forEach((skill) => {
-        const button = quick.createEl("button", { cls: "wis-quick-skill" });
-        makeIcon(button, skill.icon);
-        const text = button.createDiv();
-        text.createEl("strong", { text: `/${skill.id}` });
-        text.createSpan({ text: skill.name });
-        button.addEventListener("click", () => void this.prefillAssistantCommand(skill.id));
-      });
-      makeButton(parent, "查看全部 35 个 FDE Skills", "blocks", "is-secondary wis-assistant-wide-action", () => this.plugin.router.navigate("skills"));
+      intro.createEl("strong", { text: `全部 ${SKILLS.length} 个技能` });
+      intro.createSpan({ text: "点击技能填入对话，确认发送后才执行；运行前读取项目内 SKILL.md。" });
+      for (const group of SKILL_GROUPS) {
+        const skills = SKILLS.filter((skill) => skill.group === group.id);
+        if (!skills.length) continue;
+        const heading = parent.createDiv({ cls: "wis-assistant-section-head" });
+        heading.createEl("strong", { text: `${group.name} · ${skills.length}` });
+        const quick = parent.createDiv({ cls: "wis-skill-quick" });
+        for (const skill of skills) {
+          const button = quick.createEl("button", { cls: "wis-quick-skill", attr: { title: skill.description } });
+          makeIcon(button, skill.icon);
+          const text = button.createDiv();
+          text.createEl("strong", { text: skill.name });
+          text.createSpan({ text: skill.output });
+          button.addEventListener("click", () => void this.prefillAssistantCommand(skill.id));
+        }
+      }
+      makeButton(parent, "查看技能详情与部署状态", "blocks", "is-secondary wis-assistant-wide-action", () => this.plugin.router.navigate("skills"));
     }
 
     renderAssistantHistory(parent) {
@@ -598,11 +627,11 @@ module.exports = function createFDEBaseView({
       intro.createSpan({ text: "点击记录会恢复到右侧对话，可继续确认下一步；Markdown 只在后台留档。" });
       const files = this.assistantHistoryFiles();
       const list = parent.createDiv({ cls: "wis-assistant-history" });
-      if (!files.length) list.createDiv({ text: "还没有已保存的协作对话。完成一次对话或运行 Skill 后会出现在这里。", cls: "wis-empty" });
+      if (!files.length) list.createDiv({ text: "还没有已保存的协作对话。完成一次对话或运行技能后会出现在这里。", cls: "wis-empty" });
       files.forEach((file) => {
         const meta = frontmatterOf(this.app, file);
         const topic = assistantHistoryTopic(meta);
-        const skill = meta.agent_id ? `/${meta.agent_id}` : "";
+        const skill = meta.agent_id ? canonicalSkillName(meta.agent_id) || "历史技能" : "";
         const provider = meta.provider ? this.plugin.providerLabel(String(meta.provider)) : "";
         const button = list.createEl("button", { cls: "wis-assistant-history-item" });
         makeIcon(button, meta.type === "agent-run" ? "list-checks" : "message-square-text");
@@ -664,7 +693,7 @@ module.exports = function createFDEBaseView({
         attr: { role: "listbox", "aria-label": "FDE 命令建议" },
       });
       commandMenu.hidden = true;
-      const input = inputShell.createEl("textarea", { attr: { placeholder: "问六类资产，或输入 /fd 选择命令…", rows: "3", "aria-label": "交给 FDE365 Agent", "aria-autocomplete": "list", "aria-expanded": "false" } });
+      const input = inputShell.createEl("textarea", { attr: { placeholder: "输入问题，或输入 / 选择中文技能…", rows: "3", "aria-label": "交给 FDE365 Agent", "aria-autocomplete": "list", "aria-expanded": "false" } });
       input.value = this.assistantDraft;
       let commandMatches = [];
       let commandSelection = 0;
@@ -698,8 +727,8 @@ module.exports = function createFDEBaseView({
           });
           makeIcon(option, skill.icon);
           const copy = option.createDiv();
-          copy.createEl("strong", { text: `/${skill.id}` });
-          copy.createSpan({ text: skill.name });
+          copy.createEl("strong", { text: skill.name });
+          copy.createSpan({ text: `/${skill.id}` });
           option.createSpan({ text: skill.output, cls: "wis-command-output" });
           option.addEventListener("mousedown", (event) => event.preventDefault());
           option.addEventListener("click", () => fillCommand(skill));
@@ -771,7 +800,7 @@ module.exports = function createFDEBaseView({
             requestId,
             prompt,
             history: this.assistantMessages.slice(0, -1),
-            systemPrompt: `你是独立于中间工作台页面的 FDE365 本地 Agent。\n${BASE_SKILL_RULES}\n${executionModeRule(this.plugin)}\n插件可能会在“本地运行上下文”中附加已经读取的配置与 Skill 合同；直接使用这些内容。需要时使用本地工具检查 Vault。${inboxCompletionProtocol}`,
+            systemPrompt: `你是独立于中间工作台页面的 FDE365 本地 Agent。\n${BASE_SKILL_RULES}\n${executionModeRule(this.plugin)}\n插件可能会在“本地运行上下文”中附加已经读取的配置与技能合同；直接使用这些内容。需要时使用本地工具检查 Vault。${inboxCompletionProtocol}`,
             sourceFiles: submittedSources,
             localContext: await this.service.assistantRuntimeContext(prompt),
             sessionId: this.assistantSessionId,
@@ -830,6 +859,7 @@ module.exports = function createFDEBaseView({
       };
       send.addEventListener("click", () => void submit());
       input.addEventListener("keydown", (event) => {
+        if (event.isComposing || event.keyCode === 229) return;
         if (!commandMenu.hidden && commandMatches.length) {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
@@ -868,11 +898,16 @@ module.exports = function createFDEBaseView({
       const head = panel.createDiv({ cls: "wis-assistant-head" });
       const title = head.createDiv();
       title.createSpan({ text: "FDE365 AGENT", cls: "wis-eyebrow" });
-      title.createEl("strong", { text: "对话 · FDE · Skills · 历史" });
+      title.createEl("strong", { text: "对话 · FDE · 技能 · 历史" });
       const capability = this.plugin.providerManager.describeSelected();
       const agentCapability = this.plugin.agentRuntime?.describe?.() || { available: false, error: "本地 Agent 未就绪" };
       const isDeveloperRuntime = agentCapability.mode === "local-cli";
       const headActions = head.createDiv({ cls: "wis-assistant-head-actions" });
+      makeButton(headActions, "收起", "panel-right-close", "is-secondary wis-agent-close", async () => {
+        this.assistantSession.panelOpen = false;
+        await this.render();
+        this.contentEl.querySelector(".wis-agent-toggle")?.focus();
+      });
       const executionMode = this.plugin.settings.ai.assistant.executionMode === "yolo" ? "yolo" : "approval";
       const provider = headActions.createEl("button", {
         cls: `wis-provider-dot${agentCapability.available && (isDeveloperRuntime || capability.configured && capability.compatible) ? " is-ready" : ""}`,
@@ -888,11 +923,11 @@ module.exports = function createFDEBaseView({
       body.createEl("p", {
         text: executionMode === "yolo"
           ? "YOLO 模式：Agent 在当前 Vault 内自动执行，不再逐次批准。"
-          : "需要批准：Agent 可读取当前 Vault、运行 FDE Skills；命令和写入会向你确认。",
+          : "需要批准：Agent 可读取当前 Vault、运行技能；命令和写入会向你确认。",
         cls: `wis-assistant-rule is-${executionMode}`,
       });
       const tabs = body.createDiv({ cls: "wis-assistant-tabs", attr: { role: "tablist", "aria-label": "AI 工作区" } });
-      [["chat", "对话"], ["fde", "FDE"], ["skills", "Skills"], ["history", "历史"]].forEach(([id, label]) => {
+      [["chat", "对话"], ["fde", "FDE"], ["skills", "技能"], ["history", "历史"]].forEach(([id, label]) => {
         const tab = tabs.createEl("button", { cls: this.assistantMode === id ? "is-active" : "", attr: { role: "tab", "aria-selected": String(this.assistantMode === id) } });
         tab.createSpan({ text: label });
         tab.addEventListener("click", async () => {

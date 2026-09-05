@@ -14,7 +14,7 @@ const components = join(bundleRoot, "组件");
 const pluginRoot = join(components, manifest.id);
 const templateRoot = join(components, "FDE365知识库模板");
 const topFiles = ["开始安装 FDE365.cmd", "开始安装 FDE365.ps1", "更新 FDE365.cmd", "更新 FDE365.ps1", "检查安装.cmd", "检查安装.ps1", "打开 FDE365 知识库.cmd", "⭐ 先看我.html", "使用说明.md"];
-const pluginFiles = ["manifest.json", "main.js", "styles.css", "README.md", "DEVELOPMENT.md", "LICENSE", "LICENSES.md", "KB-SUITE-LICENSE.txt", "KB-SUITE-NOTICE.md", "DEFUDDLE-LICENSE.txt"];
+const pluginFiles = ["manifest.json", "main.js", "styles.css", "README.md", "DEVELOPMENT.md", "LICENSE", "LICENSES.md", "KB-SUITE-LICENSE.txt", "KB-SUITE-NOTICE.md", "DEFUDDLE-LICENSE.txt", "CLAUDIAN-LICENSE.txt"];
 const secretPatterns = [/sk-[A-Za-z0-9_-]{20,}/, /gh[pousr]_[A-Za-z0-9]{30,}/, /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/];
 
 async function walk(dir) {
